@@ -10,6 +10,40 @@ from turingdb import TuringDB
 
 from turing_agentmemory_mcp.provider_config import store_embedding_dimensions
 from turing_agentmemory_mcp.store import TuringAgentMemory
+from turing_agentmemory_mcp.warning_filters import suppress_fastmcp_authlib_warning
+
+
+def auth_from_env() -> Any | None:
+    tokens = _env_list("AGENTMEMORY_AUTH_TOKENS")
+    single_token = os.environ.get("AGENTMEMORY_AUTH_TOKEN", "").strip()
+    if single_token:
+        tokens.insert(0, single_token)
+    tokens = list(dict.fromkeys(token for token in tokens if token))
+    if not tokens:
+        return None
+
+    suppress_fastmcp_authlib_warning()
+    from fastmcp.server.auth import StaticTokenVerifier
+
+    client_id = os.environ.get("AGENTMEMORY_AUTH_CLIENT_ID", "agentmemory-client")
+    scopes = _env_list("AGENTMEMORY_AUTH_SCOPES")
+    required_scopes = _env_list("AGENTMEMORY_AUTH_REQUIRED_SCOPES")
+    token_data = {
+        token: {
+            "client_id": client_id,
+            "scopes": scopes,
+        }
+        for token in tokens
+    }
+    return StaticTokenVerifier(tokens=token_data, required_scopes=required_scopes)
+
+
+def _env_list(name: str) -> list[str]:
+    value = os.environ.get(name, "")
+    if not value.strip():
+        return []
+    normalized = value.replace(",", " ")
+    return [item.strip() for item in normalized.split() if item.strip()]
 
 
 def store_from_env() -> TuringAgentMemory:
@@ -40,6 +74,7 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
             "Scoped memory and document retrieval backed by TuringDB. "
             "Always pass user_identifier from the caller identity."
         ),
+        auth=auth_from_env(),
     )
 
     @app.tool()

@@ -27,6 +27,8 @@ retrieval.
 - Optional governance hooks provide pattern redaction before persistence,
   content-free audit JSONL, and `expires_at` retention filtering on memory and
   document reads.
+- Optional MCP bearer-token auth gates HTTP/SSE clients when
+  `AGENTMEMORY_AUTH_TOKEN` or `AGENTMEMORY_AUTH_TOKENS` is set.
 - Hybrid retrieval combines vector similarity with lexical exact token, phrase,
   ID, error-code, and file-path matching.
 
@@ -118,11 +120,60 @@ Primary provider environment variables:
   `AGENTMEMORY_OBSERVABILITY_JSONL=/turing/audit/spans.jsonl` writes timing
   spans for embed, TuringDB query, vector load, rerank, chunking, and MCP tool
   latency.
+- MCP auth:
+  set `AGENTMEMORY_AUTH_TOKEN` for one static bearer token, or
+  `AGENTMEMORY_AUTH_TOKENS=token-a,token-b` for token rotation. Optional
+  `AGENTMEMORY_AUTH_CLIENT_ID`, `AGENTMEMORY_AUTH_SCOPES`, and
+  `AGENTMEMORY_AUTH_REQUIRED_SCOPES` configure FastMCP static-token metadata and
+  scope checks. HTTP clients send `Authorization: Bearer <token>`. Leave these
+  unset for local stdio clients and unauthenticated development.
+- UTCP manual export:
+  optional `AGENTMEMORY_UTCP_SERVER_NAME`, `AGENTMEMORY_UTCP_MCP_COMMAND`, and
+  `AGENTMEMORY_UTCP_AUTH_ENV` customize the generated Universal Tool Calling
+  Protocol manual for clients or bridges that register MCP-backed UTCP tools.
 
 The HTTP contracts remain OpenAI-compatible: `/v1/embeddings` for embedding and
 `/v1/rerank` for rerank. For Claude or other cloud model gateways, point these
 URLs at the compatible gateway/proxy and configure the API key/header variables
 above.
+
+## UTCP Manual Export
+
+The server can print a dependency-free UTCP manual for the current MCP tool
+surface:
+
+```powershell
+turing-agentmemory-mcp utcp-manual > agentmemory.utcp.json
+```
+
+For the Docker stdio path used by Codex/Claude-style MCP clients, set the MCP
+command as JSON before exporting:
+
+```powershell
+$env:AGENTMEMORY_UTCP_MCP_COMMAND='["docker.exe","compose","-f","D:\\turing_AgentMemory_MCP\\compose.yaml","run","--rm","-T","turing-agentmemory-mcp","serve","--transport","stdio"]'
+turing-agentmemory-mcp utcp-manual > agentmemory.utcp.json
+```
+
+The generated tools use `call_template_type: "mcp"` with
+`allowed_communication_protocols: ["mcp"]`. If `AGENTMEMORY_AUTH_TOKEN` is set,
+the manual references it as `Bearer ${AGENTMEMORY_AUTH_TOKEN}` and never embeds
+the token value.
+
+A UTCP bridge can then load the exported file with a config pointed to by
+`UTCP_CONFIG_FILE`, for example:
+
+```json
+{
+  "manual_call_templates": [
+    {
+      "name": "agentmemory",
+      "call_template_type": "text",
+      "file_path": "D:\\turing_AgentMemory_MCP\\agentmemory.utcp.json",
+      "allowed_communication_protocols": ["mcp"]
+    }
+  ]
+}
+```
 
 GLiNER is disabled by default. When enabled, it extracts named entities during
 memory and document ingest, stores them under `metadata.entity_extraction`, and
