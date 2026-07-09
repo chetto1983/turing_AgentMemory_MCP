@@ -20,9 +20,23 @@ def sample_urls(config: str) -> list[str]:
 
 
 def load_sample(config: str = "progressive_search", index: int = 0) -> dict[str, Any]:
+    samples = load_samples(config=config, start_index=index, limit=1)
+    if not samples:
+        raise RuntimeError(f"could not load MemoryArena {config}[{index}]")
+    return samples[0]
+
+
+def load_samples(
+    config: str = "progressive_search",
+    *,
+    start_index: int = 0,
+    limit: int = 1,
+) -> list[dict[str, Any]]:
+    if limit <= 0:
+        return []
     local_path = os.environ.get("MEMORYARENA_JSONL")
     if local_path:
-        return _load_from_file(Path(local_path), index=index, source=local_path)
+        return _load_samples_from_file(Path(local_path), start_index=start_index, limit=limit, source=local_path)
 
     last_error: Exception | None = None
     timeout = float(os.environ.get("MEMORYARENA_TIMEOUT_SECONDS", "30"))
@@ -30,14 +44,22 @@ def load_sample(config: str = "progressive_search", index: int = 0) -> dict[str,
         try:
             req = Request(url, headers={"User-Agent": "turing-agentmemory-mcp-e2e"})
             with urlopen(req, timeout=timeout) as resp:
+                samples: list[dict[str, Any]] = []
                 for row_index, line in enumerate(resp):
-                    if row_index == index:
-                        sample = json.loads(line.decode("utf-8"))
-                        sample["_source_url"] = url
-                        return sample
+                    if row_index < start_index:
+                        continue
+                    if len(samples) >= limit:
+                        break
+                    sample = json.loads(line.decode("utf-8"))
+                    sample["_source_url"] = url
+                    samples.append(sample)
+                if samples:
+                    return samples
         except Exception as exc:
             last_error = exc
-    raise RuntimeError(f"could not load MemoryArena {config}[{index}]: {last_error}")
+    raise RuntimeError(
+        f"could not load MemoryArena {config}[{start_index}:{start_index + limit}]: {last_error}"
+    )
 
 
 def answer_marker(answer: Any) -> str:
@@ -56,10 +78,29 @@ def answer_marker(answer: Any) -> str:
 
 
 def _load_from_file(path: Path, *, index: int, source: str) -> dict[str, Any]:
+    samples = _load_samples_from_file(path, start_index=index, limit=1, source=source)
+    if not samples:
+        raise RuntimeError(f"MemoryArena local file has no row {index}: {path}")
+    return samples[0]
+
+
+def _load_samples_from_file(
+    path: Path,
+    *,
+    start_index: int,
+    limit: int,
+    source: str,
+) -> list[dict[str, Any]]:
+    samples: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as handle:
         for row_index, line in enumerate(handle):
-            if row_index == index:
-                sample = json.loads(line)
-                sample["_source_url"] = source
-                return sample
-    raise RuntimeError(f"MemoryArena local file has no row {index}: {path}")
+            if row_index < start_index:
+                continue
+            if len(samples) >= limit:
+                break
+            sample = json.loads(line)
+            sample["_source_url"] = source
+            samples.append(sample)
+    if not samples:
+        raise RuntimeError(f"MemoryArena local file has no rows from {start_index}: {path}")
+    return samples

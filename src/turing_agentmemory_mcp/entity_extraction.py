@@ -1,0 +1,295 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from typing import Any, Protocol
+
+DEFAULT_METADATA_KEY = "entity_extraction"
+LEGACY_METADATA_KEYS = ("entity_detection",)
+DEFAULT_GLINER_MODEL = "gliner-community/gliner_small-v2.5"
+DEFAULT_GLINER_LABELS = [
+    "person",
+    "organization",
+    "location",
+    "product",
+    "project",
+    "technology",
+    "programming language",
+    "library",
+    "framework",
+    "file path",
+    "error code",
+    "feature",
+    "task",
+    "decision",
+    "preference",
+    "event",
+    "date",
+    "metric",
+    "version",
+]
+
+
+@dataclass(frozen=True)
+class ProcessedText:
+    text: str
+    metadata: dict[str, object]
+
+
+class EntityProcessor(Protocol):
+    def process(self, text: str) -> ProcessedText:
+        ...
+
+
+class NoopEntityProcessor:
+    metadata_keys: tuple[str, ...] = ()
+
+    def process(self, text: str) -> ProcessedText:
+        return ProcessedText(text=text, metadata={})
+
+
+@dataclass
+class GLiNEREntityProcessor:
+    model: Any
+    model_name: str
+    labels: list[str]
+    backend: str
+    threshold: float = 0.5
+    redact: bool = False
+    metadata_key: str = DEFAULT_METADATA_KEY
+
+    @property
+    def metadata_keys(self) -> tuple[str, ...]:
+        return (self.metadata_key, *LEGACY_METADATA_KEYS)
+
+    @classmethod
+    def from_env(cls) -> GLiNEREntityProcessor:
+        model_name = os.environ.get("GLINER_MODEL", DEFAULT_GLINER_MODEL).strip() or DEFAULT_GLINER_MODEL
+        backend = (os.environ.get("GLINER_BACKEND", "auto").strip() or "auto").lower()
+        if backend == "auto":
+            model_key = model_name.lower()
+            if "onnx" in model_key:
+                backend = "gliner2_onnx"
+            elif "gliner2" in model_key:
+                backend = "gliner2"
+            else:
+                backend = "gliner"
+        labels = _split_csv(os.environ.get("GLINER_LABELS")) or list(DEFAULT_GLINER_LABELS)
+        threshold = float(os.environ.get("GLINER_THRESHOLD", "0.5"))
+        redact = _env_bool("GLINER_REDACT")
+        metadata_key = os.environ.get("GLINER_METADATA_KEY", DEFAULT_METADATA_KEY).strip()
+        if not metadata_key:
+            metadata_key = DEFAULT_METADATA_KEY
+        model = _load_model(backend=backend, model_name=model_name)
+        return cls(
+            model=model,
+            model_name=model_name,
+            labels=labels,
+            backend=backend,
+            threshold=threshold,
+            redact=redact,
+            metadata_key=metadata_key,
+        )
+
+    def process(self, text: str) -> ProcessedText:
+        if not text.strip():
+            return ProcessedText(text=text, metadata={})
+        entities = _normalize_entities(
+            self._predict(text),
+            source_text=text,
+            include_text=not self.redact,
+        )
+        if not entities:
+            return ProcessedText(text=text, metadata={})
+        next_text = _redact_text(text, entities) if self.redact else text
+        return ProcessedText(
+            text=next_text,
+            metadata={
+                self.metadata_key: {
+                    "backend": self.backend,
+                    "model": self.model_name,
+                    "labels": self.labels,
+                    "threshold": self.threshold,
+                    "redacted": self.redact,
+                    "entity_count": len(entities),
+                    "entities": entities,
+                }
+            },
+        )
+
+    def _predict(self, text: str) -> list[Any]:
+        if self.backend == "gliner2_onnx":
+            return list(self.model.extract_entities(text, self.labels, threshold=self.threshold))
+        if self.backend == "gliner2":
+            return list(
+                self.model.extract_entities(
+                    text,
+                    self.labels,
+                    threshold=self.threshold,
+                    include_confidence=True,
+                    include_spans=True,
+                )
+            )
+        return list(self.model.predict_entities(text, self.labels, threshold=self.threshold))
+
+
+def entity_processor_from_env() -> EntityProcessor:
+    if not _env_bool("GLINER_ENABLED"):
+        return NoopEntityProcessor()
+    return GLiNEREntityProcessor.from_env()
+
+
+def entity_metadata_search_text(metadata: dict[str, object]) -> str:
+    terms: list[str] = []
+    for key in (DEFAULT_METADATA_KEY, *LEGACY_METADATA_KEYS):
+        payload = metadata.get(key)
+        if not isinstance(payload, dict):
+            continue
+        for label in payload.get("labels") or []:
+            if isinstance(label, str) and label.strip():
+                terms.append(label)
+        for entity in payload.get("entities") or []:
+            if not isinstance(entity, dict):
+                continue
+            label = entity.get("label")
+            text = entity.get("text")
+            if isinstance(label, str) and label.strip():
+                terms.append(label)
+            if isinstance(text, str) and text.strip():
+                terms.append(text)
+    return " ".join(terms)
+
+
+def _load_model(*, backend: str, model_name: str) -> Any:
+    if backend == "gliner2_onnx":
+        try:
+            from gliner2_onnx import GLiNER2ONNXRuntime
+        except ImportError as exc:
+            raise RuntimeError(
+                "GLINER_ENABLED is set with GLINER_BACKEND=gliner2_onnx, "
+                "but gliner2-onnx is not installed. Install with the 'gliner' optional extra."
+            ) from exc
+        kwargs: dict[str, object] = {}
+        precision = os.environ.get("GLINER_PRECISION", "").strip()
+        providers = _split_csv(os.environ.get("GLINER_PROVIDERS"))
+        if precision:
+            kwargs["precision"] = precision
+        if providers:
+            kwargs["providers"] = providers
+        return GLiNER2ONNXRuntime.from_pretrained(model_name, **kwargs)
+    if backend == "gliner":
+        try:
+            from gliner import GLiNER
+        except ImportError as exc:
+            raise RuntimeError(
+                "GLINER_ENABLED is set with GLINER_BACKEND=gliner, "
+                "but gliner is not installed. Install with the 'gliner' optional extra."
+            ) from exc
+        return GLiNER.from_pretrained(model_name)
+    if backend == "gliner2":
+        try:
+            from gliner2 import GLiNER2
+        except ImportError as exc:
+            raise RuntimeError(
+                "GLINER_ENABLED is set with GLINER_BACKEND=gliner2, "
+                "but gliner2 is not installed. Install with the 'gliner' optional extra."
+            ) from exc
+        return GLiNER2.from_pretrained(model_name)
+    raise ValueError("GLINER_BACKEND must be one of: auto, gliner, gliner2, gliner2_onnx")
+
+
+def _normalize_entities(
+    raw_entities: list[Any],
+    *,
+    source_text: str,
+    include_text: bool,
+) -> list[dict[str, object]]:
+    entities: list[dict[str, object]] = []
+    for raw in raw_entities:
+        label = str(_entity_field(raw, "label", "entity", "type") or "").strip()
+        text = str(_entity_field(raw, "text", "span") or "")
+        start = _optional_int(_entity_field(raw, "start", "start_char", "start_idx"))
+        end = _optional_int(_entity_field(raw, "end", "end_char", "end_idx"))
+        if start is None or end is None:
+            if not text:
+                continue
+            found_at = source_text.find(text)
+            if found_at < 0:
+                continue
+            start = found_at
+            end = found_at + len(text)
+        if not label or start < 0 or end <= start or end > len(source_text):
+            continue
+        entity: dict[str, object] = {
+            "label": label,
+            "start": start,
+            "end": end,
+        }
+        score = _optional_float(_entity_field(raw, "score", "confidence"))
+        if score is not None:
+            entity["score"] = score
+        if include_text:
+            entity["text"] = text or source_text[start:end]
+        entities.append(entity)
+    entities.sort(key=lambda item: (int(item["start"]), int(item["end"]), str(item["label"])))
+    return entities
+
+
+def _entity_field(entity: Any, *names: str) -> object | None:
+    if isinstance(entity, dict):
+        for name in names:
+            if name in entity:
+                return entity[name]
+        return None
+    for name in names:
+        if hasattr(entity, name):
+            return getattr(entity, name)
+    return None
+
+
+def _redact_text(text: str, entities: list[dict[str, object]]) -> str:
+    redacted = text
+    next_start = len(text) + 1
+    for entity in sorted(entities, key=lambda item: int(item["start"]), reverse=True):
+        start = int(entity["start"])
+        end = int(entity["end"])
+        if end > next_start:
+            continue
+        token = _redaction_token(str(entity["label"]))
+        redacted = redacted[:start] + token + redacted[end:]
+        next_start = start
+    return redacted
+
+
+def _redaction_token(label: str) -> str:
+    token = []
+    for char in label.upper().replace(" ", "_").replace("-", "_"):
+        if char.isalnum() or char == "_":
+            token.append(char)
+    return "[" + ("".join(token).strip("_") or "ENTITY") + "]"
+
+
+def _split_csv(value: str | None) -> list[str]:
+    return [part.strip() for part in (value or "").split(",") if part.strip()]
+
+
+def _env_bool(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _optional_int(value: object | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_float(value: object | None) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None

@@ -9,7 +9,7 @@ description = "TuringDB-backed Agent Memory MCP with document ingest and cited r
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Aura" }]
+authors = [{ name = "Turing AgentMemory MCP Contributors" }]
 dependencies = [
   "fastmcp>=2.14,<3",
   "turingdb==1.35",
@@ -19,6 +19,11 @@ dependencies = [
 dev = [
   "pytest>=8.2",
   "ruff>=0.9",
+]
+gliner = [
+  "gliner>=0.2.27",
+  "gliner2",
+  "gliner2-onnx",
 ]
 
 [project.scripts]

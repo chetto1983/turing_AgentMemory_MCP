@@ -1,0 +1,163 @@
+[
+  {
+    "count": 40,
+    "dataset": "synthetic-memory-40",
+    "embedding_model": "local-embedding",
+    "git_commit": "687e9d8",
+    "metadata": {
+      "errors": [],
+      "throughput_per_second": 1.101
+    },
+    "notes": "throughput_per_second=1.10; errors=0",
+    "operation": "memory_store_message",
+    "p50_ms": 718.993,
+    "p95_ms": 2077.251,
+    "p99_ms": 2520.263,
+    "rerank_model": "local-rerank",
+    "success_rate": 1.0,
+    "timestamp": "2026-07-09T13:46:37Z",
+    "turingdb_version": "1.35"
+  },
+  {
+    "count": 20,
+    "dataset": "synthetic-memory-40",
+    "embedding_model": "local-embedding",
+    "git_commit": "687e9d8",
+    "metadata": {
+      "errors": [],
+      "top1_expected_rate": 1.0,
+      "top_k": 5
+    },
+    "notes": "top_k=5; top1_expected_rate=1.000; errors=0",
+    "operation": "memory_search_top_k",
+    "p50_ms": 27.245,
+    "p95_ms": 33.585,
+    "p99_ms": 216.244,
+    "rerank_model": "local-rerank",
+    "success_rate": 1.0,
+    "timestamp": "2026-07-09T13:46:37Z",
+    "turingdb_version": "1.35"
+  },
+  {
+    "count": 5,
+    "dataset": "synthetic-documents-5",
+    "embedding_model": "local-embedding",
+    "git_commit": "687e9d8",
+    "metadata": {
+      "avg_chunks_per_document": 8.0,
+      "chunk_total": 40,
+      "errors": []
+    },
+    "notes": "chunk_total=40; errors=0",
+    "operation": "document_ingest_text",
+    "p50_ms": 1212.16,
+    "p95_ms": 1988.942,
+    "p99_ms": 1988.942,
+    "rerank_model": "local-rerank",
+    "success_rate": 1.0,
+    "timestamp": "2026-07-09T13:46:37Z",
+    "turingdb_version": "1.35"
+  },
+  {
+    "count": 20,
+    "dataset": "synthetic-documents-5",
+    "embedding_model": "local-embedding",
+    "git_commit": "687e9d8",
+    "metadata": {
+      "citation_rate": 1.0,
+      "errors": [],
+      "top_k": 5
+    },
+    "notes": "top_k=5; citation_rate=1.000; errors=0",
+    "operation": "document_search_with_citations",
+    "p50_ms": 125.606,
+    "p95_ms": 141.63,
+    "p99_ms": 143.703,
+    "rerank_model": "local-rerank",
+    "success_rate": 1.0,
+    "timestamp": "2026-07-09T13:46:37Z",
+    "turingdb_version": "1.35"
+  },
+  {
+    "count": 16,
+    "dataset": "synthetic-memory-40",
+    "embedding_model": "local-embedding",
+    "git_commit": "687e9d8",
+    "metadata": {
+      "top1_expected_rate": 1.0,
+      "top_k": 5
+    },
+    "notes": "top_k=5; top1_expected_rate=1.000; rerank_disabled=true",
+    "operation": "memory_search_rerank_off",
+    "p50_ms": 25.365,
+    "p95_ms": 29.347,
+    "p99_ms": 29.347,
+    "rerank_model": "off",
+    "success_rate": 1.0,
+    "timestamp": "2026-07-09T13:46:37Z",
+    "turingdb_version": "1.35"
+  },
+  {
+    "count": 16,
+    "dataset": "synthetic-memory-40",
+    "embedding_model": "local-embedding",
+    "git_commit": "687e9d8",
+    "metadata": {
+      "rerank_base_url": "http://127.0.0.1:34037",
+      "top1_expected_rate": 1.0,
+      "top_k": 5
+    },
+    "notes": "top_k=5; top1_expected_rate=1.000; RERANK_BASE_URL=http://127.0.0.1:34037",
+    "operation": "memory_search_rerank_on",
+    "p50_ms": 30.192,
+    "p95_ms": 35.375,
+    "p99_ms": 35.375,
+    "rerank_model": "local-rerank",
+    "success_rate": 1.0,
+    "timestamp": "2026-07-09T13:46:37Z",
+    "turingdb_version": "1.35"
+  },
+  {
+    "count": 1,
+    "dataset": "memoryarena-progressive_search-0",
+    "embedding_model": "local-embedding",
+    "git_commit": "687e9d8",
+    "metadata": {
+      "answer_marker": "Based on the search results I've gathered, I have found substantial information ",
+      "result_count": 1,
+      "source_url": "https://huggingface.co/buckets/Chetro983/memoryarena-bucket/resolve/progressive_search/data.jsonl"
+    },
+    "notes": "marker_found=True; source=https://huggingface.co/buckets/Chetro983/memoryarena-bucket/resolve/progressive_search/data.jsonl",
+    "operation": "memoryarena_sample_retrieval",
+    "p50_ms": 22.758,
+    "p95_ms": 22.758,
+    "p99_ms": 22.758,
+    "rerank_model": "local-rerank",
+    "success_rate": 1.0,
+    "timestamp": "2026-07-09T13:46:37Z",
+    "turingdb_version": "1.35"
+  },
+  {
+    "count": 1,
+    "dataset": "synthetic-memory-and-documents",
+    "embedding_model": "local-embedding",
+    "git_commit": "687e9d8",
+    "metadata": {
+      "restart_cleanup": {
+        "returncode": 0,
+        "stopped": true
+      },
+      "retrieved_document": "bench-doc-0",
+      "retrieved_memory": true
+    },
+    "notes": "cleanup_returncode=0; retrieved_memory=True",
+    "operation": "restart_durability_retrieval",
+    "p50_ms": 22586.031,
+    "p95_ms": 22586.031,
+    "p99_ms": 22586.031,
+    "rerank_model": "local-rerank",
+    "success_rate": 1.0,
+    "timestamp": "2026-07-09T13:46:37Z",
+    "turingdb_version": "1.35"
+  }
+]

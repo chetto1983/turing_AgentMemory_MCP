@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from typing import TypeVar
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from turing_agentmemory_mcp.provider_config import (
+    api_key_header_value,
+    provider_api_key_header,
+    provider_api_key_scheme,
+    provider_env,
+    provider_optional_int,
+    provider_secret,
+)
 
 MAX_RERANK_DOC_CHARS = 480
 RRF_K = 60
@@ -19,19 +27,26 @@ class Scored:
 
 
 @dataclass(frozen=True)
-class AuraReranker:
+class OpenAICompatibleReranker:
     base_url: str = "http://127.0.0.1:8085"
-    model: str = "aura-rerank"
+    model: str = "local-rerank"
     api_key: str = ""
+    api_key_header: str = "Authorization"
+    api_key_scheme: str = "Bearer"
+    dimensions: int | None = None
     timeout_s: float = 30.0
 
     @classmethod
-    def from_env(cls) -> AuraReranker:
+    def from_env(cls) -> OpenAICompatibleReranker:
         return cls(
-            base_url=os.environ.get("AURA_RERANK_BASE_URL", "http://127.0.0.1:8085"),
-            model=os.environ.get("AURA_RERANK_MODEL", "aura-rerank") or "aura-rerank",
-            api_key=os.environ.get("AURA_RERANK_API_KEY", ""),
-            timeout_s=float(os.environ.get("AURA_RERANK_TIMEOUT_SECONDS", "30")),
+            base_url=provider_env("RERANK_BASE_URL", default="http://127.0.0.1:8085"),
+            model=provider_env("RERANK_MODEL", default="local-rerank")
+            or "local-rerank",
+            api_key=provider_secret("RERANK"),
+            api_key_header=provider_api_key_header("RERANK"),
+            api_key_scheme=provider_api_key_scheme("RERANK"),
+            dimensions=provider_optional_int("RERANK_DIMENSIONS"),
+            timeout_s=float(provider_env("RERANK_TIMEOUT_SECONDS", default="30")),
         )
 
     def rerank(self, query: str, documents: list[str]) -> list[Scored]:
@@ -39,13 +54,14 @@ class AuraReranker:
             return []
         if not self.base_url.strip():
             return identity(documents)
-        body = json.dumps(
-            {
-                "model": self.model,
-                "query": query,
-                "documents": [truncate_runes(doc, MAX_RERANK_DOC_CHARS) for doc in documents],
-            }
-        ).encode("utf-8")
+        payload = {
+            "model": self.model,
+            "query": query,
+            "documents": [truncate_runes(doc, MAX_RERANK_DOC_CHARS) for doc in documents],
+        }
+        if self.dimensions is not None:
+            payload["dimensions"] = self.dimensions
+        body = json.dumps(payload).encode("utf-8")
         req = Request(
             self.base_url.rstrip("/") + "/v1/rerank",
             data=body,
@@ -53,7 +69,7 @@ class AuraReranker:
             headers={"Content-Type": "application/json"},
         )
         if self.api_key:
-            req.add_header("Authorization", "Bearer " + self.api_key)
+            req.add_header(self.api_key_header, api_key_header_value(self.api_key, self.api_key_scheme))
         try:
             with urlopen(req, timeout=self.timeout_s) as resp:
                 decoded = json.loads(resp.read().decode("utf-8"))

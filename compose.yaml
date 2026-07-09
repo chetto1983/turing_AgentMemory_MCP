@@ -1,11 +1,35 @@
 name: turing-agentmemory-mcp
 
 services:
+  turingdb-volume-init:
+    build:
+      context: .
+      dockerfile: docker/turingdb.Dockerfile
+    image: turing-agentmemory-turingdb:local
+    entrypoint: ["/bin/sh", "-c", "chown -R 10001:10001 /turing"]
+    volumes:
+      - turing-data:/turing
+    user: "0:0"
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128m
+
   turingdb:
     build:
       context: .
       dockerfile: docker/turingdb.Dockerfile
     image: turing-agentmemory-turingdb:local
+    depends_on:
+      turingdb-volume-init:
+        condition: service_completed_successfully
     entrypoint: ["/bin/sh", "-lc"]
     command:
       - |
@@ -13,44 +37,123 @@ services:
         turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon -start-timeout 5000
         trap 'turingdb stop -turing-dir /turing -timeout 5000' TERM INT EXIT
         tail -f /dev/null
+    environment:
+      - HOME=/tmp
+      - XDG_CACHE_HOME=/tmp/.cache
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
     ports:
       - "127.0.0.1:6666:6666"
     volumes:
       - turing-data:/turing
+    user: "10001:10001"
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
     healthcheck:
       test: ["CMD-SHELL", "python - <<'PY'\nfrom turingdb import TuringDB\nTuringDB(type='json', host='http://127.0.0.1:6666').try_reach(timeout=2)\nPY"]
       interval: 5s
       timeout: 3s
       retries: 20
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2g
+        reservations:
+          cpus: "0.25"
+          memory: 256m
 
   turing-agentmemory-mcp:
-    build: .
+    build:
+      context: .
+      args:
+        PYPROJECT_EXTRAS: ${PYPROJECT_EXTRAS:-dev}
     image: turing-agentmemory-mcp:local
     depends_on:
       turingdb:
         condition: service_healthy
     environment:
-      TURINGDB_URL: http://turingdb:6666
-      TURINGDB_HOME: /turing
-      TURINGDB_GRAPH: agent_memory
-      AURA_EMBED_BASE_URL: http://host.docker.internal:8081
-      AURA_EMBED_DIMENSIONS: "768"
-      AURA_EMBED_MODEL: aura-local-embedding
-      AURA_RERANK_BASE_URL: http://host.docker.internal:8085
-      AURA_RERANK_MODEL: aura-rerank
+      - HOME=/tmp
+      - XDG_CACHE_HOME=/tmp/.cache
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
+      - TURINGDB_URL=http://turingdb:6666
+      - TURINGDB_HOME=/turing
+      - TURINGDB_GRAPH=agent_memory
+      - EMBED_BASE_URL=http://host.docker.internal:8081
+      - EMBED_DIMENSIONS=768
+      - EMBED_MODEL=local-embedding
+      - EMBED_API_KEY
+      - EMBED_API_KEY_HEADER
+      - EMBED_API_KEY_SCHEME
+      - RERANK_BASE_URL=http://host.docker.internal:8085
+      - RERANK_MODEL=local-rerank
+      - RERANK_DIMENSIONS
+      - RERANK_API_KEY
+      - RERANK_API_KEY_HEADER
+      - RERANK_API_KEY_SCHEME
+      - PROVIDER_API_KEY
+      - PROVIDER_API_KEY_HEADER
+      - PROVIDER_API_KEY_SCHEME
+      - GLINER_ENABLED
+      - GLINER_BACKEND
+      - GLINER_MODEL
+      - GLINER_LABELS
+      - GLINER_THRESHOLD
+      - GLINER_REDACT
+      - GLINER_PRECISION
+      - GLINER_PROVIDERS
+      - AGENTMEMORY_REDACTION_ENABLED
+      - AGENTMEMORY_AUDIT_JSONL
+      - AGENTMEMORY_OBSERVABILITY_JSONL
+      - AGENTMEMORY_OBSERVABILITY_STDERR
     ports:
       - "127.0.0.1:8095:8080"
     volumes:
       - turing-data:/turing
+    user: "10001:10001"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nimport socket\nsock = socket.create_connection(('127.0.0.1', 8080), timeout=2)\nsock.close()\nPY"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+        reservations:
+          cpus: "0.25"
+          memory: 256m
 
   e2e:
-    build: .
+    build:
+      context: .
+      args:
+        PYPROJECT_EXTRAS: ${PYPROJECT_EXTRAS:-dev}
     image: turing-agentmemory-mcp:local
-    entrypoint: ["python", "scripts/e2e_score.py", "--out", "/work/e2e-results.json"]
+    entrypoint: ["python", "scripts/e2e_score.py", "--out", "/tmp/e2e-results.json"]
     volumes:
       - .:/work
     environment:
       TURINGDB_E2E_HOME: /tmp/turing-agentmemory-e2e
+      HOME: /tmp
+      XDG_CACHE_HOME: /tmp/.cache
+      PYTHONPYCACHEPREFIX: /tmp/pycache
+      RUFF_CACHE_DIR: /tmp/ruff-cache
 
 volumes:
   turing-data:
