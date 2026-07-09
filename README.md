@@ -230,6 +230,7 @@ python -m venv .venv
 .venv\Scripts\pip install -e ".[dev]"
 pytest
 python scripts/e2e_score.py --out e2e-results.json
+python scripts/agent_quality_eval.py --aura-root D:\Aura
 ```
 
 `scripts/e2e_score.py` starts a temporary local TuringDB daemon, starts tiny
@@ -237,6 +238,16 @@ OpenAI-compatible embedding and rerank test endpoints, creates graph and vector
 indexes, calls the actual FastMCP tools through an in-process MCP client,
 retrieves a MemoryArena sample from the Hugging Face bucket, restarts TuringDB,
 and fails unless the score is at least `9.8` with the expected check count.
+
+`scripts/agent_quality_eval.py` builds a small real-agent corpus from explicit
+AgentMemory facts and selected Aura repo files, then measures memory and
+document retrieval top-1/top-3 quality plus latency. Results are written as
+machine-readable JSON under `.benchmarks/`. To run it from Docker with Aura
+mounted read-only:
+
+```powershell
+docker compose run --rm -e TURINGDB_AGENT_QUALITY_HOME=/tmp/turing-agent-quality -v D:\Aura:/aura:ro --entrypoint python e2e /work/scripts/agent_quality_eval.py --aura-root /aura
+```
 
 Set `E2E_USE_EXTERNAL_EMBED=1` and/or `E2E_USE_EXTERNAL_RERANK=1` to run the
 gate against real provider endpoints instead of the local contract stubs.
