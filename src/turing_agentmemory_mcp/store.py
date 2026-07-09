@@ -316,14 +316,33 @@ class TuringAgentMemory:
         query: str,
         limit: int = 5,
         memory_types: list[str] | None = None,
+        session_id: str = "",
+        source: str = "",
+        tags: list[str] | None = None,
+        created_after: str = "",
+        created_before: str = "",
+        updated_after: str = "",
+        updated_before: str = "",
         threshold: float = 0.0,
         explain: bool = False,
     ) -> list[MemoryItem]:
-        with self._span("memory.search", {"user_identifier": user_identifier, "limit": limit}):
+        with self._span(
+            "memory.search",
+            {
+                "user_identifier": user_identifier,
+                "limit": limit,
+                "session_id": session_id,
+                "source": source,
+            },
+        ):
             self._require_user(user_identifier)
             query = validate_search_query(query)
             limit = self._clean_limit(limit)
             threshold = validate_threshold(threshold)
+            created_after_dt = self._parse_filter_datetime(created_after, "created_after")
+            created_before_dt = self._parse_filter_datetime(created_before, "created_before")
+            updated_after_dt = self._parse_filter_datetime(updated_after, "updated_after")
+            updated_before_dt = self._parse_filter_datetime(updated_before, "updated_before")
             literal = self._vector_literal(self._embed_text(query, operation="memory.search"))
             try:
                 vector_rows = self._records(
@@ -366,6 +385,19 @@ class TuringAgentMemory:
                 if self._row_is_expired(row, "m.expires_at"):
                     continue
                 kind = str(row.get("m.kind", ""))
+                item = self._memory_from_row(row)
+                if not self._memory_matches_filters(
+                    item,
+                    session_id=session_id,
+                    memory_types=memory_types,
+                    source=source,
+                    tags=tags,
+                    created_after=created_after_dt,
+                    created_before=created_before_dt,
+                    updated_after=updated_after_dt,
+                    updated_before=updated_before_dt,
+                ):
+                    continue
                 semantic_score = semantic_by_id.get(memory_id, 0.0)
                 lexical = lexical_score(
                     query,
@@ -378,7 +410,21 @@ class TuringAgentMemory:
                     continue
                 if not passes_threshold(final_score, threshold):
                     continue
-                item = self._memory_from_row(row, score=final_score)
+                item = MemoryItem(
+                    id=item.id,
+                    user_identifier=item.user_identifier,
+                    kind=item.kind,
+                    content=item.content,
+                    session_id=item.session_id,
+                    role=item.role,
+                    score=final_score,
+                    created_at=item.created_at,
+                    updated_at=item.updated_at,
+                    expires_at=item.expires_at,
+                    source=item.source,
+                    tags=item.tags,
+                    metadata=item.metadata,
+                )
                 if explain:
                     item = MemoryItem(
                         **{
@@ -431,9 +477,17 @@ class TuringAgentMemory:
         memory_types: list[str] | None = None,
         source: str = "",
         tags: list[str] | None = None,
+        created_after: str = "",
+        created_before: str = "",
+        updated_after: str = "",
+        updated_before: str = "",
     ) -> list[MemoryItem]:
         self._require_user(user_identifier)
         limit = self._clean_limit(limit)
+        created_after_dt = self._parse_filter_datetime(created_after, "created_after")
+        created_before_dt = self._parse_filter_datetime(created_before, "created_before")
+        updated_after_dt = self._parse_filter_datetime(updated_after, "updated_after")
+        updated_before_dt = self._parse_filter_datetime(updated_before, "updated_before")
         try:
             rows = self._records(
                 self._query(
@@ -448,17 +502,22 @@ class TuringAgentMemory:
             if "Unknown label: Memory" not in str(exc):
                 raise
             return []
-        allowed = set(memory_types or [])
-        required_tags = set(self._clean_tags(tags))
         items = [self._memory_from_row(row) for row in rows if not self._row_is_expired(row, "m.expires_at")]
-        if session_id:
-            items = [item for item in items if item.session_id == session_id]
-        if allowed:
-            items = [item for item in items if item.kind in allowed]
-        if source:
-            items = [item for item in items if item.source == source]
-        if required_tags:
-            items = [item for item in items if required_tags <= set(item.tags)]
+        items = [
+            item
+            for item in items
+            if self._memory_matches_filters(
+                item,
+                session_id=session_id,
+                memory_types=memory_types,
+                source=source,
+                tags=tags,
+                created_after=created_after_dt,
+                created_before=created_before_dt,
+                updated_after=updated_after_dt,
+                updated_before=updated_before_dt,
+            )
+        ]
         items.sort(key=lambda item: (item.updated_at, item.created_at, item.id), reverse=True)
         return items[:limit]
 
@@ -566,6 +625,13 @@ class TuringAgentMemory:
         user_identifier: str,
         query: str,
         session_id: str = "",
+        memory_types: list[str] | None = None,
+        source: str = "",
+        tags: list[str] | None = None,
+        created_after: str = "",
+        created_before: str = "",
+        updated_after: str = "",
+        updated_before: str = "",
         limit: int = 5,
         threshold: float = 0.0,
     ) -> dict[str, object]:
@@ -573,12 +639,16 @@ class TuringAgentMemory:
             user_identifier=user_identifier,
             query=query,
             limit=limit,
+            memory_types=memory_types,
+            session_id=session_id,
+            source=source,
+            tags=tags,
+            created_after=created_after,
+            created_before=created_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
             threshold=threshold,
         )
-        if session_id:
-            session_items = [item for item in items if item.session_id == session_id]
-            other_items = [item for item in items if item.session_id != session_id]
-            items = (session_items + other_items)[:limit]
         return {
             "query": query,
             "user_identifier": user_identifier,
@@ -883,6 +953,12 @@ class TuringAgentMemory:
         query: str,
         limit: int = 5,
         document_id: str = "",
+        source: str = "",
+        tags: list[str] | None = None,
+        created_after: str = "",
+        created_before: str = "",
+        updated_after: str = "",
+        updated_before: str = "",
         threshold: float = 0.0,
         explain: bool = False,
     ) -> list[DocumentHit]:
@@ -894,6 +970,11 @@ class TuringAgentMemory:
             query = validate_search_query(query)
             limit = self._clean_limit(limit)
             threshold = validate_threshold(threshold)
+            required_tags = set(self._clean_tags(tags))
+            created_after_dt = self._parse_filter_datetime(created_after, "created_after")
+            created_before_dt = self._parse_filter_datetime(created_before, "created_before")
+            updated_after_dt = self._parse_filter_datetime(updated_after, "updated_after")
+            updated_before_dt = self._parse_filter_datetime(updated_before, "updated_before")
             literal = self._vector_literal(self._embed_text(query, operation="document.search"))
             document_filter = ""
             if document_id:
@@ -906,7 +987,8 @@ class TuringAgentMemory:
                         f'WHERE c.vector_id = ids AND c.user_identifier = "{quote(user_identifier)}" '
                         f'AND c.status = "active"{document_filter} '
                         "RETURN c.chunk_id, c.document_id, c.title, c.locator, c.text, c.vector_id, "
-                        "c.expires_at, c.source, c.tags_json, c.metadata_json, score",
+                        "c.created_at, c.updated_at, c.expires_at, c.source, "
+                        "c.tags_json, c.metadata_json, score",
                         operation="document.vector_search",
                     )
                 )
@@ -935,6 +1017,17 @@ class TuringAgentMemory:
             seeds: list[DocumentHit] = []
             for chunk_id, row in rows_by_id.items():
                 if self._row_is_expired(row, "c.expires_at"):
+                    continue
+                if not self._row_matches_metadata_filters(
+                    row,
+                    prefix="c",
+                    source=source,
+                    required_tags=required_tags,
+                    created_after=created_after_dt,
+                    created_before=created_before_dt,
+                    updated_after=updated_after_dt,
+                    updated_before=updated_before_dt,
+                ):
                     continue
                 semantic_score = semantic_by_id.get(chunk_id, 0.0)
                 lexical = lexical_score(
@@ -1323,6 +1416,70 @@ class TuringAgentMemory:
     def _row_is_expired(self, row: dict[str, Any], key: str) -> bool:
         return self._is_expired(str(row.get(key) or ""))
 
+    def _memory_matches_filters(
+        self,
+        item: MemoryItem,
+        *,
+        session_id: str = "",
+        memory_types: list[str] | None = None,
+        source: str = "",
+        tags: list[str] | None = None,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
+        updated_after: datetime | None = None,
+        updated_before: datetime | None = None,
+    ) -> bool:
+        allowed = set(memory_types or [])
+        required_tags = set(self._clean_tags(tags))
+        if session_id and item.session_id != session_id:
+            return False
+        if allowed and item.kind not in allowed:
+            return False
+        if source and item.source != source:
+            return False
+        if required_tags and not required_tags <= set(item.tags):
+            return False
+        if not self._timestamp_in_range(
+            item.created_at,
+            after=created_after,
+            before=created_before,
+        ):
+            return False
+        return self._timestamp_in_range(
+            item.updated_at,
+            after=updated_after,
+            before=updated_before,
+        )
+
+    def _row_matches_metadata_filters(
+        self,
+        row: dict[str, Any],
+        *,
+        prefix: str,
+        source: str = "",
+        required_tags: set[str] | None = None,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
+        updated_after: datetime | None = None,
+        updated_before: datetime | None = None,
+    ) -> bool:
+        if source and str(row.get(f"{prefix}.source", "")) != source:
+            return False
+        tags = self._json_loads(row.get(f"{prefix}.tags_json"), [])
+        if required_tags and not required_tags <= set(tags if isinstance(tags, list) else []):
+            return False
+        if not self._timestamp_in_range(
+            str(row.get(f"{prefix}.created_at") or ""),
+            after=created_after,
+            before=created_before,
+        ):
+            return False
+        return self._timestamp_in_range(
+            str(row.get(f"{prefix}.updated_at") or ""),
+            after=updated_after,
+            before=updated_before,
+        )
+
     def _active_memory_rows(self, user_identifier: str) -> list[dict[str, Any]]:
         try:
             return self._records(
@@ -1349,7 +1506,7 @@ class TuringAgentMemory:
                     f'MATCH (c:Chunk) WHERE c.user_identifier = "{quote(user_identifier)}" '
                     f'AND c.status = "active"{document_filter} '
                     "RETURN c.chunk_id, c.document_id, c.title, c.locator, c.text, c.vector_id, "
-                    "c.expires_at, c.source, c.tags_json, c.metadata_json",
+                    "c.created_at, c.updated_at, c.expires_at, c.source, c.tags_json, c.metadata_json",
                     operation="document.active_chunk_rows",
                 )
             )
@@ -1399,6 +1556,7 @@ class TuringAgentMemory:
                 score=float(score if score is not None else item.score),
                 created_at=item.created_at,
                 updated_at=item.updated_at,
+                expires_at=item.expires_at,
                 source=item.source,
                 tags=item.tags,
                 metadata=item.metadata,
@@ -1525,6 +1683,44 @@ class TuringAgentMemory:
         if expires.tzinfo is None:
             expires = expires.replace(tzinfo=UTC)
         return expires <= datetime.now(UTC)
+
+    @classmethod
+    def _parse_filter_datetime(cls, value: str, field_name: str) -> datetime | None:
+        if not value.strip():
+            return None
+        parsed = cls._parse_datetime(value)
+        if parsed is None:
+            raise ValueError(f"{field_name} must be an ISO-8601 timestamp")
+        return parsed
+
+    @classmethod
+    def _timestamp_in_range(
+        cls,
+        value: str,
+        *,
+        after: datetime | None,
+        before: datetime | None,
+    ) -> bool:
+        if after is None and before is None:
+            return True
+        parsed = cls._parse_datetime(value)
+        if parsed is None:
+            return False
+        if after is not None and parsed < after:
+            return False
+        return before is None or parsed <= before
+
+    @staticmethod
+    def _parse_datetime(value: str) -> datetime | None:
+        if not value.strip():
+            return None
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed
 
     @staticmethod
     def _json_dumps(value: object) -> str:

@@ -67,6 +67,15 @@ def _message_array() -> JsonDict:
     }
 
 
+def _date_range_properties() -> JsonDict:
+    return {
+        "created_after": _string(""),
+        "created_before": _string(""),
+        "updated_after": _string(""),
+        "updated_before": _string(""),
+    }
+
+
 def _schema(properties: JsonDict, required: list[str] | None = None) -> JsonDict:
     return {
         "type": "object",
@@ -196,6 +205,7 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
                 "memory_types": _string_array(),
                 "source": _string(""),
                 "tags": _string_array(),
+                **_date_range_properties(),
             }
         ),
         "outputs": {"type": "array", "items": MEMORY_ITEM_OUTPUT},
@@ -238,6 +248,10 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
                 "user_identifier": _string("default"),
                 "limit": _integer(5, minimum=1),
                 "memory_types": _string_array(),
+                "session_id": _string(""),
+                "source": _string(""),
+                "tags": _string_array(),
+                **_date_range_properties(),
                 "threshold": _number(0.0, minimum=0.0),
                 "explain": _boolean(False),
             },
@@ -254,6 +268,10 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
                 "query": _string(),
                 "user_identifier": _string("default"),
                 "session_id": _string(""),
+                "memory_types": _string_array(),
+                "source": _string(""),
+                "tags": _string_array(),
+                **_date_range_properties(),
                 "limit": _integer(5, minimum=1),
                 "threshold": _number(0.0, minimum=0.0),
             },
@@ -365,6 +383,9 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
                 "user_identifier": _string("default"),
                 "limit": _integer(5, minimum=1),
                 "document_id": _string(""),
+                "source": _string(""),
+                "tags": _string_array(),
+                **_date_range_properties(),
                 "threshold": _number(0.0, minimum=0.0),
                 "explain": _boolean(False),
             },

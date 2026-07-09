@@ -41,6 +41,8 @@ def test_build_utcp_manual_describes_agentmemory_mcp_tools() -> None:
     search_tool = tools["memory_search"]
     assert search_tool["inputs"]["required"] == ["query"]  # type: ignore[index]
     assert search_tool["inputs"]["properties"]["user_identifier"]["default"] == "default"  # type: ignore[index]
+    assert "created_after" in search_tool["inputs"]["properties"]  # type: ignore[index]
+    assert "tags" in tools["document_search"]["inputs"]["properties"]  # type: ignore[index]
     assert search_tool["outputs"]["type"] == "array"  # type: ignore[index]
 
     ingest_tool = tools["document_ingest_text"]

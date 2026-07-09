@@ -217,6 +217,12 @@ For retention, pass `expires_at` as an ISO-8601 timestamp on
 document chunks are hidden from get/list/search paths even if a vector index
 still returns them.
 
+Retrieval filters are available on both lifecycle and search paths. Memory
+list/search/context can filter by `session_id`, `memory_types`, `source`,
+`tags`, `created_after`, `created_before`, `updated_after`, and
+`updated_before`. Document search can filter by `document_id`, `source`, `tags`,
+and the same created/updated timestamp ranges.
+
 ## Run Locally
 
 ```powershell

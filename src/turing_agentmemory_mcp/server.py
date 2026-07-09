@@ -144,8 +144,12 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         memory_types: list[str] | None = None,
         source: str = "",
         tags: list[str] | None = None,
+        created_after: str = "",
+        created_before: str = "",
+        updated_after: str = "",
+        updated_before: str = "",
     ) -> list[dict[str, Any]]:
-        """List active scoped memories with optional session, type, source, and tag filters."""
+        """List active scoped memories with optional metadata and date filters."""
         with _tool_span("memory_list"):
             return [
                 item.to_dict()
@@ -156,6 +160,10 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
                     memory_types=memory_types,
                     source=source,
                     tags=tags,
+                    created_after=created_after,
+                    created_before=created_before,
+                    updated_after=updated_after,
+                    updated_before=updated_before,
                 )
             ]
 
@@ -202,10 +210,17 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         user_identifier: str = "default",
         limit: int = 5,
         memory_types: list[str] | None = None,
+        session_id: str = "",
+        source: str = "",
+        tags: list[str] | None = None,
+        created_after: str = "",
+        created_before: str = "",
+        updated_after: str = "",
+        updated_before: str = "",
         threshold: float = 0.0,
         explain: bool = False,
     ) -> list[dict[str, Any]]:
-        """Search scoped memory by semantic similarity, with optional threshold and score details."""
+        """Search scoped memory by semantic similarity with optional metadata and date filters."""
         with _tool_span("memory_search"):
             return [
                 item.to_dict()
@@ -214,6 +229,13 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
                     query=query,
                     limit=limit,
                     memory_types=memory_types,
+                    session_id=session_id,
+                    source=source,
+                    tags=tags,
+                    created_after=created_after,
+                    created_before=created_before,
+                    updated_after=updated_after,
+                    updated_before=updated_before,
                     threshold=threshold,
                     explain=explain,
                 )
@@ -224,6 +246,13 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         query: str,
         user_identifier: str = "default",
         session_id: str = "",
+        memory_types: list[str] | None = None,
+        source: str = "",
+        tags: list[str] | None = None,
+        created_after: str = "",
+        created_before: str = "",
+        updated_after: str = "",
+        updated_before: str = "",
         limit: int = 5,
         threshold: float = 0.0,
     ) -> dict[str, Any]:
@@ -233,6 +262,13 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
                 user_identifier=user_identifier,
                 query=query,
                 session_id=session_id,
+                memory_types=memory_types,
+                source=source,
+                tags=tags,
+                created_after=created_after,
+                created_before=created_before,
+                updated_after=updated_after,
+                updated_before=updated_before,
                 limit=limit,
                 threshold=threshold,
             )
@@ -350,10 +386,16 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         user_identifier: str = "default",
         limit: int = 5,
         document_id: str = "",
+        source: str = "",
+        tags: list[str] | None = None,
+        created_after: str = "",
+        created_before: str = "",
+        updated_after: str = "",
+        updated_before: str = "",
         threshold: float = 0.0,
         explain: bool = False,
     ) -> list[dict[str, Any]]:
-        """Search scoped document chunks and return cited context, with optional score details."""
+        """Search scoped document chunks and return cited context with optional metadata filters."""
         with _tool_span("document_search"):
             return [
                 item.to_dict()
@@ -362,6 +404,12 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
                     query=query,
                     limit=limit,
                     document_id=document_id,
+                    source=source,
+                    tags=tags,
+                    created_after=created_after,
+                    created_before=created_before,
+                    updated_after=updated_after,
+                    updated_before=updated_before,
                     threshold=threshold,
                     explain=explain,
                 )
