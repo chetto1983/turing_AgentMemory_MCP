@@ -155,5 +155,6 @@ def test_document_ingest_extracts_entities_before_chunking_hashing_and_persisten
     assert item.metadata["classification"] == "internal"
     assert item.metadata["entity_extraction"]["redacted"] is False
     assert item.text_hash == store._document_text_hash("TuringDB can store entity-rich documents")
-    assert embedder.embed_calls == ["TuringDB can store entity-rich documents"]
+    assert embedder.embed_many_calls == [["TuringDB can store entity-rich documents"]]
+    assert embedder.embed_calls == []
     assert "TuringDB can store entity-rich documents" in store.write_queries[0]

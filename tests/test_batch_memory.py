@@ -8,7 +8,7 @@ from typing import Any
 if "turingdb" not in sys.modules:
     sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
-from turing_agentmemory_mcp.models import MemoryItem
+from turing_agentmemory_mcp.models import IngestedDocument, MemoryItem
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
 
@@ -65,6 +65,20 @@ class RecordingMemoryStore(TuringAgentMemory):
         for item in items:
             self.memories[(item.user_identifier, item.id)] = item
         return items
+
+
+class RecordingDocumentStore(RecordingMemoryStore):
+    def __init__(self, tmp_path: Path, embedder: CountingBatchEmbedder) -> None:
+        super().__init__(tmp_path, embedder)
+        self.documents: dict[tuple[str, str], IngestedDocument] = {}
+
+    def get_document(self, *, user_identifier: str, document_id: str) -> IngestedDocument | None:
+        return self.documents.get((user_identifier, document_id))
+
+    def _create_document(self, **kwargs: Any) -> IngestedDocument:
+        document = super()._create_document(**kwargs)
+        self.documents[(document.user_identifier, document.document_id)] = document
+        return document
 
 
 def test_store_messages_batches_embeddings_and_vector_loads(tmp_path: Path) -> None:
@@ -128,3 +142,28 @@ def test_store_messages_rejects_conflicting_duplicate_ids(tmp_path: Path) -> Non
         assert "conflicting duplicate memory_id" in str(exc)
     else:
         raise AssertionError("expected conflicting duplicate memory_id")
+
+
+def test_ingest_document_text_batches_chunk_embeddings_and_vector_loads(tmp_path: Path) -> None:
+    embedder = CountingBatchEmbedder()
+    store = RecordingDocumentStore(tmp_path, embedder)
+
+    document = store.ingest_document_text(
+        user_identifier="alice",
+        document_id="doc-batch",
+        title="Batch Document",
+        text=(
+            "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi "
+            "omicron pi rho sigma tau upsilon phi chi psi omega"
+        ),
+        chunk_chars=35,
+        source="wiki",
+        tags=["batch"],
+    )
+
+    assert document.chunk_count > 1
+    assert len(embedder.embed_many_calls) == 1
+    assert len(embedder.embed_many_calls[0]) == document.chunk_count
+    assert embedder.embed_calls == []
+    assert len(store.vector_loads) == 1
+    assert len(store.vector_loads[0]) == document.chunk_count

@@ -853,8 +853,9 @@ class TuringAgentMemory:
         ]
         edges = [f"(u)-[:HAS_DOCUMENT]->({doc_var})"]
         vector_rows: list[tuple[int, list[float]]] = []
+        vectors = self._embed_many(chunks)
         previous_var = ""
-        for idx, chunk_text in enumerate(chunks, start=1):
+        for idx, (chunk_text, vector) in enumerate(zip(chunks, vectors, strict=True), start=1):
             chunk_id = f"{document_id}#{idx}"
             chunk_var = cypher_var(chunk_id)
             vid = self._document_vector_id(user_identifier, chunk_id)
@@ -872,7 +873,7 @@ class TuringAgentMemory:
             if previous_var:
                 edges.append(f"({previous_var})-[:NEXT_CHUNK]->({chunk_var})")
             previous_var = chunk_var
-            vector_rows.append((vid, self._embed_text(chunk_text, operation="document.ingest_chunk")))
+            vector_rows.append((vid, vector))
         self._write(
             f'MATCH (u:User) WHERE u.identifier = "{quote(user_identifier)}" CREATE '
             + ", ".join(nodes + edges)
