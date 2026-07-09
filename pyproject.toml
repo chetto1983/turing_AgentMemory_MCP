@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "turing-agentmemory-mcp"
+version = "0.1.0"
+description = "TuringDB-backed Agent Memory MCP with document ingest and cited retrieval"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Aura" }]
+dependencies = [
+  "fastmcp>=2.14,<3",
+  "turingdb==1.35",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2",
+  "ruff>=0.9",
+]
+
+[project.scripts]
+turing-agentmemory-mcp = "turing_agentmemory_mcp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/turing_agentmemory_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
