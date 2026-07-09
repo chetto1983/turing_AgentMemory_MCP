@@ -102,7 +102,8 @@ Primary provider environment variables:
 - `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_DIMENSIONS`, `EMBED_API_KEY`,
   `EMBED_TIMEOUT_SECONDS`
 - `RERANK_BASE_URL`, `RERANK_MODEL`, `RERANK_DIMENSIONS`, `RERANK_API_KEY`,
-  `RERANK_TIMEOUT_SECONDS`, `RERANK_THRESHOLD`, `RERANK_BLEND`
+  `RERANK_TIMEOUT_SECONDS`, `RERANK_THRESHOLD`, `RERANK_BLEND`,
+  `RERANK_PRESERVE_SEED_MARGIN`
 - `PROVIDER_API_KEY` as a shared fallback when embedding and rerank use the
   same cloud provider key. `EMBED_API_KEY` and `RERANK_API_KEY` override it.
 - `PROVIDER_API_KEY_HEADER` and `PROVIDER_API_KEY_SCHEME` customize auth for
@@ -136,6 +137,11 @@ The HTTP contracts remain OpenAI-compatible: `/v1/embeddings` for embedding and
 `/v1/rerank` for rerank. For Claude or other cloud model gateways, point these
 URLs at the compatible gateway/proxy and configure the API key/header variables
 above.
+
+By default, rerank will not displace the top hybrid lexical/vector seed when the
+rerank winner trails it by at least `RERANK_PRESERVE_SEED_MARGIN` (`0.05` by
+default). Set the margin to `0` for pure rerank ordering or use
+`RERANK_BLEND=1` for reciprocal-rank blending.
 
 ## UTCP Manual Export
 

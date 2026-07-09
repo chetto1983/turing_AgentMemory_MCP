@@ -56,6 +56,7 @@ class TuringAgentMemory:
         audit_sink: AuditSink | None = None,
         rerank_threshold: float | None = None,
         rerank_blend: bool | None = None,
+        rerank_preserve_seed_margin: float | None = None,
     ) -> None:
         self.client = client
         self.turing_home = Path(turing_home)
@@ -78,6 +79,11 @@ class TuringAgentMemory:
             provider_env("RERANK_BLEND").lower() in {"1", "true", "yes", "on"}
             if rerank_blend is None
             else rerank_blend
+        )
+        self.rerank_preserve_seed_margin = (
+            max(0.0, float(provider_env("RERANK_PRESERVE_SEED_MARGIN", default="0.05")))
+            if rerank_preserve_seed_margin is None
+            else max(0.0, rerank_preserve_seed_margin)
         )
         self.data_dir = self.turing_home / "data"
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -1545,6 +1551,8 @@ class TuringAgentMemory:
             scored,
             threshold=self.rerank_threshold,
             blend=self.rerank_blend,
+            seed_scores=[item.score for item in seeds],
+            preserve_seed_margin=self.rerank_preserve_seed_margin,
         )
         return [
             MemoryItem(
@@ -1576,6 +1584,8 @@ class TuringAgentMemory:
             scored,
             threshold=self.rerank_threshold,
             blend=self.rerank_blend,
+            seed_scores=[item.score for item in seeds],
+            preserve_seed_margin=self.rerank_preserve_seed_margin,
         )
         return [
             DocumentHit(

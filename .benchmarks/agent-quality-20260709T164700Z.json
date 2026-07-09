@@ -1,0 +1,151 @@
+{
+  "aura_root": "/aura",
+  "case_count": 9,
+  "cases": [
+    {
+      "expected_id": "agentmemory-docker-stdio",
+      "hit_ids": [
+        "agentmemory-docker-stdio",
+        "agentmemory-score-gate",
+        "aura-readonly-boundary"
+      ],
+      "kind": "memory",
+      "latency_ms": 63.98,
+      "query": "AgentMemory MCP Docker stdio command compose file serve transport stdio",
+      "query_id": "memory-docker-stdio-command",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.7658
+    },
+    {
+      "expected_id": "davide-entity-extraction-priority",
+      "hit_ids": [
+        "davide-entity-extraction-priority",
+        "aura-readonly-boundary"
+      ],
+      "kind": "memory",
+      "latency_ms": 18.717,
+      "query": "Davide cares about GLiNER entity extraction quality not privacy",
+      "query_id": "memory-gliner-entity-priority",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.7009
+    },
+    {
+      "expected_id": "agentmemory-score-gate",
+      "hit_ids": [
+        "agentmemory-score-gate",
+        "aura-readonly-boundary"
+      ],
+      "kind": "memory",
+      "latency_ms": 16.97,
+      "query": "expected score_gate 10/10 verdict VALIDATED_10_10",
+      "query_id": "memory-e2e-score-gate",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.695
+    },
+    {
+      "expected_id": "aura-readonly-boundary",
+      "hit_ids": [
+        "aura-readonly-boundary"
+      ],
+      "kind": "memory",
+      "latency_ms": 14.558,
+      "query": "which repo is read-only unless explicitly needed Aura",
+      "query_id": "memory-aura-boundary",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.7238
+    },
+    {
+      "expected_id": "aura-readme",
+      "hit_ids": [
+        "aura-readme"
+      ],
+      "kind": "document",
+      "latency_ms": 910.877,
+      "query": "Aura local-first provider-neutral AI agent platform in Go graph-backed memory",
+      "query_id": "doc-aura-readme-local-first",
+      "top1": true,
+      "top3": true,
+      "top_score": 5.01
+    },
+    {
+      "expected_id": "aura-claude-guidance",
+      "hit_ids": [
+        "aura-claude-guidance"
+      ],
+      "kind": "document",
+      "latency_ms": 441.269,
+      "query": "Senza PRD completo non si scrive una riga di codice truth-source",
+      "query_id": "doc-aura-claude-prd-first",
+      "top1": true,
+      "top3": true,
+      "top_score": 8.01
+    },
+    {
+      "expected_id": "aura-web-autospeak",
+      "hit_ids": [
+        "aura-web-autospeak",
+        "aura-web-external-store-chat",
+        "aura-web-external-store-messages"
+      ],
+      "kind": "document",
+      "latency_ms": 757.296,
+      "query": "Aura corpus file AutoSpeak.tsx AutoSpeak voice chat component",
+      "query_id": "doc-aura-autospeak",
+      "top1": true,
+      "top3": true,
+      "top_score": 2.01
+    },
+    {
+      "expected_id": "aura-web-voice-runtime",
+      "hit_ids": [
+        "aura-web-voice-runtime",
+        "aura-web-external-store-chat"
+      ],
+      "kind": "document",
+      "latency_ms": 825.641,
+      "query": "Aura useVoiceRuntime voice runtime hook microphone speech audio",
+      "query_id": "doc-aura-voice-runtime",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.3978
+    },
+    {
+      "expected_id": "aura-web-external-store-chat",
+      "hit_ids": [
+        "aura-web-external-store-chat",
+        "aura-web-external-store-messages"
+      ],
+      "kind": "document",
+      "latency_ms": 812.662,
+      "query": "Aura ExternalStoreChat web chat component external store messages",
+      "query_id": "doc-aura-external-store-chat",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.6049
+    }
+  ],
+  "cleanup": {
+    "returncode": 0,
+    "stopped": true
+  },
+  "document_count": 6,
+  "embedding_model": "local-embedding",
+  "git_commit": "7871973",
+  "graph": "agent_quality_1783615681",
+  "memory_count": 4,
+  "rerank_model": "local-rerank",
+  "summary": {
+    "count": 9,
+    "p50_ms": 441.269,
+    "p95_ms": 876.783,
+    "top1_accuracy": 1.0,
+    "top3_accuracy": 1.0,
+    "verdict": "VALIDATED_AGENT_QUALITY"
+  },
+  "timestamp": "2026-07-09T16:48:01Z",
+  "turingdb_version": "1.35"
+}

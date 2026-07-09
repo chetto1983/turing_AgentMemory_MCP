@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeVar
 from urllib.error import HTTPError, URLError
@@ -97,12 +98,21 @@ def apply_rerank_guard(
     *,
     threshold: float = 0.0,
     blend: bool = False,
+    seed_scores: Sequence[float] | None = None,
+    preserve_seed_margin: float = 0.0,
 ) -> list[tuple[T, float | None]]:
     if len(scored) != len(seed) or len(seed) < 2:
         return [(item, None) for item in seed]
     if blend:
         return blend_rerank_orders(seed, scored)
     if scored[0].score < threshold:
+        return [(item, None) for item in seed]
+    if should_preserve_top_seed(
+        seed_len=len(seed),
+        scored=scored,
+        seed_scores=seed_scores,
+        preserve_seed_margin=preserve_seed_margin,
+    ):
         return [(item, None) for item in seed]
     reordered: list[tuple[T, float | None]] = []
     changed = False
@@ -115,6 +125,23 @@ def apply_rerank_guard(
     if not changed:
         return [(item, None) for item in seed]
     return reordered
+
+
+def should_preserve_top_seed(
+    *,
+    seed_len: int,
+    scored: list[Scored],
+    seed_scores: Sequence[float] | None,
+    preserve_seed_margin: float,
+) -> bool:
+    if preserve_seed_margin <= 0.0 or seed_scores is None or not scored:
+        return False
+    if len(seed_scores) != seed_len:
+        return False
+    rerank_top_index = scored[0].index
+    if rerank_top_index <= 0 or rerank_top_index >= seed_len:
+        return False
+    return float(seed_scores[0]) - float(seed_scores[rerank_top_index]) >= preserve_seed_margin
 
 
 def blend_rerank_orders(seed: list[T], scored: list[Scored]) -> list[tuple[T, float | None]]:

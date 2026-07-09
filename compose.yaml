@@ -93,6 +93,10 @@ services:
       - RERANK_BASE_URL=http://host.docker.internal:8085
       - RERANK_MODEL=local-rerank
       - RERANK_DIMENSIONS
+      - RERANK_TIMEOUT_SECONDS
+      - RERANK_THRESHOLD
+      - RERANK_BLEND
+      - RERANK_PRESERVE_SEED_MARGIN
       - RERANK_API_KEY
       - RERANK_API_KEY_HEADER
       - RERANK_API_KEY_SCHEME

@@ -1,8 +1,14 @@
 import json
+import sys
 import threading
+import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+if "turingdb" not in sys.modules:
+    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object)
+
+from turing_agentmemory_mcp.models import DocumentHit
 from turing_agentmemory_mcp.rerank import (
     OpenAICompatibleReranker,
     Scored,
@@ -10,6 +16,7 @@ from turing_agentmemory_mcp.rerank import (
     identity,
     truncate_runes,
 )
+from turing_agentmemory_mcp.store import TuringAgentMemory
 
 
 def test_identity_is_input_order() -> None:
@@ -36,6 +43,34 @@ def test_apply_rerank_guard_keeps_seed_below_threshold() -> None:
     )
     assert [item for item, _ in out] == seed
     assert [score for _, score in out] == [None, None]
+
+
+def test_apply_rerank_guard_preserves_materially_stronger_seed() -> None:
+    seed = ["exact-path-seed", "broad-overlap-seed"]
+
+    out = apply_rerank_guard(
+        seed,
+        [Scored(index=1, score=0.95), Scored(index=0, score=0.8)],
+        seed_scores=[0.62, 0.43],
+        preserve_seed_margin=0.1,
+    )
+
+    assert [item for item, _ in out] == seed
+    assert [score for _, score in out] == [None, None]
+
+
+def test_apply_rerank_guard_allows_rerank_when_seed_margin_is_small() -> None:
+    seed = ["seed-0", "seed-1"]
+
+    out = apply_rerank_guard(
+        seed,
+        [Scored(index=1, score=0.95), Scored(index=0, score=0.8)],
+        seed_scores=[0.62, 0.59],
+        preserve_seed_margin=0.1,
+    )
+
+    assert [item for item, _ in out] == ["seed-1", "seed-0"]
+    assert out[0][1] == 0.95
 
 
 def test_truncate_runes_caps_wire_body() -> None:
@@ -107,3 +142,37 @@ def test_openai_compatible_reranker_sends_provider_api_key_and_dimensions(monkey
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+class StaticReranker:
+    def rerank(self, query: str, documents: list[str]) -> list[Scored]:
+        return [Scored(index=1, score=0.95), Scored(index=0, score=0.8)]
+
+
+def test_document_rerank_preserves_stronger_hybrid_seed(tmp_path) -> None:
+    store = TuringAgentMemory(
+        client=object(),  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        reranker=StaticReranker(),  # type: ignore[arg-type]
+        rerank_preserve_seed_margin=0.1,
+    )
+    exact = DocumentHit(
+        chunk_id="voice#1",
+        document_id="aura-web-voice-runtime",
+        title="Aura Web Voice Runtime",
+        locator="chunk=1",
+        text="Aura useVoiceRuntime voice runtime hook microphone speech audio",
+        score=0.62,
+    )
+    broad = DocumentHit(
+        chunk_id="readme#1",
+        document_id="aura-readme",
+        title="Aura README",
+        locator="chunk=1",
+        text="Aura README local-first provider-neutral agent platform",
+        score=0.43,
+    )
+
+    hits = store._rerank_documents("Aura useVoiceRuntime voice runtime hook microphone speech audio", [exact, broad])
+
+    assert [hit.document_id for hit in hits] == ["aura-web-voice-runtime", "aura-readme"]
