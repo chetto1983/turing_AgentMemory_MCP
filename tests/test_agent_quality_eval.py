@@ -7,6 +7,7 @@ from turing_agentmemory_mcp.agent_quality_eval import (
     build_agent_quality_corpus,
     default_agent_quality_out,
     evaluate_case,
+    evaluate_tenant_isolation,
     summarize_case_results,
 )
 
@@ -56,6 +57,8 @@ def test_evaluate_case_tracks_top1_top3_and_scores() -> None:
         query="local-first Go agent",
         expected_id="aura-readme",
         hit_ids=["wrong", "aura-readme", "other"],
+        hit_sources=["aura:wrong.md", "aura:README.md", "aura:other.md"],
+        expected_source="aura:README.md",
         latency_ms=12.3456,
         top_score=0.81234,
     )
@@ -65,9 +68,12 @@ def test_evaluate_case_tracks_top1_top3_and_scores() -> None:
         "kind": "document",
         "query": "local-first Go agent",
         "expected_id": "aura-readme",
+        "expected_source": "aura:README.md",
         "hit_ids": ["wrong", "aura-readme", "other"],
+        "hit_sources": ["aura:wrong.md", "aura:README.md", "aura:other.md"],
         "top1": False,
         "top3": True,
+        "citation_source_hit": False,
         "latency_ms": 12.346,
         "top_score": 0.8123,
     }
@@ -90,18 +96,51 @@ def test_summarize_case_results_reports_machine_readable_quality() -> None:
             query="two",
             expected_id="d1",
             hit_ids=["x", "d1"],
+            hit_sources=["wrong", "source:d1"],
+            expected_source="source:d1",
             latency_ms=3,
             top_score=0.5,
+        ),
+        evaluate_case(
+            query_id="d2",
+            kind="document",
+            query="three",
+            expected_id="d2",
+            hit_ids=["d2"],
+            hit_sources=["source:d2"],
+            expected_source="source:d2",
+            latency_ms=5,
+            top_score=0.9,
         ),
     ]
 
     summary = summarize_case_results(rows)
 
-    assert summary["count"] == 2
-    assert summary["top1_accuracy"] == 0.5
+    assert summary["count"] == 3
+    assert summary["top1_accuracy"] == 0.6667
     assert summary["top3_accuracy"] == 1.0
-    assert summary["p50_ms"] == 2.0
+    assert summary["citation_source_accuracy"] == 0.5
+    assert summary["p50_ms"] == 3.0
     assert summary["verdict"] == "NEEDS_ATTENTION"
+
+
+def test_evaluate_tenant_isolation_reports_forbidden_hits() -> None:
+    result = evaluate_tenant_isolation(
+        memory_hit_ids=["other-memory", "safe-memory"],
+        document_hit_ids=["safe-document"],
+        forbidden_memory_id="other-memory",
+        forbidden_document_id="other-document",
+    )
+
+    assert result == {
+        "memory_query_leak_free": False,
+        "document_query_leak_free": True,
+        "leak_free": False,
+        "forbidden_memory_id": "other-memory",
+        "forbidden_document_id": "other-document",
+        "memory_hit_ids": ["other-memory", "safe-memory"],
+        "document_hit_ids": ["safe-document"],
+    }
 
 
 def test_default_agent_quality_out_uses_benchmarks_directory(monkeypatch, tmp_path: Path) -> None:

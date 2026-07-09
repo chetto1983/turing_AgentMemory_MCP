@@ -15,6 +15,10 @@ from turing_agentmemory_mcp.benchmark import _git_commit
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_USER = "davide-agent-quality"
+OTHER_USER = "davide-agent-quality-other"
+OTHER_USER_MEMORY_ID = "agent-quality-other-tenant-memory"
+OTHER_USER_DOCUMENT_ID = "agent-quality-other-tenant-document"
+OTHER_USER_MARKER = "AGENTQUALITY-OTHER-TENANT-DO-NOT-LEAK"
 MAX_DOCUMENT_CHARS = 30_000
 
 
@@ -44,6 +48,7 @@ class AgentQualityCase:
     kind: str
     query: str
     expected_id: str
+    expected_source: str = ""
 
 
 @dataclass(frozen=True)
@@ -185,30 +190,35 @@ def build_agent_quality_corpus(aura_root: Path) -> AgentQualityCorpus:
             kind="document",
             query="Aura local-first provider-neutral AI agent platform in Go graph-backed memory",
             expected_id="aura-readme",
+            expected_source="aura:README.md",
         ),
         AgentQualityCase(
             query_id="doc-aura-claude-prd-first",
             kind="document",
             query="Senza PRD completo non si scrive una riga di codice truth-source",
             expected_id="aura-claude-guidance",
+            expected_source="aura:CLAUDE.md",
         ),
         AgentQualityCase(
             query_id="doc-aura-autospeak",
             kind="document",
             query="Aura corpus file AutoSpeak.tsx AutoSpeak voice chat component",
             expected_id="aura-web-autospeak",
+            expected_source="aura:web/src/chat/voice/AutoSpeak.tsx",
         ),
         AgentQualityCase(
             query_id="doc-aura-voice-runtime",
             kind="document",
             query="Aura useVoiceRuntime voice runtime hook microphone speech audio",
             expected_id="aura-web-voice-runtime",
+            expected_source="aura:web/src/chat/voice/useVoiceRuntime.ts",
         ),
         AgentQualityCase(
             query_id="doc-aura-external-store-chat",
             kind="document",
             query="Aura ExternalStoreChat web chat component external store messages",
             expected_id="aura-web-external-store-chat",
+            expected_source="aura:web/src/chat/ExternalStoreChat.tsx",
         ),
     ]
     cases.extend(case for case in document_cases if case.expected_id in available_document_ids)
@@ -222,10 +232,12 @@ def evaluate_case(
     query: str,
     expected_id: str,
     hit_ids: Sequence[str],
+    hit_sources: Sequence[str] | None = None,
+    expected_source: str = "",
     latency_ms: float,
     top_score: float,
 ) -> dict[str, Any]:
-    return {
+    row = {
         "query_id": query_id,
         "kind": kind,
         "query": query,
@@ -236,6 +248,12 @@ def evaluate_case(
         "latency_ms": round(latency_ms, 3),
         "top_score": round(top_score, 4),
     }
+    if expected_source:
+        sources = list(hit_sources or [])
+        row["expected_source"] = expected_source
+        row["hit_sources"] = sources
+        row["citation_source_hit"] = bool(sources and sources[0] == expected_source)
+    return row
 
 
 def summarize_case_results(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
@@ -243,16 +261,46 @@ def summarize_case_results(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     top1 = sum(1 for row in rows if row.get("top1"))
     top3 = sum(1 for row in rows if row.get("top3"))
     latencies = [float(row.get("latency_ms") or 0.0) for row in rows]
+    citation_rows = [row for row in rows if "citation_source_hit" in row]
+    citation_hits = sum(1 for row in citation_rows if row.get("citation_source_hit"))
     top1_accuracy = round(top1 / count, 4) if count else 0.0
     top3_accuracy = round(top3 / count, 4) if count else 0.0
-    verdict = "VALIDATED_AGENT_QUALITY" if count and top1_accuracy >= 0.875 and top3_accuracy == 1.0 else "NEEDS_ATTENTION"
+    citation_source_accuracy = round(citation_hits / len(citation_rows), 4) if citation_rows else 1.0
+    verdict = (
+        "VALIDATED_AGENT_QUALITY"
+        if count and top1_accuracy >= 0.875 and top3_accuracy == 1.0 and citation_source_accuracy == 1.0
+        else "NEEDS_ATTENTION"
+    )
     return {
         "count": count,
         "top1_accuracy": top1_accuracy,
         "top3_accuracy": top3_accuracy,
+        "citation_source_accuracy": citation_source_accuracy,
         "p50_ms": _percentile(latencies, 50),
         "p95_ms": _percentile(latencies, 95),
         "verdict": verdict,
+    }
+
+
+def evaluate_tenant_isolation(
+    *,
+    memory_hit_ids: Sequence[str],
+    document_hit_ids: Sequence[str],
+    forbidden_memory_id: str,
+    forbidden_document_id: str,
+) -> dict[str, Any]:
+    memory_ids = list(memory_hit_ids)
+    document_ids = list(document_hit_ids)
+    memory_query_leak_free = forbidden_memory_id not in memory_ids
+    document_query_leak_free = forbidden_document_id not in document_ids
+    return {
+        "memory_query_leak_free": memory_query_leak_free,
+        "document_query_leak_free": document_query_leak_free,
+        "leak_free": memory_query_leak_free and document_query_leak_free,
+        "forbidden_memory_id": forbidden_memory_id,
+        "forbidden_document_id": forbidden_document_id,
+        "memory_hit_ids": memory_ids,
+        "document_hit_ids": document_ids,
     }
 
 
@@ -302,6 +350,12 @@ def run_agent_quality_eval(
     }
     cleanup: dict[str, Any] = {}
     case_rows: list[dict[str, Any]] = []
+    tenant_isolation = evaluate_tenant_isolation(
+        memory_hit_ids=[],
+        document_hit_ids=[],
+        forbidden_memory_id=OTHER_USER_MEMORY_ID,
+        forbidden_document_id=OTHER_USER_DOCUMENT_ID,
+    )
     try:
         if not use_external_embed:
             embed_server = LocalEmbedServer(dimensions=768)
@@ -343,6 +397,31 @@ def run_agent_quality_eval(
                 tags=document.tags,
                 metadata={"relative_path": document.relative_path, "eval": "agent-quality"},
             )
+        store.store_message(
+            user_identifier=OTHER_USER,
+            memory_id=OTHER_USER_MEMORY_ID,
+            session_id="agent-quality-isolation",
+            role="system",
+            content=(
+                f"{OTHER_USER_MARKER} private memory for a different tenant. "
+                "A scoped search by davide-agent-quality must never return this memory."
+            ),
+            source="agent-quality",
+            tags=["agent-quality", "isolation"],
+            metadata={"eval": "agent-quality", "tenant": "other"},
+        )
+        store.ingest_document_text(
+            user_identifier=OTHER_USER,
+            document_id=OTHER_USER_DOCUMENT_ID,
+            title="Other Tenant Isolation Document",
+            text=(
+                f"{OTHER_USER_MARKER} private document for a different tenant. "
+                "A scoped document search by davide-agent-quality must never return this document."
+            ),
+            source="agent-quality:isolation",
+            tags=["aura", "agent-quality", "isolation"],
+            metadata={"eval": "agent-quality", "tenant": "other"},
+        )
 
         for case in corpus.cases:
             started = time.perf_counter()
@@ -355,6 +434,7 @@ def run_agent_quality_eval(
                     explain=True,
                 )
                 hit_ids = [hit.id for hit in hits]
+                hit_sources: list[str] = []
                 top_score = hits[0].score if hits else 0.0
             else:
                 doc_hits = store.search_documents(
@@ -364,7 +444,7 @@ def run_agent_quality_eval(
                     tags=["aura"],
                     explain=True,
                 )
-                hit_ids = _unique_document_ids(doc_hits)
+                hit_ids, hit_sources = _unique_document_ids_and_sources(doc_hits)
                 top_score = doc_hits[0].score if doc_hits else 0.0
             case_rows.append(
                 evaluate_case(
@@ -373,10 +453,30 @@ def run_agent_quality_eval(
                     query=case.query,
                     expected_id=case.expected_id,
                     hit_ids=hit_ids,
+                    hit_sources=hit_sources,
+                    expected_source=case.expected_source,
                     latency_ms=(time.perf_counter() - started) * 1000,
                     top_score=top_score,
                 )
             )
+        isolation_memory_hits = store.search_memory(
+            user_identifier=DEFAULT_USER,
+            query=OTHER_USER_MARKER,
+            limit=5,
+            tags=["isolation"],
+        )
+        isolation_document_hits = store.search_documents(
+            user_identifier=DEFAULT_USER,
+            query=OTHER_USER_MARKER,
+            limit=5,
+            tags=["isolation"],
+        )
+        tenant_isolation = evaluate_tenant_isolation(
+            memory_hit_ids=[hit.id for hit in isolation_memory_hits],
+            document_hit_ids=_unique_document_ids(isolation_document_hits),
+            forbidden_memory_id=OTHER_USER_MEMORY_ID,
+            forbidden_document_id=OTHER_USER_DOCUMENT_ID,
+        )
     finally:
         cleanup = daemon.stop()
         if embed_server is not None:
@@ -390,6 +490,9 @@ def run_agent_quality_eval(
                 os.environ[key] = value
 
     summary = summarize_case_results(case_rows)
+    if not tenant_isolation.get("leak_free"):
+        summary["verdict"] = "NEEDS_ATTENTION"
+    summary["tenant_isolation_leak_free"] = bool(tenant_isolation.get("leak_free"))
     result = {
         "timestamp": timestamp,
         "git_commit": _git_commit(),
@@ -402,6 +505,7 @@ def run_agent_quality_eval(
         "document_count": len(corpus.documents),
         "case_count": len(case_rows),
         "summary": summary,
+        "tenant_isolation": tenant_isolation,
         "cases": case_rows,
         "cleanup": cleanup,
     }
@@ -430,14 +534,21 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _unique_document_ids(hits: Sequence[Any]) -> list[str]:
+    ids, _ = _unique_document_ids_and_sources(hits)
+    return ids
+
+
+def _unique_document_ids_and_sources(hits: Sequence[Any]) -> tuple[list[str], list[str]]:
     ids: list[str] = []
+    sources: list[str] = []
     seen: set[str] = set()
     for hit in hits:
         document_id = str(getattr(hit, "document_id", ""))
         if document_id and document_id not in seen:
             seen.add(document_id)
             ids.append(document_id)
-    return ids
+            sources.append(str(getattr(hit, "source", "")))
+    return ids, sources
 
 
 def _percentile(values: Sequence[float], percentile: int) -> float:

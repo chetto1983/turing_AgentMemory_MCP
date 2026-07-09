@@ -247,9 +247,9 @@ and fails unless the score is at least `9.8` with the expected check count.
 
 `scripts/agent_quality_eval.py` builds a small real-agent corpus from explicit
 AgentMemory facts and selected Aura repo files, then measures memory and
-document retrieval top-1/top-3 quality plus latency. Results are written as
-machine-readable JSON under `.benchmarks/`. To run it from Docker with Aura
-mounted read-only:
+document retrieval top-1/top-3 quality, citation/source accuracy, scoped tenant
+isolation, and latency. Results are written as machine-readable JSON under
+`.benchmarks/`. To run it from Docker with Aura mounted read-only:
 
 ```powershell
 docker compose run --rm -e TURINGDB_AGENT_QUALITY_HOME=/tmp/turing-agent-quality -v D:\Aura:/aura:ro --entrypoint python e2e /work/scripts/agent_quality_eval.py --aura-root /aura

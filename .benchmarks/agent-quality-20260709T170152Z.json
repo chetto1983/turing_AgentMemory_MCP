@@ -1,0 +1,191 @@
+{
+  "aura_root": "/aura",
+  "case_count": 9,
+  "cases": [
+    {
+      "expected_id": "agentmemory-docker-stdio",
+      "hit_ids": [
+        "agentmemory-docker-stdio",
+        "agentmemory-score-gate",
+        "aura-readonly-boundary"
+      ],
+      "kind": "memory",
+      "latency_ms": 41.478,
+      "query": "AgentMemory MCP Docker stdio command compose file serve transport stdio",
+      "query_id": "memory-docker-stdio-command",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.7658
+    },
+    {
+      "expected_id": "davide-entity-extraction-priority",
+      "hit_ids": [
+        "davide-entity-extraction-priority",
+        "aura-readonly-boundary"
+      ],
+      "kind": "memory",
+      "latency_ms": 14.427,
+      "query": "Davide cares about GLiNER entity extraction quality not privacy",
+      "query_id": "memory-gliner-entity-priority",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.7009
+    },
+    {
+      "expected_id": "agentmemory-score-gate",
+      "hit_ids": [
+        "agentmemory-score-gate",
+        "aura-readonly-boundary"
+      ],
+      "kind": "memory",
+      "latency_ms": 19.821,
+      "query": "expected score_gate 10/10 verdict VALIDATED_10_10",
+      "query_id": "memory-e2e-score-gate",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.695
+    },
+    {
+      "expected_id": "aura-readonly-boundary",
+      "hit_ids": [
+        "aura-readonly-boundary"
+      ],
+      "kind": "memory",
+      "latency_ms": 11.806,
+      "query": "which repo is read-only unless explicitly needed Aura",
+      "query_id": "memory-aura-boundary",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.7238
+    },
+    {
+      "citation_source_hit": true,
+      "expected_id": "aura-readme",
+      "expected_source": "aura:README.md",
+      "hit_ids": [
+        "aura-readme"
+      ],
+      "hit_sources": [
+        "aura:README.md"
+      ],
+      "kind": "document",
+      "latency_ms": 647.239,
+      "query": "Aura local-first provider-neutral AI agent platform in Go graph-backed memory",
+      "query_id": "doc-aura-readme-local-first",
+      "top1": true,
+      "top3": true,
+      "top_score": 5.01
+    },
+    {
+      "citation_source_hit": true,
+      "expected_id": "aura-claude-guidance",
+      "expected_source": "aura:CLAUDE.md",
+      "hit_ids": [
+        "aura-claude-guidance"
+      ],
+      "hit_sources": [
+        "aura:CLAUDE.md"
+      ],
+      "kind": "document",
+      "latency_ms": 440.785,
+      "query": "Senza PRD completo non si scrive una riga di codice truth-source",
+      "query_id": "doc-aura-claude-prd-first",
+      "top1": true,
+      "top3": true,
+      "top_score": 8.01
+    },
+    {
+      "citation_source_hit": true,
+      "expected_id": "aura-web-autospeak",
+      "expected_source": "aura:web/src/chat/voice/AutoSpeak.tsx",
+      "hit_ids": [
+        "aura-web-autospeak",
+        "aura-web-external-store-chat",
+        "aura-web-external-store-messages"
+      ],
+      "hit_sources": [
+        "aura:web/src/chat/voice/AutoSpeak.tsx",
+        "aura:web/src/chat/ExternalStoreChat.tsx",
+        "aura:web/src/chat/ExternalStoreChat_messages.tsx"
+      ],
+      "kind": "document",
+      "latency_ms": 584.474,
+      "query": "Aura corpus file AutoSpeak.tsx AutoSpeak voice chat component",
+      "query_id": "doc-aura-autospeak",
+      "top1": true,
+      "top3": true,
+      "top_score": 2.01
+    },
+    {
+      "citation_source_hit": true,
+      "expected_id": "aura-web-voice-runtime",
+      "expected_source": "aura:web/src/chat/voice/useVoiceRuntime.ts",
+      "hit_ids": [
+        "aura-web-voice-runtime",
+        "aura-web-external-store-chat"
+      ],
+      "hit_sources": [
+        "aura:web/src/chat/voice/useVoiceRuntime.ts",
+        "aura:web/src/chat/ExternalStoreChat.tsx"
+      ],
+      "kind": "document",
+      "latency_ms": 548.249,
+      "query": "Aura useVoiceRuntime voice runtime hook microphone speech audio",
+      "query_id": "doc-aura-voice-runtime",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.3978
+    },
+    {
+      "citation_source_hit": true,
+      "expected_id": "aura-web-external-store-chat",
+      "expected_source": "aura:web/src/chat/ExternalStoreChat.tsx",
+      "hit_ids": [
+        "aura-web-external-store-chat",
+        "aura-web-external-store-messages"
+      ],
+      "hit_sources": [
+        "aura:web/src/chat/ExternalStoreChat.tsx",
+        "aura:web/src/chat/ExternalStoreChat_messages.tsx"
+      ],
+      "kind": "document",
+      "latency_ms": 594.803,
+      "query": "Aura ExternalStoreChat web chat component external store messages",
+      "query_id": "doc-aura-external-store-chat",
+      "top1": true,
+      "top3": true,
+      "top_score": 0.6049
+    }
+  ],
+  "cleanup": {
+    "returncode": 0,
+    "stopped": true
+  },
+  "document_count": 6,
+  "embedding_model": "local-embedding",
+  "git_commit": "f181db7",
+  "graph": "agent_quality_1783616512",
+  "memory_count": 4,
+  "rerank_model": "local-rerank",
+  "summary": {
+    "citation_source_accuracy": 1.0,
+    "count": 9,
+    "p50_ms": 440.785,
+    "p95_ms": 626.265,
+    "tenant_isolation_leak_free": true,
+    "top1_accuracy": 1.0,
+    "top3_accuracy": 1.0,
+    "verdict": "VALIDATED_AGENT_QUALITY"
+  },
+  "tenant_isolation": {
+    "document_hit_ids": [],
+    "document_query_leak_free": true,
+    "forbidden_document_id": "agent-quality-other-tenant-document",
+    "forbidden_memory_id": "agent-quality-other-tenant-memory",
+    "leak_free": true,
+    "memory_hit_ids": [],
+    "memory_query_leak_free": true
+  },
+  "timestamp": "2026-07-09T17:01:52Z",
+  "turingdb_version": "1.35"
+}
