@@ -279,9 +279,16 @@ def retrieval_diagnostics(hits: list[dict[str, Any]]) -> dict[str, Any]:
         hit_channels = details.get("channels")
         if isinstance(hit_channels, dict):
             channels.update(str(name) for name in hit_channels)
+    candidate_limited = "candidate_limit" in statuses
+    primary_statuses = statuses - {"candidate_limit"}
     return {
-        "rerank_status": next(iter(statuses)) if len(statuses) == 1 else "mixed" if statuses else "",
+        "rerank_status": (
+            next(iter(primary_statuses))
+            if len(primary_statuses) == 1
+            else "mixed" if primary_statuses else "candidate_limit" if candidate_limited else ""
+        ),
         "rerank_model": next(iter(models)) if len(models) == 1 else "mixed" if models else "",
+        "rerank_candidate_limited": candidate_limited,
         "retrieval_channels": sorted(channels),
     }
 

@@ -155,12 +155,20 @@ def test_retrieval_diagnostics_reports_reranker_and_channel_identity() -> None:
                 "channels": {"entity_dense": {"rank": 2}},
             }
         },
+        {
+            "score_details": {
+                "rerank_status": "candidate_limit",
+                "rerank_model": "Qwen3-Reranker-0.6B-q8_0.gguf",
+                "channels": {"graph": {"rank": 4}},
+            }
+        },
     ]
 
     assert runner.retrieval_diagnostics(hits) == {
         "rerank_status": "provider_floor_fallback",
         "rerank_model": "Qwen3-Reranker-0.6B-q8_0.gguf",
-        "retrieval_channels": ["bm25", "entity_dense", "episode_dense"],
+        "rerank_candidate_limited": True,
+        "retrieval_channels": ["bm25", "entity_dense", "episode_dense", "graph"],
     }
 
 
