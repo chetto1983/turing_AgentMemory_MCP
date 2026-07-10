@@ -12,6 +12,7 @@ from turingdb import TuringDB
 from turing_agentmemory_mcp.embeddings import Embedder, OpenAICompatibleEmbedder
 from turing_agentmemory_mcp.entity_extraction import (
     EntityProcessor,
+    ProcessedText,
     entity_metadata_search_text,
     entity_processor_from_env,
 )
@@ -150,7 +151,7 @@ class TuringAgentMemory:
             if not messages:
                 return []
             prepared: list[dict[str, object]] = []
-            unique_by_id: dict[str, dict[str, object]] = {}
+            raw_rows: list[tuple[str, dict[str, object]]] = []
             for idx, message in enumerate(messages):
                 if not isinstance(message, dict):
                     raise ValueError(f"messages[{idx}] must be an object")
@@ -171,27 +172,39 @@ class TuringAgentMemory:
                     message.get("metadata") if isinstance(message.get("metadata"), dict) else metadata or {}
                 )
                 item_expires_at = str(message.get("expires_at") if "expires_at" in message else expires_at)
-                content, item_metadata = self._process_text_for_storage(content, item_metadata)
-                memory_id = str(message.get("memory_id") or "") or stable_id(
-                    "mem", user_identifier, session_id, role, content
+                prepared.append(
+                    {
+                        "memory_id": str(message.get("memory_id") or ""),
+                        "session_id": session_id,
+                        "role": role,
+                        "content": content,
+                        "source": item_source,
+                        "tags": item_tags,
+                        "metadata": item_metadata,
+                        "expires_at": item_expires_at,
+                    }
                 )
-                payload: dict[str, object] = {
-                    "memory_id": memory_id,
-                    "session_id": session_id,
-                    "role": role,
-                    "content": content,
-                    "source": item_source,
-                    "tags": item_tags,
-                    "metadata": item_metadata,
-                    "expires_at": item_expires_at,
-                }
+                raw_rows.append((content, item_metadata))
+
+            processed_rows = self._process_texts_for_storage(raw_rows)
+            unique_by_id: dict[str, dict[str, object]] = {}
+            for payload, (content, item_metadata) in zip(prepared, processed_rows, strict=True):
+                payload["content"] = content
+                payload["metadata"] = item_metadata
+                memory_id = str(payload["memory_id"]) or stable_id(
+                    "mem",
+                    user_identifier,
+                    str(payload["session_id"]),
+                    str(payload["role"]),
+                    content,
+                )
+                payload["memory_id"] = memory_id
                 existing_payload = unique_by_id.get(memory_id)
                 if existing_payload is not None and self._batch_payload_key(
                     existing_payload
                 ) != self._batch_payload_key(payload):
                     raise ValueError(f"conflicting duplicate memory_id in batch: {memory_id}")
                 unique_by_id.setdefault(memory_id, payload)
-                prepared.append(payload)
 
             unique_payloads = list(unique_by_id.values())
             existing_by_id = {
@@ -1229,11 +1242,49 @@ class TuringAgentMemory:
         text: str,
         metadata: dict[str, object] | None,
     ) -> tuple[str, dict[str, object]]:
+        return self._process_texts_for_storage([(text, dict(metadata or {}))])[0]
+
+    def _process_texts_for_storage(
+        self,
+        rows: list[tuple[str, dict[str, object]]],
+    ) -> list[tuple[str, dict[str, object]]]:
+        if not rows:
+            return []
+        redacted_rows = [self._redact_for_storage(text, metadata) for text, metadata in rows]
+        texts = [text for text, _ in redacted_rows]
+        process_many = getattr(self.entity_processor, "process_many", None)
+        processed = (
+            process_many(texts)
+            if callable(process_many)
+            else [self.entity_processor.process(text) for text in texts]
+        )
+        if not isinstance(processed, list) or len(processed) != len(rows):
+            count = len(processed) if isinstance(processed, list) else 0
+            raise RuntimeError(f"entity processor returned {count} results for {len(rows)} inputs")
+        if not all(isinstance(item, ProcessedText) for item in processed):
+            raise RuntimeError("entity processor returned an invalid result")
+        return [
+            self._merge_entity_metadata(item, metadata)
+            for item, (_, metadata) in zip(processed, redacted_rows, strict=True)
+        ]
+
+    def _redact_for_storage(
+        self,
+        text: str,
+        metadata: dict[str, object],
+    ) -> tuple[str, dict[str, object]]:
         clean_metadata = dict(metadata or {})
         redacted = self.redactor.redact(text)
         if redacted.metadata:
             clean_metadata.update(redacted.metadata)
-        processed = self.entity_processor.process(redacted.text)
+        return redacted.text, clean_metadata
+
+    def _merge_entity_metadata(
+        self,
+        processed: ProcessedText,
+        metadata: dict[str, object],
+    ) -> tuple[str, dict[str, object]]:
+        clean_metadata = dict(metadata)
         if processed.metadata:
             clean_metadata.update(processed.metadata)
         else:

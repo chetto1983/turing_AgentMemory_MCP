@@ -5,6 +5,8 @@ import types
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 if "turingdb" not in sys.modules:
     sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
@@ -55,14 +57,42 @@ class ProjectEntityProcessor:
         )
 
 
+class BatchEntityProcessor:
+    metadata_keys = ("entity_extraction",)
+
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.calls: list[list[str]] = []
+
+    def process(self, text: str) -> ProcessedText:
+        raise AssertionError("batch store must use process_many")
+
+    def process_many(self, texts: list[str]) -> list[ProcessedText]:
+        self.calls.append(list(texts))
+        if self.fail:
+            raise RuntimeError("provider unavailable")
+        return [ProcessedText(text=text, metadata={}) for text in texts]
+
+
+class MalformedBatchEntityProcessor(BatchEntityProcessor):
+    def process_many(self, texts: list[str]) -> list[object]:
+        self.calls.append(list(texts))
+        return [object() for _ in texts]
+
+
 class RecordingStore(TuringAgentMemory):
-    def __init__(self, tmp_path: Path, embedder: CountingEmbedder) -> None:
+    def __init__(
+        self,
+        tmp_path: Path,
+        embedder: CountingEmbedder,
+        entity_processor: object | None = None,
+    ) -> None:
         super().__init__(
             client=object(),  # type: ignore[arg-type]
             turing_home=tmp_path,
             embedder=embedder,
             reranker=None,
-            entity_processor=ProjectEntityProcessor(),
+            entity_processor=entity_processor or ProjectEntityProcessor(),  # type: ignore[arg-type]
         )
         self.memories: dict[tuple[str, str], MemoryItem] = {}
         self.documents: dict[tuple[str, str], IngestedDocument] = {}
@@ -137,6 +167,61 @@ def test_store_messages_batch_extracts_entities_before_batch_embedding(tmp_path:
     assert embedder.embed_many_calls == [["TuringDB batch memory", "No named project"]]
     assert items[0].metadata["entity_extraction"]["entities"][0]["label"] == "project"
     assert items[1].metadata == {}
+
+
+def test_store_messages_uses_batch_entity_processor_once(tmp_path: Path) -> None:
+    embedder = CountingEmbedder()
+    processor = BatchEntityProcessor()
+    store = RecordingStore(tmp_path, embedder, processor)
+
+    store.store_messages(
+        user_identifier="alice",
+        messages=[
+            {"session_id": "s1", "role": "user", "content": "First source text"},
+            {"session_id": "s1", "role": "assistant", "content": "Second source text"},
+        ],
+    )
+
+    assert processor.calls == [["First source text", "Second source text"]]
+
+
+def test_store_messages_entity_extraction_failure_prevents_all_writes(tmp_path: Path) -> None:
+    embedder = CountingEmbedder()
+    processor = BatchEntityProcessor(fail=True)
+    store = RecordingStore(tmp_path, embedder, processor)
+
+    with pytest.raises(RuntimeError, match="provider unavailable"):
+        store.store_messages(
+            user_identifier="alice",
+            messages=[
+                {"session_id": "s1", "role": "user", "content": "First source text"},
+                {"session_id": "s1", "role": "assistant", "content": "Second source text"},
+            ],
+        )
+
+    assert processor.calls == [["First source text", "Second source text"]]
+    assert store.write_queries == []
+    assert store.vector_loads == []
+    assert embedder.embed_calls == []
+    assert embedder.embed_many_calls == []
+
+
+def test_store_messages_malformed_batch_entity_result_prevents_all_writes(tmp_path: Path) -> None:
+    embedder = CountingEmbedder()
+    processor = MalformedBatchEntityProcessor()
+    store = RecordingStore(tmp_path, embedder, processor)
+
+    with pytest.raises(RuntimeError, match="invalid result"):
+        store.store_messages(
+            user_identifier="alice",
+            messages=[{"session_id": "s1", "role": "user", "content": "First source text"}],
+        )
+
+    assert processor.calls == [["First source text"]]
+    assert store.write_queries == []
+    assert store.vector_loads == []
+    assert embedder.embed_calls == []
+    assert embedder.embed_many_calls == []
 
 
 def test_document_ingest_extracts_entities_before_chunking_hashing_and_persistence(
