@@ -1,28 +1,31 @@
 from __future__ import annotations
 
-import warnings
+import subprocess
+import sys
+from pathlib import Path
 
-from turing_agentmemory_mcp.warning_filters import suppress_fastmcp_authlib_warning
+
+def test_fastmcp_import_is_deprecation_clean() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "error",
+            "-c",
+            "from importlib.metadata import version; import fastmcp; print(version('fastmcp'))",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
 
 
-def test_suppress_fastmcp_authlib_warning_hides_only_known_third_party_warning() -> None:
-    category: type[Warning] = Warning
-    try:
-        from authlib.deprecate import AuthlibDeprecationWarning
+def test_project_requires_fastmcp_v3() -> None:
+    pyproject = Path(__file__).resolve().parents[1].joinpath("pyproject.toml").read_text(
+        encoding="utf-8"
+    )
 
-        category = AuthlibDeprecationWarning
-    except Exception:
-        pass
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("default")
-        suppress_fastmcp_authlib_warning()
-
-        warnings.warn(
-            "authlib.jose module is deprecated, please use joserfc instead.\n"
-            "It will be compatible before version 2.0.0.",
-            category,
-            stacklevel=1,
-        )
-        warnings.warn("unrelated provider warning", Warning, stacklevel=1)
-
-    assert [str(item.message) for item in caught] == ["unrelated provider warning"]
+    assert '"fastmcp>=3.4,<4"' in pyproject

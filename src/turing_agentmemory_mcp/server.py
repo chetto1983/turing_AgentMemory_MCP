@@ -22,7 +22,6 @@ from turing_agentmemory_mcp.provider_config import store_embedding_dimensions
 from turing_agentmemory_mcp.search_controls import validate_fusion_weights
 from turing_agentmemory_mcp.sparse_index import SparseIndex
 from turing_agentmemory_mcp.store import TuringAgentMemory
-from turing_agentmemory_mcp.warning_filters import suppress_fastmcp_authlib_warning
 
 
 def auth_from_env() -> Any | None:
@@ -34,7 +33,6 @@ def auth_from_env() -> Any | None:
     if not tokens:
         return None
 
-    suppress_fastmcp_authlib_warning()
     from fastmcp.server.auth import StaticTokenVerifier
 
     client_id = os.environ.get("AGENTMEMORY_AUTH_CLIENT_ID", "agentmemory-client")

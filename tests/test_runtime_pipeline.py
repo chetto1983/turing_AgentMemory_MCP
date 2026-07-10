@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 import types
 from pathlib import Path
 
+import httpx
 import pytest
-from starlette.testclient import TestClient
 
 if "turingdb" not in sys.modules:
     sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
@@ -162,8 +163,12 @@ def test_http_health_route_returns_runtime_readiness() -> None:
 
     app = create_mcp_app(HealthyMemory())  # type: ignore[arg-type]
 
-    with TestClient(app.http_app()) as client:
-        response = client.get("/health")
+    async def request_health() -> httpx.Response:
+        transport = httpx.ASGITransport(app=app.http_app())
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            return await client.get("/health")
+
+    response = asyncio.run(request_health())
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
