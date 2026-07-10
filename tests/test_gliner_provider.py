@@ -2,13 +2,21 @@ from __future__ import annotations
 
 import json
 import logging
+import signal
+import socket
+import sys
+import threading
+import time
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from types import SimpleNamespace
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import pytest
 
+import turing_agentmemory_mcp.gliner_provider as gliner_provider
 from turing_agentmemory_mcp.gliner_provider import GLiNERProvider, start_server
 
 
@@ -218,6 +226,32 @@ def post_bytes(url: str, body: bytes) -> tuple[int, dict[str, object]]:
         return exc.code, json.loads(exc.read().decode("utf-8"))
 
 
+def raw_http_request(base_url: str, request: bytes) -> bytes:
+    host, port = base_url.removeprefix("http://").rsplit(":", 1)
+    with socket.create_connection((host, int(port)), timeout=5) as client:
+        client.settimeout(5)
+        client.sendall(request)
+        client.shutdown(socket.SHUT_WR)
+        chunks: list[bytes] = []
+        while chunk := client.recv(65536):
+            chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def assert_json_response(raw: bytes, status: int) -> dict[str, object]:
+    header_block, body = raw.split(b"\r\n\r\n", 1)
+    lines = header_block.decode("iso-8859-1").split("\r\n")
+    headers = {
+        name.lower(): value.strip()
+        for line in lines[1:]
+        for name, value in [line.split(":", 1)]
+    }
+    assert int(lines[0].split()[1]) == status
+    assert headers["content-type"] == "application/json; charset=utf-8"
+    assert headers["content-length"] == str(len(body))
+    return json.loads(body.decode("utf-8"))
+
+
 def test_http_contract_includes_errors_and_private_logs(caplog: pytest.LogCaptureFixture) -> None:
     class ExplodingProvider:
         def health_payload(self) -> dict[str, object]:
@@ -286,3 +320,232 @@ def test_http_health_failure_returns_private_generic_json_error(
     assert "path=/health" in caplog.text
     assert "status=500" in caplog.text
     assert "count=0" in caplog.text
+
+
+class StaticProvider:
+    def health_payload(self) -> dict[str, object]:
+        return {"status": "ok", "model": "test", "device": "cpu"}
+
+    def extract(self, payload: dict[str, object]) -> dict[str, object]:
+        return {"model": "test", "device": "cpu", "results": [{"entities": {}}]}
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        b"",
+        b"Content-Length: 2\r\nContent-Length: 2\r\n",
+        b"Content-Length: +2\r\n",
+        b"Content-Length: 0\r\n",
+    ],
+)
+def test_raw_requests_reject_invalid_content_length_with_json_framing(headers: bytes) -> None:
+    request = b"POST /extract HTTP/1.1\r\nHost: localhost\r\n" + headers + b"\r\n{}"
+
+    with running_server(StaticProvider()) as base_url:
+        raw = raw_http_request(base_url, request)
+
+    assert assert_json_response(raw, 400) == {"error": "invalid request"}
+
+
+def test_raw_requests_reject_short_body_oversize_and_malformed_target() -> None:
+    body = json.dumps(extract_payload()).encode("utf-8")
+    requests = [
+        (
+            b"POST /extract HTTP/1.1\r\nHost: localhost\r\nContent-Length: "
+            + str(len(body) + 1).encode("ascii")
+            + b"\r\n\r\n"
+            + body,
+            400,
+            {"error": "invalid request"},
+        ),
+        (
+            b"POST /extract HTTP/1.1\r\nHost: localhost\r\nContent-Length: "
+            + str(gliner_provider.MAX_BODY_BYTES + 1).encode("ascii")
+            + b"\r\n\r\n",
+            413,
+            {"error": "request too large"},
+        ),
+        (
+            b"GET malformed-target HTTP/1.1\r\nHost: localhost\r\n\r\n",
+            400,
+            {"error": "invalid request"},
+        ),
+    ]
+
+    with running_server(StaticProvider()) as base_url:
+        for request, status, expected in requests:
+            assert assert_json_response(raw_http_request(base_url, request), status) == expected
+
+
+def test_extract_saturation_limits_pending_work_and_serializes_inference() -> None:
+    class SlowModel:
+        def __init__(self) -> None:
+            self.active = 0
+            self.max_active = 0
+            self.lock = threading.Lock()
+
+        def batch_extract_entities(self, *args: object, **kwargs: object) -> list[dict[str, object]]:
+            with self.lock:
+                self.active += 1
+                self.max_active = max(self.max_active, self.active)
+            try:
+                time.sleep(0.025)
+                return [{"entities": {}}]
+            finally:
+                with self.lock:
+                    self.active -= 1
+
+    model = SlowModel()
+    provider = GLiNERProvider(model=model, model_name="fastino/gliner2-base-v1")
+    start = threading.Event()
+
+    def request_extract(base_url: str) -> int:
+        start.wait(timeout=5)
+        return request_json(f"{base_url}/extract", extract_payload(texts=["bounded"]))[0]
+
+    with running_server(provider) as base_url:
+        with ThreadPoolExecutor(max_workers=40) as pool:
+            requests = [pool.submit(request_extract, base_url) for _ in range(40)]
+            start.set()
+            statuses = [request.result(timeout=10) for request in requests]
+
+    assert model.max_active == 1
+    assert 503 in statuses
+    assert statuses.count(503) >= 1
+
+
+def test_unknown_path_logs_only_canonical_unknown_path(caplog: pytest.LogCaptureFixture) -> None:
+    sensitive_path = "/unrecognized?token=super-secret-query"
+    caplog.set_level(logging.INFO, logger="turing_agentmemory_mcp.gliner_provider")
+
+    with running_server(StaticProvider()) as base_url:
+        assert request_json(f"{base_url}{sensitive_path}") == (404, {"error": "not found"})
+
+    assert sensitive_path not in caplog.text
+    assert "super-secret-query" not in caplog.text
+    assert "path=<unknown>" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "response_payload",
+    [
+        {"secret": "nonserializable-secret", "value": object()},
+        {"secret": "nonfinite-secret", "score": float("nan")},
+    ],
+)
+def test_unencodable_provider_response_returns_private_generic_json_error(
+    caplog: pytest.LogCaptureFixture,
+    response_payload: dict[str, object],
+) -> None:
+    class UnencodableProvider(StaticProvider):
+        def extract(self, payload: dict[str, object]) -> dict[str, object]:
+            return response_payload
+
+    caplog.set_level(logging.INFO, logger="turing_agentmemory_mcp.gliner_provider")
+    with running_server(UnencodableProvider()) as base_url:
+        request = Request(
+            f"{base_url}/extract",
+            data=json.dumps(extract_payload(texts=["private source"])).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with pytest.raises(HTTPError) as error:
+            urlopen(request, timeout=5)
+
+    response = error.value
+    body = response.read().decode("utf-8")
+    assert response.code == 500
+    assert response.headers["Content-Type"] == "application/json; charset=utf-8"
+    assert response.headers["Content-Length"] == str(len(body.encode("utf-8")))
+    assert json.loads(body) == {"error": "internal server error"}
+    assert "secret" not in body
+    assert "private source" not in caplog.text
+    assert "secret" not in caplog.text
+    assert "status=500" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("GLINER_MODEL", "   "),
+        ("GLINER_HOST", "   "),
+        ("GLINER_BATCH_SIZE", "0"),
+        ("GLINER_BATCH_SIZE", "257"),
+        ("GLINER_PORT", "0"),
+        ("GLINER_PORT", "65536"),
+    ],
+)
+def test_main_validates_settings_before_loading_model(monkeypatch, name: str, value: str) -> None:
+    load_calls: list[tuple[str, object]] = []
+
+    class FakeGLiNER2:
+        @classmethod
+        def from_pretrained(cls, model_name: str, **kwargs: object) -> object:
+            load_calls.append((model_name, kwargs))
+            return object()
+
+    monkeypatch.setitem(sys.modules, "gliner2", SimpleNamespace(GLiNER2=FakeGLiNER2))
+    monkeypatch.setenv(name, value)
+    monkeypatch.setattr(gliner_provider, "make_server", lambda *args, **kwargs: pytest.fail("server started"))
+
+    with pytest.raises(ValueError):
+        gliner_provider.main()
+
+    assert load_calls == []
+
+
+def test_main_loads_the_model_once_after_validating_settings(monkeypatch) -> None:
+    load_calls: list[tuple[str, dict[str, object]]] = []
+    server_calls: list[object] = []
+
+    class FakeGLiNER2:
+        @classmethod
+        def from_pretrained(cls, model_name: str, **kwargs: object) -> object:
+            load_calls.append((model_name, kwargs))
+            return object()
+
+    class FakeServer:
+        def serve_forever(self) -> None:
+            server_calls.append("serve")
+
+        def server_close(self) -> None:
+            server_calls.append("close")
+
+        def shutdown(self) -> None:
+            server_calls.append("shutdown")
+
+    def make_fake_server(provider: object, *, host: str, port: int) -> FakeServer:
+        server_calls.append((provider, host, port))
+        return FakeServer()
+
+    monkeypatch.setitem(sys.modules, "gliner2", SimpleNamespace(GLiNER2=FakeGLiNER2))
+    monkeypatch.setattr(gliner_provider, "make_server", make_fake_server)
+    monkeypatch.setattr(gliner_provider.signal, "signal", lambda *args: None)
+    monkeypatch.setenv("GLINER_MODEL", "fastino/gliner2-base-v1")
+    monkeypatch.setenv("GLINER_HOST", "127.0.0.1")
+    monkeypatch.setenv("GLINER_BATCH_SIZE", "8")
+    monkeypatch.setenv("GLINER_PORT", "8080")
+
+    gliner_provider.main()
+
+    assert load_calls == [("fastino/gliner2-base-v1", {"map_location": "cpu"})]
+    assert server_calls[1:] == ["serve", "close"]
+
+
+def test_signal_handlers_shutdown_server_from_another_thread(monkeypatch) -> None:
+    handlers: dict[int, object] = {}
+    shutdown_called = threading.Event()
+
+    class FakeServer:
+        def shutdown(self) -> None:
+            shutdown_called.set()
+
+    monkeypatch.setattr(gliner_provider.signal, "signal", lambda signum, handler: handlers.__setitem__(signum, handler))
+
+    gliner_provider._install_shutdown_signal_handlers(FakeServer())
+
+    handler = handlers[signal.SIGTERM]
+    assert callable(handler)
+    handler(signal.SIGTERM, None)  # type: ignore[operator]
+    assert shutdown_called.wait(timeout=5)
