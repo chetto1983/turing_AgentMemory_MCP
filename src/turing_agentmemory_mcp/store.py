@@ -36,6 +36,11 @@ from turing_agentmemory_mcp.search_controls import (
     validate_search_query,
     validate_threshold,
 )
+from turing_agentmemory_mcp.sparse_index import (
+    SparseDocument,
+    SparseIndex,
+    SparseMutation,
+)
 from turing_agentmemory_mcp.temporal_graph import (
     EdgeProjection,
     EntityProjection,
@@ -63,6 +68,7 @@ class TuringAgentMemory:
         reranker: OpenAICompatibleReranker | None = None,
         entity_processor: EntityProcessor | None = None,
         memory_extractor: MemoryExtractor | None = None,
+        sparse_index: SparseIndex | None = None,
         observer: SpanRecorder | None = None,
         redactor: Redactor | None = None,
         audit_sink: AuditSink | None = None,
@@ -82,6 +88,7 @@ class TuringAgentMemory:
         self.reranker = reranker or OpenAICompatibleReranker.from_env()
         self.entity_processor = entity_processor or entity_processor_from_env()
         self.memory_extractor = memory_extractor
+        self.sparse_index = sparse_index
         self.observer = observer or span_recorder_from_env()
         self.redactor = redactor or redactor_from_env()
         self.audit_sink = audit_sink or audit_sink_from_env()
@@ -111,6 +118,9 @@ class TuringAgentMemory:
         self._ensure_vector_index(self.document_index)
         self._ensure_vector_index(self.entity_index)
         self._ensure_vector_index(self.fact_index)
+        if self.sparse_index is not None:
+            self.sparse_index.initialize()
+            self.sparse_index.replay()
 
     def store_message(
         self,
@@ -298,13 +308,30 @@ class TuringAgentMemory:
 
             item_by_id: dict[str, MemoryItem] = {}
             vector_rows: list[tuple[int, list[float]]] = []
-            for item in self._create_memories_batch(
+            sparse_batch_id = self._prepare_sparse_projection(
                 user_identifier=user_identifier,
                 payloads=new_payloads,
                 projections=projections,
                 entities=entities,
-            ):
-                item_by_id[item.id] = item
+            )
+            try:
+                for item in self._create_memories_batch(
+                    user_identifier=user_identifier,
+                    payloads=new_payloads,
+                    projections=projections,
+                    entities=entities,
+                ):
+                    item_by_id[item.id] = item
+            except Exception as exc:
+                if sparse_batch_id is not None and self.sparse_index is not None:
+                    try:
+                        self.sparse_index.discard_prepared(sparse_batch_id)
+                    except Exception as discard_exc:
+                        exc.add_note(f"sparse prepared-batch cleanup failed: {discard_exc}")
+                raise
+            if sparse_batch_id is not None and self.sparse_index is not None:
+                self.sparse_index.commit_batch(sparse_batch_id)
+                self.sparse_index.replay(batch_id=sparse_batch_id)
             for payload in unique_payloads:
                 memory_id = str(payload["memory_id"])
                 if memory_id in item_by_id:
@@ -651,6 +678,19 @@ class TuringAgentMemory:
         existing = self.get_memory(user_identifier=user_identifier, memory_id=memory_id)
         if existing is None:
             raise ValueError(f"memory {memory_id} not found")
+        if self.memory_extractor is not None and existing.kind == "message":
+            requested = {
+                "content": content,
+                "kind": kind,
+                "session_id": session_id,
+                "role": role,
+                "source": source,
+                "tags": tags,
+                "metadata": metadata,
+                "expires_at": expires_at,
+            }
+            if any(value is not None for value in requested.values()):
+                raise ValueError(f"immutable temporal episode cannot be changed: {memory_id}")
         next_content = existing.content if content is None else content
         if not next_content.strip():
             raise ValueError("content is required")
@@ -665,17 +705,48 @@ class TuringAgentMemory:
             next_content, next_metadata = self._process_text_for_storage(next_content, next_metadata)
         updated_at = self._now_iso()
         vid = self._memory_vector_id(user_identifier, memory_id)
-        self._write(
-            f'MATCH (m:Memory) WHERE m.id = "{quote(memory_id)}" '
-            f'AND m.user_identifier = "{quote(user_identifier)}" '
-            f'SET m.vector_id = {vid}, m.kind = "{quote(next_kind)}", '
-            f'm.content = "{quote(next_content)}", m.session_id = "{quote(next_session_id)}", '
-            f'm.role = "{quote(next_role)}", m.source = "{quote(next_source)}", '
-            f'm.tags_json = "{quote(self._json_dumps(next_tags))}", '
-            f'm.metadata_json = "{quote(self._json_dumps(next_metadata))}", '
-            f'm.expires_at = "{quote(next_expires_at)}", '
-            f'm.updated_at = "{quote(updated_at)}", m.status = "active"'
-        )
+        sparse_batch_id = None
+        if self.sparse_index is not None:
+            sparse_batch_id = self.sparse_index.prepare(
+                [
+                    SparseMutation.upsert(
+                        SparseDocument(
+                            doc_key=self._sparse_doc_key(
+                                user_identifier,
+                                self._sparse_kind(next_kind),
+                                memory_id,
+                            ),
+                            user_identifier=user_identifier,
+                            source_id=memory_id,
+                            kind=self._sparse_kind(next_kind),
+                            content=next_content,
+                            source=next_source,
+                            session_id=next_session_id,
+                            created_at=existing.created_at,
+                            expires_at=next_expires_at,
+                        )
+                    )
+                ]
+            )
+        try:
+            self._write(
+                f'MATCH (m:Memory) WHERE m.id = "{quote(memory_id)}" '
+                f'AND m.user_identifier = "{quote(user_identifier)}" '
+                f'SET m.vector_id = {vid}, m.kind = "{quote(next_kind)}", '
+                f'm.content = "{quote(next_content)}", m.session_id = "{quote(next_session_id)}", '
+                f'm.role = "{quote(next_role)}", m.source = "{quote(next_source)}", '
+                f'm.tags_json = "{quote(self._json_dumps(next_tags))}", '
+                f'm.metadata_json = "{quote(self._json_dumps(next_metadata))}", '
+                f'm.expires_at = "{quote(next_expires_at)}", '
+                f'm.updated_at = "{quote(updated_at)}", m.status = "active"'
+            )
+        except Exception:
+            if sparse_batch_id is not None and self.sparse_index is not None:
+                self.sparse_index.discard_prepared(sparse_batch_id)
+            raise
+        if sparse_batch_id is not None and self.sparse_index is not None:
+            self.sparse_index.commit_batch(sparse_batch_id)
+            self.sparse_index.replay(batch_id=sparse_batch_id)
         if load_vector and next_content != existing.content:
             self._load_vectors(
                 self.memory_index,
@@ -717,11 +788,57 @@ class TuringAgentMemory:
         if existing is None:
             return {"memory_id": memory_id, "deleted": False}
         updated_at = self._now_iso()
-        self._write(
-            f'MATCH (m:Memory) WHERE m.id = "{quote(memory_id)}" '
-            f'AND m.user_identifier = "{quote(user_identifier)}" '
-            f'SET m.status = "deleted", m.updated_at = "{quote(updated_at)}"'
-        )
+        fact_ids = self._fact_ids_for_memory(user_identifier, memory_id)
+        sparse_batch_id = None
+        if self.sparse_index is not None:
+            sparse_batch_id = self.sparse_index.prepare(
+                [
+                    SparseMutation.delete(
+                        self._sparse_doc_key(user_identifier, "episode", memory_id)
+                    ),
+                    *[
+                        SparseMutation.delete(
+                            self._sparse_doc_key(user_identifier, "fact", fact_id)
+                        )
+                        for fact_id in fact_ids
+                    ],
+                ]
+            )
+        match_nodes = ["(m:Memory)"] + [
+            f"({cypher_var(fact_id)}:Fact)" for fact_id in fact_ids
+        ]
+        where_terms = [
+            f'm.id = "{quote(memory_id)}"',
+            f'm.user_identifier = "{quote(user_identifier)}"',
+            *[
+                f'{cypher_var(fact_id)}.id = "{quote(fact_id)}"'
+                for fact_id in fact_ids
+            ],
+        ]
+        set_terms = [
+            'm.status = "deleted"',
+            f'm.updated_at = "{quote(updated_at)}"',
+            *[
+                f'{cypher_var(fact_id)}.status = "deleted"'
+                for fact_id in fact_ids
+            ],
+        ]
+        try:
+            self._write(
+                "MATCH "
+                + ", ".join(match_nodes)
+                + " WHERE "
+                + " AND ".join(where_terms)
+                + " SET "
+                + ", ".join(set_terms)
+            )
+        except Exception:
+            if sparse_batch_id is not None and self.sparse_index is not None:
+                self.sparse_index.discard_prepared(sparse_batch_id)
+            raise
+        if sparse_batch_id is not None and self.sparse_index is not None:
+            self.sparse_index.commit_batch(sparse_batch_id)
+            self.sparse_index.replay(batch_id=sparse_batch_id)
         self._audit(
             operation="memory.delete",
             user_identifier=user_identifier,
@@ -1426,6 +1543,186 @@ class TuringAgentMemory:
             )
             for payload, extraction in zip(payloads, extractions, strict=True)
         ]
+
+    def _prepare_sparse_projection(
+        self,
+        *,
+        user_identifier: str,
+        payloads: list[dict[str, object]],
+        projections: list[TemporalProjection],
+        entities: list[EntityProjection],
+    ) -> str | None:
+        if self.sparse_index is None or not payloads:
+            return None
+        payload_by_memory_id = {
+            str(payload["memory_id"]): payload for payload in payloads
+        }
+        mutations: list[SparseMutation] = []
+        for payload in payloads:
+            source_id = str(payload["memory_id"])
+            mutations.append(
+                SparseMutation.upsert(
+                    SparseDocument(
+                        doc_key=self._sparse_doc_key(user_identifier, "episode", source_id),
+                        user_identifier=user_identifier,
+                        source_id=source_id,
+                        kind="episode",
+                        content=str(payload["content"]),
+                        source=str(payload["source"]),
+                        session_id=str(payload["session_id"]),
+                        created_at=str(payload["created_at"]),
+                        expires_at=str(payload["expires_at"]),
+                    )
+                )
+            )
+        for entity in entities:
+            source_payload = payload_by_memory_id.get(entity.source_memory_id, {})
+            mutations.append(
+                SparseMutation.upsert(
+                    SparseDocument(
+                        doc_key=self._sparse_doc_key(user_identifier, "entity", entity.id),
+                        user_identifier=user_identifier,
+                        source_id=entity.id,
+                        kind="entity",
+                        content=entity.content,
+                        source=str(source_payload.get("source") or ""),
+                        session_id=str(source_payload.get("session_id") or ""),
+                        created_at=entity.observed_at,
+                        expires_at=entity.expires_at,
+                    )
+                )
+            )
+        for projection in projections:
+            for fact in projection.facts:
+                mutations.append(
+                    SparseMutation.upsert(
+                        SparseDocument(
+                            doc_key=self._sparse_doc_key(user_identifier, "fact", fact.id),
+                            user_identifier=user_identifier,
+                            source_id=fact.id,
+                            kind="fact",
+                            content=fact.content,
+                            source=fact.source,
+                            session_id=fact.session_id,
+                            created_at=fact.observed_at,
+                            expires_at=fact.expires_at,
+                        )
+                    )
+                )
+        return self.sparse_index.prepare(mutations)
+
+    @staticmethod
+    def _sparse_doc_key(user_identifier: str, kind: str, source_id: str) -> str:
+        return f"{user_identifier}:{kind}:{source_id}"
+
+    @staticmethod
+    def _sparse_kind(memory_kind: str) -> str:
+        return "episode" if memory_kind == "message" else memory_kind
+
+    def _fact_ids_for_memory(self, user_identifier: str, memory_id: str) -> list[str]:
+        try:
+            rows = self._records(
+                self._query(
+                    "MATCH (f:Fact) "
+                    f'WHERE f.user_identifier = "{quote(user_identifier)}" '
+                    f'AND f.source_memory_id = "{quote(memory_id)}" AND f.status = "active" '
+                    "RETURN f.id",
+                    operation="fact.ids_for_memory",
+                )
+            )
+        except Exception as exc:
+            if "Unknown label: Fact" not in str(exc):
+                raise
+            return []
+        return [str(row.get("f.id")) for row in rows if row.get("f.id")]
+
+    def rebuild_sparse_projection(self) -> dict[str, object]:
+        if self.sparse_index is None:
+            raise RuntimeError("sparse projection is not configured")
+        documents = self._canonical_sparse_documents()
+        self.sparse_index.rebuild(documents)
+        return self.sparse_index.status()
+
+    def _canonical_sparse_documents(self) -> list[SparseDocument]:
+        documents: list[SparseDocument] = []
+        memory_rows = self._sparse_rebuild_rows(
+            "Memory",
+            "MATCH (m:Memory) WHERE m.status = \"active\" "
+            "RETURN m.id, m.user_identifier, m.kind, m.content, m.source, m.session_id, "
+            "m.created_at, m.expires_at",
+            "sparse.rebuild.memory",
+        )
+        for row in memory_rows:
+            source_id = str(row.get("m.id") or "")
+            user_identifier = str(row.get("m.user_identifier") or "")
+            kind = self._sparse_kind(str(row.get("m.kind") or "memory"))
+            content = str(row.get("m.content") or "")
+            if not source_id or not user_identifier or not content:
+                continue
+            documents.append(
+                SparseDocument(
+                    doc_key=self._sparse_doc_key(user_identifier, kind, source_id),
+                    user_identifier=user_identifier,
+                    source_id=source_id,
+                    kind=kind,
+                    content=content,
+                    source=str(row.get("m.source") or ""),
+                    session_id=str(row.get("m.session_id") or ""),
+                    created_at=str(row.get("m.created_at") or ""),
+                    expires_at=str(row.get("m.expires_at") or ""),
+                )
+            )
+        for label, variable, kind, operation in (
+            ("Entity", "e", "entity", "sparse.rebuild.entity"),
+            ("Fact", "f", "fact", "sparse.rebuild.fact"),
+            ("Community", "c", "community", "sparse.rebuild.community"),
+        ):
+            rows = self._sparse_rebuild_rows(
+                label,
+                f'MATCH ({variable}:{label}) WHERE {variable}.status = "active" '
+                f"RETURN {variable}.id, {variable}.user_identifier, {variable}.content, "
+                f"{variable}.source, {variable}.session_id, "
+                f"{variable}.observed_at, {variable}.created_at, {variable}.expires_at",
+                operation,
+            )
+            for row in rows:
+                source_id = str(row.get(f"{variable}.id") or "")
+                user_identifier = str(row.get(f"{variable}.user_identifier") or "")
+                content = str(row.get(f"{variable}.content") or "")
+                if not source_id or not user_identifier or not content:
+                    continue
+                created_at = str(
+                    row.get(f"{variable}.observed_at")
+                    or row.get(f"{variable}.created_at")
+                    or ""
+                )
+                documents.append(
+                    SparseDocument(
+                        doc_key=self._sparse_doc_key(user_identifier, kind, source_id),
+                        user_identifier=user_identifier,
+                        source_id=source_id,
+                        kind=kind,
+                        content=content,
+                        source=str(row.get(f"{variable}.source") or ""),
+                        session_id=str(row.get(f"{variable}.session_id") or ""),
+                        created_at=created_at,
+                        expires_at=str(row.get(f"{variable}.expires_at") or ""),
+                    )
+                )
+        return documents
+
+    def _sparse_rebuild_rows(
+        self,
+        label: str,
+        query: str,
+        operation: str,
+    ) -> list[dict[str, Any]]:
+        try:
+            return self._records(self._query(query, operation=operation))
+        except Exception as exc:
+            if f"Unknown label: {label}" not in str(exc):
+                raise
+            return []
 
     def _unique_projection_entities(
         self,

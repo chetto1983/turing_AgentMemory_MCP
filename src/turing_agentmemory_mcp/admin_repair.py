@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import re
 import shutil
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+
+from .sparse_index import SparseDocument, SparseIndex
 
 _SAFE_TIMESTAMP = re.compile(r"^[A-Za-z0-9_.-]+$")
 
@@ -53,6 +56,36 @@ def repair_vector_index(
     shutil.move(str(vector_dir), str(quarantine_dir))
     vector_dir.mkdir(parents=True, exist_ok=False)
     return {**result, "status": "repaired", "applied": True}
+
+
+def repair_sparse_projection(
+    path: str | Path,
+    documents: Sequence[SparseDocument],
+    *,
+    apply: bool = False,
+) -> dict[str, object]:
+    """Replace the recoverable FTS projection from canonical graph documents."""
+    resolved = Path(path).expanduser().resolve()
+    result = {
+        "operation": "sparse_projection_repair",
+        "path": str(resolved),
+        "canonical_document_count": len(documents),
+        "applied": False,
+        "notes": [
+            "TuringDB graph records are not modified.",
+            "The sparse projection and its outbox are replaced atomically.",
+        ],
+    }
+    if not apply:
+        return {**result, "status": "would_rebuild"}
+    index = SparseIndex(resolved)
+    index.rebuild(documents)
+    return {
+        **result,
+        "status": "rebuilt",
+        "applied": True,
+        "projection": index.status(),
+    }
 
 
 def _repair_timestamp(timestamp: str | None) -> str:

@@ -5,6 +5,8 @@ import types
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 if "turingdb" not in sys.modules:
     sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
@@ -15,6 +17,7 @@ from turing_agentmemory_mcp.memory_extraction import (
     RelationMention,
 )
 from turing_agentmemory_mcp.models import IngestedDocument, MemoryItem
+from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseIndex
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
 
@@ -43,6 +46,7 @@ class RecordingMemoryStore(TuringAgentMemory):
         tmp_path: Path,
         embedder: CountingBatchEmbedder,
         memory_extractor: object | None = None,
+        sparse_index: SparseIndex | None = None,
     ) -> None:
         super().__init__(
             client=object(),  # type: ignore[arg-type]
@@ -50,6 +54,7 @@ class RecordingMemoryStore(TuringAgentMemory):
             embedder=embedder,
             reranker=None,
             memory_extractor=memory_extractor,  # type: ignore[arg-type]
+            sparse_index=sparse_index,
         )
         self.memories: dict[tuple[str, str], MemoryItem] = {}
         self.vector_loads: list[list[tuple[int, list[float]]]] = []
@@ -376,6 +381,167 @@ def test_temporal_graph_write_failure_publishes_no_vectors(tmp_path: Path) -> No
 
     assert len(store.write_queries) == 1
     assert store.vector_loads == []
+
+
+def test_temporal_store_projects_episode_entities_and_fact_to_sparse_index(
+    tmp_path: Path,
+) -> None:
+    sparse = SparseIndex(tmp_path / "fts.sqlite3")
+    sparse.initialize()
+    store = RecordingMemoryStore(
+        tmp_path,
+        CountingBatchEmbedder(),
+        RecordingMemoryExtractor(),
+        sparse,
+    )
+
+    store.store_messages(
+        user_identifier="alice",
+        messages=[
+            {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+        ],
+    )
+
+    hits = sparse.search(user_identifier="alice", query="Alice hiking", limit=20)
+    assert {hit.kind for hit in hits} == {"episode", "entity", "fact"}
+    assert {hit.source_id for hit in hits} >= {"e1"}
+    assert sparse.status()["document_count"] == 4
+    assert sparse.status()["pending_count"] == 0
+
+
+def test_graph_failure_discards_prepared_sparse_projection(tmp_path: Path) -> None:
+    class FailingWriteStore(RecordingMemoryStore):
+        def _write(self, query: str) -> None:
+            raise RuntimeError("graph commit failed")
+
+    sparse = SparseIndex(tmp_path / "fts.sqlite3")
+    sparse.initialize()
+    store = FailingWriteStore(
+        tmp_path,
+        CountingBatchEmbedder(),
+        RecordingMemoryExtractor(),
+        sparse,
+    )
+
+    with pytest.raises(RuntimeError, match="graph commit failed"):
+        store.store_messages(
+            user_identifier="alice",
+            messages=[
+                {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+            ],
+        )
+
+    assert sparse.status()["document_count"] == 0
+    assert sparse.status()["pending_count"] == 0
+
+
+def test_temporal_update_rejects_raw_episode_mutation(tmp_path: Path) -> None:
+    store = RecordingMemoryStore(
+        tmp_path,
+        CountingBatchEmbedder(),
+        RecordingMemoryExtractor(),
+    )
+    store.store_messages(
+        user_identifier="alice",
+        messages=[
+            {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+        ],
+    )
+
+    with pytest.raises(ValueError, match="immutable temporal episode"):
+        store.update_memory(
+            user_identifier="alice",
+            memory_id="e1",
+            content="Alice avoids hiking.",
+        )
+
+    assert len(store.write_queries) == 1
+
+
+def test_delete_removes_episode_and_supported_facts_from_sparse_projection(
+    tmp_path: Path,
+) -> None:
+    sparse = SparseIndex(tmp_path / "fts.sqlite3")
+    sparse.initialize()
+    store = RecordingMemoryStore(
+        tmp_path,
+        CountingBatchEmbedder(),
+        RecordingMemoryExtractor(),
+        sparse,
+    )
+    store.store_messages(
+        user_identifier="alice",
+        messages=[
+            {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+        ],
+    )
+    fact_ids = [
+        hit.source_id
+        for hit in sparse.search(
+            user_identifier="alice",
+            query="hiking",
+            kinds=["fact"],
+            limit=10,
+        )
+    ]
+    store._fact_ids_for_memory = types.MethodType(  # type: ignore[method-assign]
+        lambda self, user_identifier, memory_id: fact_ids,
+        store,
+    )
+
+    result = store.delete_memory(user_identifier="alice", memory_id="e1")
+
+    assert result["deleted"] is True
+    assert sparse.search(
+        user_identifier="alice",
+        query="hiking",
+        kinds=["episode", "fact"],
+        limit=10,
+    ) == []
+    assert len(
+        sparse.search(user_identifier="alice", query="hiking", kinds=["entity"], limit=10)
+    ) == 1
+    assert sparse.status()["pending_count"] == 0
+
+
+def test_rebuild_sparse_projection_replaces_index_from_canonical_graph_documents(
+    tmp_path: Path,
+) -> None:
+    class RebuildStore(RecordingMemoryStore):
+        def _canonical_sparse_documents(self) -> list[SparseDocument]:
+            return [
+                SparseDocument(
+                    "alice:episode:canonical",
+                    "alice",
+                    "canonical",
+                    "episode",
+                    "canonical graph memory",
+                )
+            ]
+
+    sparse = SparseIndex(tmp_path / "fts.sqlite3")
+    sparse.initialize()
+    sparse.upsert_many(
+        [
+            SparseDocument(
+                "alice:episode:stale",
+                "alice",
+                "stale",
+                "episode",
+                "stale memory",
+            )
+        ]
+    )
+    store = RebuildStore(tmp_path, CountingBatchEmbedder(), sparse_index=sparse)
+
+    status = store.rebuild_sparse_projection()
+
+    assert status["document_count"] == 1
+    assert sparse.search(user_identifier="alice", query="stale", limit=10) == []
+    assert [
+        hit.source_id
+        for hit in sparse.search(user_identifier="alice", query="canonical", limit=10)
+    ] == ["canonical"]
 
 
 def test_ingest_document_text_batches_chunk_embeddings_and_vector_loads(tmp_path: Path) -> None:
