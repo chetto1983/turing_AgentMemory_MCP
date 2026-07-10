@@ -262,6 +262,30 @@ def compact_hit(hit: dict[str, Any], rank: int) -> dict[str, Any]:
     }
 
 
+def retrieval_diagnostics(hits: list[dict[str, Any]]) -> dict[str, Any]:
+    statuses: set[str] = set()
+    models: set[str] = set()
+    channels: set[str] = set()
+    for hit in hits:
+        details = hit.get("score_details")
+        if not isinstance(details, dict):
+            continue
+        status = details.get("rerank_status")
+        if isinstance(status, str) and status:
+            statuses.add(status)
+        model = details.get("rerank_model")
+        if isinstance(model, str) and model:
+            models.add(model)
+        hit_channels = details.get("channels")
+        if isinstance(hit_channels, dict):
+            channels.update(str(name) for name in hit_channels)
+    return {
+        "rerank_status": next(iter(statuses)) if len(statuses) == 1 else "mixed" if statuses else "",
+        "rerank_model": next(iter(models)) if len(models) == 1 else "mixed" if models else "",
+        "retrieval_channels": sorted(channels),
+    }
+
+
 def summarize_entity_extraction(rows: list[dict[str, Any]]) -> dict[str, Any]:
     annotated_memories = 0
     entities = 0
@@ -536,6 +560,7 @@ async def evaluate_conversation(
                     "answer_in_content_by_k": {str(k): answer_hit_by_k[k] for k in ks},
                     "latency_ms": round(latency_ms, 3),
                     "error": error,
+                    **retrieval_diagnostics(hits),
                     "retrieved": [compact_hit(hit, rank) for rank, hit in enumerate(hits, 1)],
                 }
             )

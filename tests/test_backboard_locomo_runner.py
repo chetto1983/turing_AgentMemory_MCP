@@ -136,6 +136,34 @@ def test_compact_hit_keeps_answer_context_and_token_accounting() -> None:
     assert compact["estimated_tokens"] == runner.estimate_tokens("Alice moved to Rome.")
 
 
+def test_retrieval_diagnostics_reports_reranker_and_channel_identity() -> None:
+    hits = [
+        {
+            "score_details": {
+                "rerank_status": "provider_floor_fallback",
+                "rerank_model": "Qwen3-Reranker-0.6B-q8_0.gguf",
+                "channels": {
+                    "episode_dense": {"rank": 1},
+                    "bm25": {"rank": 3},
+                },
+            }
+        },
+        {
+            "score_details": {
+                "rerank_status": "provider_floor_fallback",
+                "rerank_model": "Qwen3-Reranker-0.6B-q8_0.gguf",
+                "channels": {"entity_dense": {"rank": 2}},
+            }
+        },
+    ]
+
+    assert runner.retrieval_diagnostics(hits) == {
+        "rerank_status": "provider_floor_fallback",
+        "rerank_model": "Qwen3-Reranker-0.6B-q8_0.gguf",
+        "retrieval_channels": ["bm25", "entity_dense", "episode_dense"],
+    }
+
+
 def test_conversation_ingest_never_contains_qa_gold_answers() -> None:
     item = {
         "sample_id": "conv-1",
