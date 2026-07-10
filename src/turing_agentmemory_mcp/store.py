@@ -9,6 +9,14 @@ from typing import Any
 
 from turingdb import TuringDB
 
+from turing_agentmemory_mcp.community_detection import (
+    CommunityEntity,
+    CommunityFact,
+    CommunityProjection,
+    NativeLeidenDetector,
+    WeightedEntityEdge,
+    build_community_projection,
+)
 from turing_agentmemory_mcp.embeddings import Embedder, OpenAICompatibleEmbedder
 from turing_agentmemory_mcp.entity_extraction import (
     EntityProcessor,
@@ -79,6 +87,7 @@ class TuringAgentMemory:
         document_index: str = "document_chunk_vectors",
         entity_index: str = "agent_memory_entity_vectors",
         fact_index: str = "agent_memory_fact_vectors",
+        community_index: str = "agent_memory_community_vectors",
         embedder: Embedder | None = None,
         reranker: OpenAICompatibleReranker | None = None,
         entity_processor: EntityProcessor | None = None,
@@ -86,6 +95,7 @@ class TuringAgentMemory:
         sparse_index: SparseIndex | None = None,
         fusion_enabled: bool | None = None,
         fusion_weights: dict[str, float] | None = None,
+        community_detector: NativeLeidenDetector | None = None,
         observer: SpanRecorder | None = None,
         redactor: Redactor | None = None,
         audit_sink: AuditSink | None = None,
@@ -101,6 +111,7 @@ class TuringAgentMemory:
         self.document_index = document_index
         self.entity_index = entity_index
         self.fact_index = fact_index
+        self.community_index = community_index
         self.embedder = embedder or OpenAICompatibleEmbedder.from_env(dimensions=self.dimensions)
         self.reranker = reranker or OpenAICompatibleReranker.from_env()
         self.entity_processor = entity_processor or entity_processor_from_env()
@@ -120,6 +131,7 @@ class TuringAgentMemory:
                 "community": 0.7,
             }
         )
+        self.community_detector = community_detector or NativeLeidenDetector()
         self.observer = observer or span_recorder_from_env()
         self.redactor = redactor or redactor_from_env()
         self.audit_sink = audit_sink or audit_sink_from_env()
@@ -149,6 +161,7 @@ class TuringAgentMemory:
         self._ensure_vector_index(self.document_index)
         self._ensure_vector_index(self.entity_index)
         self._ensure_vector_index(self.fact_index)
+        self._ensure_vector_index(self.community_index)
         if self.sparse_index is not None:
             self.sparse_index.initialize()
             self.sparse_index.replay()
@@ -805,6 +818,14 @@ class TuringAgentMemory:
                         channels[channel] = values
                 except Exception as exc:
                     degraded[channel] = type(exc).__name__
+            try:
+                community_values = self._community_dense_evidence(
+                    user_identifier, query_vector, candidate_limit
+                )
+                if community_values:
+                    channels["community"] = community_values
+            except Exception as exc:
+                degraded["community"] = type(exc).__name__
 
         if self.sparse_index is not None:
             try:
@@ -920,6 +941,10 @@ class TuringAgentMemory:
         )
         fact_ids = [hit.source_id for hit in hits if hit.kind == "fact"]
         fact_sources = self._fact_sources_by_ids(user_identifier, fact_ids)
+        community_ids = [hit.source_id for hit in hits if hit.kind == "community"]
+        community_sources = self._community_sources_by_ids(
+            user_identifier, community_ids
+        )
         entity_seeds = {
             hit.source_id: max(hit.score, 1e-12)
             for hit in hits
@@ -948,8 +973,59 @@ class TuringAgentMemory:
                         hit.score,
                     )
                 )
+            elif hit.kind == "community":
+                for source_memory_id in community_sources.get(hit.source_id, ()):
+                    values.append(
+                        RetrievalEvidence(
+                            source_memory_id,
+                            hit.source_id,
+                            "community",
+                            hit.score,
+                            metadata={"community_id": hit.source_id},
+                        )
+                    )
         values.extend(entity_evidence)
         return values[:limit]
+
+    def _community_dense_evidence(
+        self,
+        user_identifier: str,
+        query_vector: list[float],
+        limit: int,
+    ) -> list[RetrievalEvidence]:
+        rows = self._records(
+            self._query(
+                f"VECTOR SEARCH IN {self.community_index} FOR {limit} "
+                f"{self._vector_literal(query_vector)} YIELD ids, score "
+                "MATCH (c:Community) "
+                f'WHERE c.vector_id = ids AND c.user_identifier = "{quote(user_identifier)}" '
+                'AND c.status = "active" RETURN c.id, c.source_memory_ids_json, score',
+                operation="community.vector_search",
+            )
+        )
+        values: list[RetrievalEvidence] = []
+        for row in rows:
+            community_id = str(row.get("c.id") or "")
+            source_ids = self._json_loads(
+                row.get("c.source_memory_ids_json"), []
+            )
+            if not community_id or not isinstance(source_ids, list):
+                continue
+            for source_id in source_ids:
+                if not isinstance(source_id, str) or not source_id:
+                    continue
+                values.append(
+                    RetrievalEvidence(
+                        source_memory_id=source_id,
+                        evidence_id=community_id,
+                        evidence_kind="community",
+                        raw_score=float(row.get("score") or 0.0),
+                        metadata={"community_id": community_id},
+                    )
+                )
+                if len(values) >= limit:
+                    return values
+        return values
 
     def _query_graph_evidence(
         self,
@@ -1063,6 +1139,40 @@ class TuringAgentMemory:
             for row in rows
             if row.get("f.id") and row.get("f.source_memory_id")
         }
+
+    def _community_sources_by_ids(
+        self,
+        user_identifier: str,
+        community_ids: list[str],
+    ) -> dict[str, tuple[str, ...]]:
+        if not community_ids:
+            return {}
+        condition = " OR ".join(
+            f'c.id = "{quote(community_id)}"'
+            for community_id in dict.fromkeys(community_ids)
+        )
+        rows = self._records(
+            self._query(
+                "MATCH (c:Community) "
+                f'WHERE c.user_identifier = "{quote(user_identifier)}" '
+                f'AND ({condition}) AND c.status = "active" '
+                "RETURN c.id, c.source_memory_ids_json",
+                operation="community.source_lookup",
+            )
+        )
+        values: dict[str, tuple[str, ...]] = {}
+        for row in rows:
+            community_id = str(row.get("c.id") or "")
+            source_ids = self._json_loads(
+                row.get("c.source_memory_ids_json"), []
+            )
+            if community_id and isinstance(source_ids, list):
+                values[community_id] = tuple(
+                    source_id
+                    for source_id in source_ids
+                    if isinstance(source_id, str) and source_id
+                )
+        return values
 
     def _memory_rows_for_ids(
         self,
@@ -2157,6 +2267,266 @@ class TuringAgentMemory:
         self.sparse_index.rebuild(documents)
         return self.sparse_index.status()
 
+    def rebuild_communities(self, *, user_identifier: str) -> dict[str, object]:
+        self._require_user(user_identifier)
+        entities, facts, mentions_by_memory = self._community_graph_inputs(
+            user_identifier
+        )
+        edges = [
+            WeightedEntityEdge(
+                fact.subject_entity_id,
+                fact.object_entity_id,
+                max(fact.confidence, 1e-12),
+                (fact.source_memory_id,) if fact.source_memory_id else (),
+            )
+            for fact in facts
+            if fact.subject_entity_id in entities
+            and fact.object_entity_id in entities
+            and fact.subject_entity_id != fact.object_entity_id
+        ]
+        for memory_id, member_ids in mentions_by_memory.items():
+            unique = tuple(sorted(set(member_ids)))
+            for index, source_id in enumerate(unique):
+                for target_id in unique[index + 1 :]:
+                    edges.append(
+                        WeightedEntityEdge(
+                            source_id,
+                            target_id,
+                            0.25,
+                            (memory_id,),
+                        )
+                    )
+        detection = self.community_detector.detect(
+            user_identifier,
+            list(entities),
+            edges,
+        )
+        projections = [
+            build_community_projection(community, entities, facts)
+            for community in detection.communities
+        ]
+        vectors = self._embed_many([projection.content for projection in projections])
+        previous_ids = self._active_community_ids(user_identifier)
+        sparse_batch_id = None
+        if self.sparse_index is not None:
+            mutations: list[SparseMutation] = [
+                SparseMutation.delete(
+                    self._sparse_doc_key(user_identifier, "community", community_id)
+                )
+                for community_id in sorted(previous_ids)
+            ]
+            mutations.extend(
+                SparseMutation.upsert(
+                    SparseDocument(
+                        doc_key=self._sparse_doc_key(
+                            user_identifier, "community", projection.id
+                        ),
+                        user_identifier=user_identifier,
+                        source_id=projection.id,
+                        kind="community",
+                        content=projection.content,
+                        created_at=self._now_iso(),
+                    )
+                )
+                for projection in projections
+            )
+            if mutations:
+                sparse_batch_id = self.sparse_index.prepare(mutations)
+        try:
+            self._replace_community_graph(user_identifier, projections)
+        except Exception as exc:
+            if sparse_batch_id is not None and self.sparse_index is not None:
+                try:
+                    self.sparse_index.discard_prepared(sparse_batch_id)
+                except Exception as discard_exc:
+                    exc.add_note(f"sparse community cleanup failed: {discard_exc}")
+            raise
+        if sparse_batch_id is not None and self.sparse_index is not None:
+            self.sparse_index.commit_batch(sparse_batch_id)
+            self.sparse_index.replay(batch_id=sparse_batch_id)
+        if vectors:
+            self._load_vectors(
+                self.community_index,
+                [
+                    (
+                        self._community_vector_id(user_identifier, projection.id),
+                        vector,
+                    )
+                    for projection, vector in zip(projections, vectors, strict=True)
+                ],
+                "community_batch",
+            )
+        return {
+            "user_identifier": user_identifier,
+            "community_count": len(projections),
+            "isolate_count": len(detection.isolates),
+            "community_ids": [projection.id for projection in projections],
+            "backend": detection.backend,
+            "seed": detection.seed,
+            "resolution": detection.resolution,
+        }
+
+    def _community_graph_inputs(
+        self,
+        user_identifier: str,
+    ) -> tuple[
+        dict[str, CommunityEntity],
+        list[CommunityFact],
+        dict[str, tuple[str, ...]],
+    ]:
+        entity_rows = self._records(
+            self._query(
+                "MATCH (e:Entity) "
+                f'WHERE e.user_identifier = "{quote(user_identifier)}" AND e.status = "active" '
+                "RETURN e.id, e.display_name, e.entity_type, e.confidence, e.source_memory_id",
+                operation="community.inputs.entities",
+            )
+        )
+        mention_rows = self._records(
+            self._query(
+                "MATCH (m:Memory)-[:MENTIONS]->(e:Entity) "
+                f'WHERE m.user_identifier = "{quote(user_identifier)}" '
+                'AND m.status = "active" AND e.status = "active" RETURN m.id, e.id',
+                operation="community.inputs.mentions",
+            )
+        )
+        sources_by_entity: dict[str, set[str]] = {}
+        mentions_by_memory_sets: dict[str, set[str]] = {}
+        for row in mention_rows:
+            memory_id = str(row.get("m.id") or "")
+            entity_id = str(row.get("e.id") or "")
+            if not memory_id or not entity_id:
+                continue
+            sources_by_entity.setdefault(entity_id, set()).add(memory_id)
+            mentions_by_memory_sets.setdefault(memory_id, set()).add(entity_id)
+        entities = {
+            str(row.get("e.id")): CommunityEntity(
+                id=str(row.get("e.id")),
+                display_name=str(row.get("e.display_name") or ""),
+                entity_type=str(row.get("e.entity_type") or "entity"),
+                confidence=float(row.get("e.confidence") or 0.0),
+                source_memory_ids=tuple(
+                    sorted(
+                        sources_by_entity.get(
+                            str(row.get("e.id")),
+                            {str(row.get("e.source_memory_id") or "")}
+                            - {""},
+                        )
+                    )
+                ),
+            )
+            for row in entity_rows
+            if row.get("e.id") and row.get("e.display_name")
+        }
+        fact_rows = self._records(
+            self._query(
+                "MATCH (f:Fact) "
+                f'WHERE f.user_identifier = "{quote(user_identifier)}" AND f.status = "active" '
+                "RETURN f.id, f.subject_entity_id, f.predicate, f.object_entity_id, f.content, "
+                "f.confidence, f.observed_at, f.source_memory_id",
+                operation="community.inputs.facts",
+            )
+        )
+        facts = [
+            CommunityFact(
+                id=str(row.get("f.id")),
+                subject_entity_id=str(row.get("f.subject_entity_id") or ""),
+                predicate=str(row.get("f.predicate") or ""),
+                object_entity_id=str(row.get("f.object_entity_id") or ""),
+                content=str(row.get("f.content") or ""),
+                confidence=float(row.get("f.confidence") or 0.0),
+                observed_at=str(row.get("f.observed_at") or ""),
+                source_memory_id=str(row.get("f.source_memory_id") or ""),
+            )
+            for row in fact_rows
+            if row.get("f.id") and row.get("f.content")
+        ]
+        return (
+            entities,
+            facts,
+            {
+                memory_id: tuple(sorted(entity_ids))
+                for memory_id, entity_ids in mentions_by_memory_sets.items()
+            },
+        )
+
+    def _active_community_ids(self, user_identifier: str) -> set[str]:
+        try:
+            rows = self._records(
+                self._query(
+                    "MATCH (c:Community) "
+                    f'WHERE c.user_identifier = "{quote(user_identifier)}" '
+                    'AND c.status = "active" RETURN c.id',
+                    operation="community.active_ids",
+                )
+            )
+        except Exception as exc:
+            if "Unknown label: Community" not in str(exc):
+                raise
+            return set()
+        return {str(row.get("c.id")) for row in rows if row.get("c.id")}
+
+    def _replace_community_graph(
+        self,
+        user_identifier: str,
+        projections: list[CommunityProjection],
+    ) -> None:
+        existing_ids = self._active_community_ids(user_identifier)
+        timestamp = self._now_iso()
+        queries = [
+            f'MATCH (c:Community) WHERE c.id = "{quote(community_id)}" '
+            f'AND c.user_identifier = "{quote(user_identifier)}" '
+            f'SET c.status = "stale", c.updated_at = "{quote(timestamp)}"'
+            for community_id in sorted(existing_ids)
+        ]
+        for projection in projections:
+            if projection.id in existing_ids:
+                queries.append(
+                    f'MATCH (c:Community) WHERE c.id = "{quote(projection.id)}" '
+                    f'AND c.user_identifier = "{quote(user_identifier)}" '
+                    f'SET c.vector_id = {self._community_vector_id(user_identifier, projection.id)}, '
+                    f'c.content = "{quote(projection.content)}", '
+                    f'c.member_ids_json = "{quote(self._json_dumps(list(projection.member_ids)))}", '
+                    f'c.source_memory_ids_json = "{quote(self._json_dumps(list(projection.source_memory_ids)))}", '
+                    f'c.fact_ids_json = "{quote(self._json_dumps(list(projection.fact_ids)))}", '
+                    f'c.confidence = {projection.confidence:.8f}, c.level = {projection.level}, '
+                    f'c.parent_id = "{quote(projection.parent_id)}", '
+                    f'c.edge_weight = {projection.edge_weight:.8f}, '
+                    f'c.updated_at = "{quote(timestamp)}", c.status = "active"'
+                )
+                continue
+            member_vars = [cypher_var(member_id) for member_id in projection.member_ids]
+            community_var = cypher_var(projection.id)
+            match_nodes = ", ".join(
+                f"({variable}:Entity)" for variable in member_vars
+            )
+            where_terms = " AND ".join(
+                f'{variable}.id = "{quote(member_id)}"'
+                for variable, member_id in zip(
+                    member_vars, projection.member_ids, strict=True
+                )
+            )
+            node = (
+                f'({community_var}:Community {{id: "{quote(projection.id)}", '
+                f'vector_id: {self._community_vector_id(user_identifier, projection.id)}, '
+                f'user_identifier: "{quote(user_identifier)}", content: "{quote(projection.content)}", '
+                f'member_ids_json: "{quote(self._json_dumps(list(projection.member_ids)))}", '
+                f'source_memory_ids_json: "{quote(self._json_dumps(list(projection.source_memory_ids)))}", '
+                f'fact_ids_json: "{quote(self._json_dumps(list(projection.fact_ids)))}", '
+                f'confidence: {projection.confidence:.8f}, level: {projection.level}, '
+                f'parent_id: "{quote(projection.parent_id)}", edge_weight: {projection.edge_weight:.8f}, '
+                f'created_at: "{quote(timestamp)}", updated_at: "{quote(timestamp)}", status: "active"}})'
+            )
+            edges = [
+                f"({variable})-[:IN_COMMUNITY]->({community_var})"
+                for variable in member_vars
+            ]
+            queries.append(
+                f"MATCH {match_nodes} WHERE {where_terms} CREATE "
+                + ", ".join([node, *edges])
+            )
+        self._write_many(queries)
+
     def _canonical_sparse_documents(self) -> list[SparseDocument]:
         documents: list[SparseDocument] = []
         memory_rows = self._sparse_rebuild_rows(
@@ -2500,6 +2870,21 @@ class TuringAgentMemory:
             self.client.new_change()
             try:
                 self._query(query, operation="write")
+                self._query("CHANGE SUBMIT", operation="write.submit")
+            finally:
+                self.client.checkout()
+
+    def _write_many(self, queries: list[str]) -> None:
+        if not queries:
+            return
+        with self._span(
+            "turingdb.write_transaction",
+            {"graph": self.graph, "statement_count": len(queries)},
+        ):
+            self.client.new_change()
+            try:
+                for query in queries:
+                    self._query(query, operation="write")
                 self._query("CHANGE SUBMIT", operation="write.submit")
             finally:
                 self.client.checkout()
@@ -3022,6 +3407,10 @@ class TuringAgentMemory:
     @staticmethod
     def _fact_vector_id(user_identifier: str, fact_id: str) -> int:
         return vector_id("fact", f"{user_identifier}:{fact_id}")
+
+    @staticmethod
+    def _community_vector_id(user_identifier: str, community_id: str) -> int:
+        return vector_id("community", f"{user_identifier}:{community_id}")
 
     @staticmethod
     def _document_vector_id(user_identifier: str, chunk_id: str) -> int:

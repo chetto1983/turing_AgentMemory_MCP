@@ -310,6 +310,13 @@ class CollectorStore(TuringAgentMemory):
             "entity.vector_search": [
                 {"e.id": self.alice_entity_id, "score": 0.7},
             ],
+            "community.vector_search": [
+                {
+                    "c.id": "community-1",
+                    "c.source_memory_ids_json": '["m1", "m2"]',
+                    "score": 0.65,
+                }
+            ],
             "fact.source_lookup": [
                 {"f.id": "f3", "f.source_memory_id": "m3", "f.confidence": 0.75},
             ],
@@ -349,6 +356,7 @@ def test_collectors_build_independent_dense_sparse_and_graph_channels(
     ]
     assert {item.source_memory_id for item in channels["entity_dense"]} == {"m2"}
     assert {item.source_memory_id for item in channels["graph"]} == {"m2"}
+    assert {item.source_memory_id for item in channels["community"]} == {"m1", "m2"}
     assert {item.source_memory_id for item in channels["bm25"]} == {"m2", "m3"}
     assert extractor.calls == [["Alice"]]
 
