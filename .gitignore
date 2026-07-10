@@ -11,3 +11,4 @@ build/
 .turingdb/
 e2e-results.json
 run.log
+.worktrees/
