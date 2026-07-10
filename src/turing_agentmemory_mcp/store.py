@@ -25,6 +25,7 @@ from turing_agentmemory_mcp.governance import (
 )
 from turing_agentmemory_mcp.hybrid import blend_hybrid_score, lexical_score
 from turing_agentmemory_mcp.ids import cypher_var, quote, stable_id, vector_id
+from turing_agentmemory_mcp.memory_extraction import MemoryExtractor
 from turing_agentmemory_mcp.models import DocumentHit, IngestedDocument, MemoryItem
 from turing_agentmemory_mcp.observability import SpanRecorder, span_recorder_from_env
 from turing_agentmemory_mcp.provider_config import provider_env
@@ -34,6 +35,13 @@ from turing_agentmemory_mcp.search_controls import (
     passes_threshold,
     validate_search_query,
     validate_threshold,
+)
+from turing_agentmemory_mcp.temporal_graph import (
+    EdgeProjection,
+    EntityProjection,
+    EpisodeContext,
+    TemporalProjection,
+    plan_temporal_projection,
 )
 
 _MISSING = object()
@@ -49,9 +57,12 @@ class TuringAgentMemory:
         dimensions: int = 768,
         memory_index: str = "agent_memory_vectors",
         document_index: str = "document_chunk_vectors",
+        entity_index: str = "agent_memory_entity_vectors",
+        fact_index: str = "agent_memory_fact_vectors",
         embedder: Embedder | None = None,
         reranker: OpenAICompatibleReranker | None = None,
         entity_processor: EntityProcessor | None = None,
+        memory_extractor: MemoryExtractor | None = None,
         observer: SpanRecorder | None = None,
         redactor: Redactor | None = None,
         audit_sink: AuditSink | None = None,
@@ -65,9 +76,12 @@ class TuringAgentMemory:
         self.dimensions = getattr(embedder, "dimensions", dimensions)
         self.memory_index = memory_index
         self.document_index = document_index
+        self.entity_index = entity_index
+        self.fact_index = fact_index
         self.embedder = embedder or OpenAICompatibleEmbedder.from_env(dimensions=self.dimensions)
         self.reranker = reranker or OpenAICompatibleReranker.from_env()
         self.entity_processor = entity_processor or entity_processor_from_env()
+        self.memory_extractor = memory_extractor
         self.observer = observer or span_recorder_from_env()
         self.redactor = redactor or redactor_from_env()
         self.audit_sink = audit_sink or audit_sink_from_env()
@@ -95,6 +109,8 @@ class TuringAgentMemory:
         self._ensure_graph_loaded()
         self._ensure_vector_index(self.memory_index)
         self._ensure_vector_index(self.document_index)
+        self._ensure_vector_index(self.entity_index)
+        self._ensure_vector_index(self.fact_index)
 
     def store_message(
         self,
@@ -111,6 +127,23 @@ class TuringAgentMemory:
     ) -> MemoryItem:
         with self._span("memory.store_message", {"user_identifier": user_identifier, "source": source}):
             self._require_user(user_identifier)
+            if self.memory_extractor is not None:
+                return self.store_messages(
+                    user_identifier=user_identifier,
+                    messages=[
+                        {
+                            "memory_id": memory_id or "",
+                            "session_id": session_id,
+                            "role": role,
+                            "content": content,
+                            "source": source,
+                            "tags": tags,
+                            "metadata": metadata,
+                            "expires_at": expires_at,
+                        }
+                    ],
+                    _audit_operation="memory.store_message",
+                )[0]
             content, metadata = self._process_text_for_storage(content, metadata)
             memory_id = memory_id or stable_id("mem", user_identifier, session_id, role, content)
             item = self._write_memory(
@@ -142,6 +175,7 @@ class TuringAgentMemory:
         tags: list[str] | None = None,
         metadata: dict[str, object] | None = None,
         expires_at: str = "",
+        _audit_operation: str = "memory.store_messages",
     ) -> list[MemoryItem]:
         with self._span(
             "memory.store_messages",
@@ -214,33 +248,73 @@ class TuringAgentMemory:
                 )
                 for payload in unique_payloads
             }
+            if self.memory_extractor is not None:
+                for payload in unique_payloads:
+                    existing_item = existing_by_id[str(payload["memory_id"])]
+                    if existing_item is not None and not self._memory_matches_payload(
+                        existing_item,
+                        payload,
+                    ):
+                        raise ValueError(
+                            f"immutable temporal episode cannot be changed: {payload['memory_id']}"
+                        )
             needs_embedding = [
                 payload
                 for payload in unique_payloads
                 if existing_by_id[str(payload["memory_id"])] is None
                 or existing_by_id[str(payload["memory_id"])].content != str(payload["content"])
             ]
-            vectors = self._embed_many([str(payload["content"]) for payload in needs_embedding])
-            vector_by_id = {
-                str(payload["memory_id"]): vector
-                for payload, vector in zip(needs_embedding, vectors, strict=True)
-            }
-
-            item_by_id: dict[str, MemoryItem] = {}
-            vector_rows: list[tuple[int, list[float]]] = []
             new_payloads = [
                 payload
                 for payload in unique_payloads
                 if existing_by_id[str(payload["memory_id"])] is None
             ]
+            for payload in new_payloads:
+                payload["created_at"] = self._now_iso()
+            projections = self._plan_memory_projections(
+                user_identifier=user_identifier,
+                payloads=new_payloads,
+            )
+            entities = self._unique_projection_entities(
+                user_identifier=user_identifier,
+                projections=projections,
+            )
+            facts = [fact for projection in projections for fact in projection.facts]
+            embedding_texts = (
+                [str(payload["content"]) for payload in needs_embedding]
+                + [entity.content for entity in entities]
+                + [fact.content for fact in facts]
+            )
+            vectors = self._embed_many(embedding_texts)
+            raw_end = len(needs_embedding)
+            entity_end = raw_end + len(entities)
+            raw_vectors = vectors[:raw_end]
+            entity_vectors = vectors[raw_end:entity_end]
+            fact_vectors = vectors[entity_end:]
+            vector_by_id = {
+                str(payload["memory_id"]): vector
+                for payload, vector in zip(needs_embedding, raw_vectors, strict=True)
+            }
+
+            item_by_id: dict[str, MemoryItem] = {}
+            vector_rows: list[tuple[int, list[float]]] = []
             for item in self._create_memories_batch(
                 user_identifier=user_identifier,
                 payloads=new_payloads,
+                projections=projections,
+                entities=entities,
             ):
                 item_by_id[item.id] = item
             for payload in unique_payloads:
                 memory_id = str(payload["memory_id"])
                 if memory_id in item_by_id:
+                    continue
+                existing_item = existing_by_id[memory_id]
+                if existing_item is not None and self._memory_matches_payload(
+                    existing_item,
+                    payload,
+                ):
+                    item_by_id[memory_id] = existing_item
                     continue
                 vector = vector_by_id.get(memory_id)
                 item = self._write_memory(
@@ -263,12 +337,30 @@ class TuringAgentMemory:
                 vector_rows.append((self._memory_vector_id(user_identifier, memory_id), vector))
             if vector_rows:
                 self._load_vectors(self.memory_index, vector_rows, "memory_batch")
+            if entity_vectors:
+                self._load_vectors(
+                    self.entity_index,
+                    [
+                        (self._entity_vector_id(user_identifier, entity.id), vector)
+                        for entity, vector in zip(entities, entity_vectors, strict=True)
+                    ],
+                    "entity_batch",
+                )
+            if fact_vectors:
+                self._load_vectors(
+                    self.fact_index,
+                    [
+                        (self._fact_vector_id(user_identifier, fact.id), vector)
+                        for fact, vector in zip(facts, fact_vectors, strict=True)
+                    ],
+                    "fact_batch",
+                )
             items = [item_by_id[str(payload["memory_id"])] for payload in prepared]
             self._audit(
-                operation="memory.store_messages",
+                operation=_audit_operation,
                 user_identifier=user_identifier,
                 resource_type="memory",
-                resource_id="",
+                resource_id=items[0].id if _audit_operation == "memory.store_message" else "",
                 details={"count": len(items)},
             )
             return items
@@ -1183,10 +1275,14 @@ class TuringAgentMemory:
         *,
         user_identifier: str,
         payloads: list[dict[str, object]],
+        projections: list[TemporalProjection] | None = None,
+        entities: list[EntityProjection] | None = None,
     ) -> list[MemoryItem]:
         if not payloads:
             return []
         self._ensure_user(user_identifier)
+        projections = list(projections or [])
+        new_entities = list(entities or [])
         nodes: list[str] = []
         edges: list[str] = []
         items: list[MemoryItem] = []
@@ -1194,7 +1290,7 @@ class TuringAgentMemory:
             memory_id = str(payload["memory_id"])
             mem_var = cypher_var(memory_id)
             vid = self._memory_vector_id(user_identifier, memory_id)
-            created_at = self._now_iso()
+            created_at = str(payload.get("created_at") or self._now_iso())
             content = str(payload["content"])
             session_id = str(payload["session_id"])
             role = str(payload["role"])
@@ -1231,11 +1327,163 @@ class TuringAgentMemory:
                     metadata=clean_metadata,
                 )
             )
+        new_entity_ids = {entity.id for entity in new_entities}
+        all_entity_ids = {
+            entity.id
+            for projection in projections
+            for entity in projection.entities
+        }
+        existing_entity_ids = all_entity_ids - new_entity_ids
+        for entity in new_entities:
+            entity_var = cypher_var(entity.id)
+            nodes.append(
+                f'({entity_var}:Entity {{id: "{quote(entity.id)}", '
+                f'vector_id: {self._entity_vector_id(user_identifier, entity.id)}, '
+                f'user_identifier: "{quote(user_identifier)}", '
+                f'entity_type: "{quote(entity.entity_type)}", '
+                f'canonical_name: "{quote(entity.canonical_name)}", '
+                f'display_name: "{quote(entity.display_name)}", '
+                f'content: "{quote(entity.content)}", confidence: {entity.confidence:.8f}, '
+                f'first_observed_at: "{quote(entity.observed_at)}", '
+                f'last_observed_at: "{quote(entity.observed_at)}", '
+                f'source_memory_id: "{quote(entity.source_memory_id)}", '
+                f'schema_version: "{quote(entity.schema_version)}", '
+                f'model: "{quote(entity.model)}", '
+                f'expires_at: "{quote(entity.expires_at)}", status: "active"}})'
+            )
+        facts = [fact for projection in projections for fact in projection.facts]
+        for fact in facts:
+            fact_var = cypher_var(fact.id)
+            nodes.append(
+                f'({fact_var}:Fact {{id: "{quote(fact.id)}", '
+                f'vector_id: {self._fact_vector_id(user_identifier, fact.id)}, '
+                f'user_identifier: "{quote(user_identifier)}", '
+                f'subject_entity_id: "{quote(fact.subject_entity_id)}", '
+                f'predicate: "{quote(fact.predicate)}", '
+                f'object_entity_id: "{quote(fact.object_entity_id)}", '
+                f'content: "{quote(fact.content)}", confidence: {fact.confidence:.8f}, '
+                f'observed_at: "{quote(fact.observed_at)}", '
+                f'valid_from: "{quote(fact.valid_from)}", '
+                f'valid_to: "{quote(fact.valid_to)}", '
+                f'valid_time_precision: "{quote(fact.valid_time_precision)}", '
+                f'source_memory_id: "{quote(fact.source_memory_id)}", '
+                f'session_id: "{quote(fact.session_id)}", speaker: "{quote(fact.speaker)}", '
+                f'source: "{quote(fact.source)}", '
+                f'tags_json: "{quote(self._json_dumps(list(fact.tags)))}", '
+                f'metadata_json: "{quote(self._json_dumps(fact.metadata))}", '
+                f'schema_version: "{quote(fact.schema_version)}", model: "{quote(fact.model)}", '
+                f'expires_at: "{quote(fact.expires_at)}", status: "active"}})'
+            )
+        for projection in projections:
+            edges.extend(self._projection_edge_literals(projection.edges))
+        match_nodes = ["(u:User)"] + [
+            f"({cypher_var(entity_id)}:Entity)" for entity_id in sorted(existing_entity_ids)
+        ]
+        where_terms = [f'u.identifier = "{quote(user_identifier)}"'] + [
+            f'{cypher_var(entity_id)}.id = "{quote(entity_id)}"'
+            for entity_id in sorted(existing_entity_ids)
+        ]
         self._write(
-            f'MATCH (u:User) WHERE u.identifier = "{quote(user_identifier)}" CREATE '
+            "MATCH "
+            + ", ".join(match_nodes)
+            + " WHERE "
+            + " AND ".join(where_terms)
+            + " CREATE "
             + ", ".join(nodes + edges)
         )
         return items
+
+    def _plan_memory_projections(
+        self,
+        *,
+        user_identifier: str,
+        payloads: list[dict[str, object]],
+    ) -> list[TemporalProjection]:
+        if not payloads or self.memory_extractor is None:
+            return []
+        texts = [str(payload["content"]) for payload in payloads]
+        extractions = self.memory_extractor.extract_many(texts)
+        if not isinstance(extractions, tuple) or len(extractions) != len(payloads):
+            count = len(extractions) if isinstance(extractions, tuple) else 0
+            raise RuntimeError(
+                f"memory extractor returned {count} results for {len(payloads)} inputs"
+            )
+        return [
+            plan_temporal_projection(
+                EpisodeContext(
+                    user_identifier=user_identifier,
+                    memory_id=str(payload["memory_id"]),
+                    content=str(payload["content"]),
+                    session_id=str(payload["session_id"]),
+                    role=str(payload["role"]),
+                    observed_at=str(payload["created_at"]),
+                    source=str(payload["source"]),
+                    tags=tuple(payload["tags"]),  # type: ignore[arg-type]
+                    metadata=dict(payload["metadata"]),  # type: ignore[arg-type]
+                    expires_at=str(payload["expires_at"]),
+                ),
+                extraction,
+            )
+            for payload, extraction in zip(payloads, extractions, strict=True)
+        ]
+
+    def _unique_projection_entities(
+        self,
+        *,
+        user_identifier: str,
+        projections: list[TemporalProjection],
+    ) -> list[EntityProjection]:
+        by_id: dict[str, EntityProjection] = {}
+        for projection in projections:
+            for entity in projection.entities:
+                previous = by_id.get(entity.id)
+                if previous is None or entity.confidence > previous.confidence:
+                    by_id[entity.id] = entity
+        existing = self._existing_entity_ids(user_identifier, list(by_id))
+        return [entity for entity_id, entity in by_id.items() if entity_id not in existing]
+
+    def _existing_entity_ids(self, user_identifier: str, entity_ids: list[str]) -> set[str]:
+        if not entity_ids:
+            return set()
+        conditions = " OR ".join(f'e.id = "{quote(entity_id)}"' for entity_id in entity_ids)
+        try:
+            rows = self._records(
+                self._query(
+                    "MATCH (e:Entity) "
+                    f'WHERE e.user_identifier = "{quote(user_identifier)}" AND ({conditions}) '
+                    "RETURN e.id",
+                    operation="entity.exists_batch",
+                )
+            )
+        except Exception as exc:
+            if "Unknown label: Entity" not in str(exc):
+                raise
+            return set()
+        return {str(row.get("e.id") or "") for row in rows if row.get("e.id")}
+
+    @classmethod
+    def _projection_edge_literals(cls, edges: tuple[EdgeProjection, ...]) -> list[str]:
+        literals: list[str] = []
+        for edge in edges:
+            source_var = cypher_var(edge.source_id)
+            target_var = cypher_var(edge.target_id)
+            properties = {"id": edge.id, **edge.properties}
+            property_text = ", ".join(
+                f'{cypher_var(name)}: {cls._cypher_value(value)}'
+                for name, value in properties.items()
+            )
+            literals.append(
+                f"({source_var})-[:{edge.kind} {{{property_text}}}]->({target_var})"
+            )
+        return literals
+
+    @staticmethod
+    def _cypher_value(value: object) -> str:
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return str(value)
+        return f'"{quote(str(value))}"'
 
     def _process_text_for_storage(
         self,
@@ -1340,6 +1588,21 @@ class TuringAgentMemory:
             self._json_dumps(payload.get("tags") or []),
             self._json_dumps(payload.get("metadata") or {}),
             payload.get("expires_at", ""),
+        )
+
+    def _memory_matches_payload(
+        self,
+        item: MemoryItem,
+        payload: dict[str, object],
+    ) -> bool:
+        return self._batch_payload_key(payload) == (
+            item.session_id,
+            item.role,
+            item.content,
+            item.source,
+            self._json_dumps(item.tags),
+            self._json_dumps(item.metadata),
+            item.expires_at,
         )
 
     def _ensure_graph_loaded(self) -> None:
@@ -1838,6 +2101,14 @@ class TuringAgentMemory:
     @staticmethod
     def _memory_vector_id(user_identifier: str, memory_id: str) -> int:
         return vector_id("memory", f"{user_identifier}:{memory_id}")
+
+    @staticmethod
+    def _entity_vector_id(user_identifier: str, entity_id: str) -> int:
+        return vector_id("entity", f"{user_identifier}:{entity_id}")
+
+    @staticmethod
+    def _fact_vector_id(user_identifier: str, fact_id: str) -> int:
+        return vector_id("fact", f"{user_identifier}:{fact_id}")
 
     @staticmethod
     def _document_vector_id(user_identifier: str, chunk_id: str) -> int:

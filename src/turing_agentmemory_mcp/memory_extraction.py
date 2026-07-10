@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -136,6 +136,10 @@ class MemoryExtraction:
     model: str
     device: str
     schema_version: str
+
+
+class MemoryExtractor(Protocol):
+    def extract_many(self, texts: list[str]) -> tuple[MemoryExtraction, ...]: ...
 
 
 @dataclass(frozen=True, slots=True)
