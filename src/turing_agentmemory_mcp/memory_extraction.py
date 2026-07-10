@@ -10,6 +10,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 MEMORY_EXTRACTION_SCHEMA_VERSION = "memory-v1"
+MAX_MEMORY_EXTRACTION_TEXT_CHARS = 16_384
+MAX_MEMORY_EXTRACTION_BATCH_TEXTS = 256
 MEMORY_ENTITY_LABELS = (
     "person",
     "organization",
@@ -166,6 +168,20 @@ class HTTPMemoryExtractor:
             return ()
         if any(not isinstance(text, str) or not text.strip() for text in texts):
             raise ValueError("memory extraction texts must be non-empty strings")
+        chunks = [
+            (text_index, offset, chunk)
+            for text_index, text in enumerate(texts)
+            for offset, chunk in _bounded_text_chunks(text)
+        ]
+        chunk_extractions: list[MemoryExtraction] = []
+        for start in range(0, len(chunks), MAX_MEMORY_EXTRACTION_BATCH_TEXTS):
+            batch = chunks[start : start + MAX_MEMORY_EXTRACTION_BATCH_TEXTS]
+            chunk_extractions.extend(
+                self._extract_provider_batch([chunk for _, _, chunk in batch])
+            )
+        return _merge_chunk_extractions(texts, chunks, chunk_extractions)
+
+    def _extract_provider_batch(self, texts: list[str]) -> tuple[MemoryExtraction, ...]:
         payload = {
             "texts": texts,
             "threshold": self.threshold,
@@ -213,6 +229,101 @@ class HTTPMemoryExtractor:
             raise RuntimeError(
                 f"memory extraction provider returned invalid extraction results at {self.base_url}"
             ) from exc
+
+
+def _bounded_text_chunks(text: str) -> tuple[tuple[int, str], ...]:
+    chunks: list[tuple[int, str]] = []
+    start = 0
+    while start < len(text):
+        end = min(start + MAX_MEMORY_EXTRACTION_TEXT_CHARS, len(text))
+        if end < len(text):
+            boundary = end
+            while boundary > start and not text[boundary - 1].isspace():
+                boundary -= 1
+            if boundary > start + MAX_MEMORY_EXTRACTION_TEXT_CHARS // 2:
+                end = boundary
+        chunks.append((start, text[start:end]))
+        start = end
+    return tuple(chunks)
+
+
+def _merge_chunk_extractions(
+    texts: list[str],
+    chunks: list[tuple[int, int, str]],
+    extractions: list[MemoryExtraction],
+) -> tuple[MemoryExtraction, ...]:
+    if len(chunks) != len(extractions):
+        raise RuntimeError("memory extraction chunk result count mismatch")
+    grouped: list[list[tuple[int, MemoryExtraction]]] = [[] for _ in texts]
+    for (text_index, offset, _), extraction in zip(chunks, extractions, strict=True):
+        grouped[text_index].append((offset, extraction))
+
+    merged: list[MemoryExtraction] = []
+    for parts in grouped:
+        devices = {extraction.device for _, extraction in parts}
+        if len(devices) != 1:
+            raise RuntimeError("memory extraction provider device changed between chunks")
+        entity_candidates: list[EntityMention] = []
+        relation_candidates: list[RelationMention] = []
+        classifications: list[Classification] = []
+        for offset, extraction in parts:
+            shifted = {
+                _entity_identity(entity): EntityMention(
+                    entity.text,
+                    entity.label,
+                    entity.score,
+                    entity.start + offset,
+                    entity.end + offset,
+                )
+                for entity in extraction.entities
+            }
+            entity_candidates.extend(shifted.values())
+            for relation in extraction.relations:
+                relation_candidates.append(
+                    RelationMention(
+                        relation.relation,
+                        shifted[_entity_identity(relation.subject)],
+                        shifted[_entity_identity(relation.object)],
+                        relation.score,
+                    )
+                )
+            classifications.append(extraction.memory_kind)
+
+        entity_index: dict[tuple[str, str, int, int], EntityMention] = {}
+        for entity in entity_candidates:
+            identity = _entity_identity(entity)
+            previous = entity_index.get(identity)
+            if previous is None or entity.score > previous.score:
+                entity_index[identity] = entity
+        relation_index: dict[
+            tuple[str, tuple[str, str, int, int], tuple[str, str, int, int]],
+            RelationMention,
+        ] = {}
+        for relation in relation_candidates:
+            subject_identity = _entity_identity(relation.subject)
+            object_identity = _entity_identity(relation.object)
+            identity = (relation.relation, subject_identity, object_identity)
+            canonical = RelationMention(
+                relation.relation,
+                entity_index[subject_identity],
+                entity_index[object_identity],
+                relation.score,
+            )
+            previous = relation_index.get(identity)
+            if previous is None or canonical.score > previous.score:
+                relation_index[identity] = canonical
+        first = parts[0][1]
+        merged.append(
+            MemoryExtraction(
+                entities=tuple(entity_index.values()),
+                relations=tuple(relation_index.values()),
+                memory_kind=max(classifications, key=lambda item: item.score),
+                model=first.model,
+                device=first.device,
+                schema_version=first.schema_version,
+            )
+        )
+    return tuple(merged)
 
 
 def normalize_memory_extraction(

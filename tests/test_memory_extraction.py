@@ -185,6 +185,65 @@ def test_http_memory_extractor_posts_versioned_batch_and_normalizes(monkeypatch)
     assert timeout == 12.5
 
 
+def test_http_memory_extractor_chunks_long_text_and_restores_offsets(monkeypatch) -> None:
+    prefix = "A" * memory_extraction.MAX_MEMORY_EXTRACTION_TEXT_CHARS
+    text = prefix + " Rome"
+    requests: list[list[str]] = []
+
+    def fake_urlopen(request: object, timeout: float) -> FakeResponse:
+        del timeout
+        payload = json.loads(request.data)
+        request_texts = payload["texts"]
+        requests.append(request_texts)
+        results = []
+        for chunk in request_texts:
+            start = chunk.find("Rome")
+            entities = (
+                [{"text": "Rome", "label": "location", "score": 0.99, "start": start, "end": start + 4}]
+                if start >= 0
+                else []
+            )
+            results.append(
+                {
+                    "entities": entities,
+                    "relations": [],
+                    "classifications": {
+                        "memory_kind": [
+                            {
+                                "label": "episodic_event",
+                                "score": 0.9 if start >= 0 else 0.6,
+                            }
+                        ]
+                    },
+                }
+            )
+        return FakeResponse(
+            {
+                "model": "model",
+                "device": "cpu",
+                "schema_version": MEMORY_EXTRACTION_SCHEMA_VERSION,
+                "results": results,
+            }
+        )
+
+    monkeypatch.setattr(memory_extraction, "urlopen", fake_urlopen)
+
+    result = HTTPMemoryExtractor(base_url="http://provider", model_name="model").extract_many(
+        [text]
+    )[0]
+
+    assert len(requests) == 1
+    assert len(requests[0]) == 2
+    assert all(
+        len(chunk) <= memory_extraction.MAX_MEMORY_EXTRACTION_TEXT_CHARS
+        for chunk in requests[0]
+    )
+    assert result.entities[0].text == "Rome"
+    assert result.entities[0].start == len(prefix) + 1
+    assert result.entities[0].end == len(text)
+    assert result.memory_kind.score == 0.9
+
+
 @pytest.mark.parametrize(
     "response",
     [
