@@ -415,6 +415,36 @@ def test_extract_saturation_limits_pending_work_and_serializes_inference() -> No
     assert statuses.count(503) >= 1
 
 
+def test_server_drops_connections_above_worker_cap() -> None:
+    class CountingHealthProvider(StaticProvider):
+        def __init__(self) -> None:
+            self.health_calls = 0
+
+        def health_payload(self) -> dict[str, object]:
+            self.health_calls += 1
+            return super().health_payload()
+
+    provider = CountingHealthProvider()
+    server, thread = start_server(provider, max_request_threads=1)
+    held_connection = socket.create_connection(("127.0.0.1", server.server_port), timeout=5)
+    held_connection.sendall(b"GET /health HTTP/1.1\r\n")
+    try:
+        try:
+            response = raw_http_request(
+                f"http://127.0.0.1:{server.server_port}",
+                b"GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n",
+            )
+        except (ConnectionAbortedError, ConnectionResetError):
+            response = b""
+        assert b" 200 " not in response
+        assert provider.health_calls == 0
+    finally:
+        held_connection.close()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
 def test_unknown_path_logs_only_canonical_unknown_path(caplog: pytest.LogCaptureFixture) -> None:
     sensitive_path = "/unrecognized?token=super-secret-query"
     caplog.set_level(logging.INFO, logger="turing_agentmemory_mcp.gliner_provider")

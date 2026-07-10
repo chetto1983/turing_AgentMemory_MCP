@@ -23,6 +23,7 @@ MAX_TEXT_CHARS = 16_384
 MAX_LABEL_CHARS = 256
 READ_TIMEOUT_SECONDS = 30
 MAX_PENDING_EXTRACTION_REQUESTS = 32
+MAX_REQUEST_THREADS = MAX_PENDING_EXTRACTION_REQUESTS + 8
 INTERNAL_ERROR_BODY = b'{"error": "internal server error"}'
 LOGGER = logging.getLogger(__name__)
 
@@ -108,14 +109,40 @@ def _validate_string_list(value: Any, name: str, max_items: int, max_chars: int)
 
 
 class GLiNERHTTPServer(ThreadingHTTPServer):
-    request_queue_size = MAX_PENDING_EXTRACTION_REQUESTS + 8
+    request_queue_size = MAX_REQUEST_THREADS + 8
 
-    def __init__(self, server_address: tuple[str, int], handler: type[BaseHTTPRequestHandler]) -> None:
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        handler: type[BaseHTTPRequestHandler],
+        *,
+        max_request_threads: int = MAX_REQUEST_THREADS,
+    ) -> None:
+        if max_request_threads <= 0:
+            raise ValueError("max_request_threads must be positive")
         self.extract_semaphore = threading.BoundedSemaphore(MAX_PENDING_EXTRACTION_REQUESTS)
+        self.request_thread_semaphore = threading.BoundedSemaphore(max_request_threads)
         super().__init__(server_address, handler)
 
     def handle_error(self, request: object, client_address: object) -> None:
         LOGGER.info("method=<unknown> path=<unknown> status=500 count=0 elapsed_ms=0.000")
+
+    def process_request(self, request: object, client_address: object) -> None:
+        if not self.request_thread_semaphore.acquire(blocking=False):
+            LOGGER.info("method=<unknown> path=<unknown> status=503 count=0 elapsed_ms=0.000")
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self.request_thread_semaphore.release()
+            raise
+
+    def process_request_thread(self, request: object, client_address: object) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.request_thread_semaphore.release()
 
 
 def make_handler(provider: ExtractProvider) -> type[BaseHTTPRequestHandler]:
@@ -271,8 +298,13 @@ def make_server(
     *,
     host: str = "127.0.0.1",
     port: int = 0,
+    max_request_threads: int = MAX_REQUEST_THREADS,
 ) -> GLiNERHTTPServer:
-    return GLiNERHTTPServer((host, port), make_handler(provider))
+    return GLiNERHTTPServer(
+        (host, port),
+        make_handler(provider),
+        max_request_threads=max_request_threads,
+    )
 
 
 def start_server(
@@ -280,8 +312,14 @@ def start_server(
     *,
     host: str = "127.0.0.1",
     port: int = 0,
+    max_request_threads: int = MAX_REQUEST_THREADS,
 ) -> tuple[GLiNERHTTPServer, threading.Thread]:
-    server = make_server(provider, host=host, port=port)
+    server = make_server(
+        provider,
+        host=host,
+        port=port,
+        max_request_threads=max_request_threads,
+    )
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server, thread
