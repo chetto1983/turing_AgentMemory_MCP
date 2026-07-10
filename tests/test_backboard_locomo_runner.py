@@ -187,6 +187,30 @@ def test_conversation_ingest_never_contains_qa_gold_answers() -> None:
     assert "SECRET_GOLD" not in repr(messages)
 
 
+def test_turn_content_omits_embedded_image_bytes_but_keeps_media_context() -> None:
+    content = runner.turn_content(
+        "conv-1",
+        "session_1",
+        "2026-01-01",
+        {
+            "dia_id": "D1:1",
+            "speaker": "Alice",
+            "text": "Look at this.",
+            "query": "turtles basking",
+            "blip_caption": "three turtles on rocks",
+            "img_url": [
+                "data:image/jpeg;base64,/9j/VERY-LONG-BINARY",
+                "https://example.test/turtles.jpg",
+            ],
+        },
+    )
+
+    assert "VERY-LONG-BINARY" not in content
+    assert "embedded image/jpeg omitted" in content
+    assert "https://example.test/turtles.jpg" in content
+    assert "three turtles on rocks" in content
+
+
 def test_resume_state_skips_completed_conversations() -> None:
     state = runner.resume_state(
         {

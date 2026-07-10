@@ -165,7 +165,15 @@ def turn_content(sample_id: str, session_key: str, session_dt: str, turn: dict[s
         parts.append(f"Image caption: {caption}.")
     img_urls = turn.get("img_url")
     if isinstance(img_urls, list) and img_urls:
-        parts.append(f"Image URLs: {' '.join(str(url) for url in img_urls)}")
+        references: list[str] = []
+        for value in img_urls:
+            url = str(value)
+            if url.casefold().startswith("data:"):
+                media_type = url[5:].split(";", 1)[0] or "media"
+                references.append(f"[embedded {media_type} omitted]")
+            else:
+                references.append(url)
+        parts.append(f"Image URLs: {' '.join(dict.fromkeys(references))}")
     return " ".join(part for part in parts if part)
 
 
