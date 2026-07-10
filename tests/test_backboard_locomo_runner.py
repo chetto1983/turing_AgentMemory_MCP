@@ -55,7 +55,14 @@ def test_require_entity_model_rejects_missing_or_different_model(summary: dict[s
 
 def test_comparable_cutoffs_are_fixed_at_20_50_and_200() -> None:
     assert runner.COMPARABLE_CUTOFFS == (20, 50, 200)
+    assert runner.MAX_INGEST_BATCH == 256
     assert runner.retrieval_cutoffs(200) == [1, 3, 5, 10, 20, 50, 200]
+
+
+def test_ingest_batch_validation_matches_gliner_sidecar_contract() -> None:
+    assert runner.validate_batch_size(256) == 256
+    with pytest.raises(ValueError, match="between 1 and 256"):
+        runner.validate_batch_size(257)
 
 
 def test_metrics_report_first_relevant_reciprocal_rank() -> None:

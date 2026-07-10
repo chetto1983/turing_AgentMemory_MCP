@@ -31,6 +31,7 @@ CATEGORY_NAMES = {
     5: "adversarial",
 }
 COMPARABLE_CUTOFFS = (20, 50, 200)
+MAX_INGEST_BATCH = 256
 
 
 class ResumeState(NamedTuple):
@@ -59,7 +60,12 @@ def parse_args() -> argparse.Namespace:
         help="Output JSON path. Defaults to .benchmarks/backboard-locomo-direct-mcp-<timestamp>.json.",
     )
     parser.add_argument("--top-k", type=int, default=200, help="memory_search limit (max 200).")
-    parser.add_argument("--batch-size", type=int, default=500, help="MCP ingest batch size.")
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=MAX_INGEST_BATCH,
+        help=f"MCP ingest batch size (max {MAX_INGEST_BATCH}).",
+    )
     parser.add_argument(
         "--scope-prefix",
         default="bench-backboard-locomo-fused-v2",
@@ -214,6 +220,12 @@ def retrieval_cutoffs(top_k: int) -> list[int]:
     if top_k <= 0 or top_k > 200:
         raise ValueError("top_k must be between 1 and 200")
     return sorted({k for k in (1, 3, 5, 10, *COMPARABLE_CUTOFFS, top_k) if k <= top_k})
+
+
+def validate_batch_size(value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_INGEST_BATCH:
+        raise ValueError(f"batch_size must be between 1 and {MAX_INGEST_BATCH}")
+    return value
 
 
 def answer_in_hits(answer: Any, hits: list[dict[str, Any]], k: int) -> bool:
@@ -545,6 +557,7 @@ async def run() -> dict[str, Any]:
         data = [item for item in data if str(item.get("sample_id")) in wanted]
     max_k = args.top_k
     ks = retrieval_cutoffs(max_k)
+    args.batch_size = validate_batch_size(args.batch_size)
 
     os.environ.setdefault("NO_COLOR", "1")
     transport = StdioTransport(
