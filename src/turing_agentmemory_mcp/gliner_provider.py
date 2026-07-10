@@ -93,7 +93,17 @@ def make_handler(provider: ExtractProvider) -> type[BaseHTTPRequestHandler]:
             started = time.perf_counter()
             path = urlsplit(self.path).path
             if path == "/health":
-                self._send_json(HTTPStatus.OK, provider.health_payload(), count=0, started=started)
+                try:
+                    payload = provider.health_payload()
+                except Exception:
+                    self._send_json(
+                        HTTPStatus.INTERNAL_SERVER_ERROR,
+                        {"error": "internal server error"},
+                        count=0,
+                        started=started,
+                    )
+                    return
+                self._send_json(HTTPStatus.OK, payload, count=0, started=started)
                 return
             self._send_json(
                 HTTPStatus.NOT_FOUND,

@@ -252,3 +252,37 @@ def test_http_contract_includes_errors_and_private_logs(caplog: pytest.LogCaptur
     assert "path=/extract" in caplog.text
     assert "status=200" in caplog.text
     assert "count=1" in caplog.text
+
+
+def test_http_health_failure_returns_private_generic_json_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    sensitive_value = "health-secret-value"
+    exception_text = f"health provider crashed: {sensitive_value}"
+
+    class FailingHealthProvider:
+        def health_payload(self) -> dict[str, object]:
+            raise RuntimeError(exception_text)
+
+        def extract(self, payload: dict[str, object]) -> dict[str, object]:
+            return {"model": "test", "device": "cpu", "results": []}
+
+    caplog.set_level(logging.INFO, logger="turing_agentmemory_mcp.gliner_provider")
+    with running_server(FailingHealthProvider()) as base_url:
+        with pytest.raises(HTTPError) as error:
+            urlopen(Request(f"{base_url}/health", method="GET"), timeout=5)
+
+    response = error.value
+    body = response.read().decode("utf-8")
+    assert response.code == 500
+    assert response.headers["Content-Type"] == "application/json; charset=utf-8"
+    assert response.headers["Content-Length"] == str(len(body.encode("utf-8")))
+    assert json.loads(body) == {"error": "internal server error"}
+    assert exception_text not in body
+    assert sensitive_value not in body
+    assert exception_text not in caplog.text
+    assert sensitive_value not in caplog.text
+    assert "method=GET" in caplog.text
+    assert "path=/health" in caplog.text
+    assert "status=500" in caplog.text
+    assert "count=0" in caplog.text
