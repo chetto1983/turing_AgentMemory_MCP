@@ -158,15 +158,59 @@ services:
           cpus: "0.25"
           memory: 256m
 
+  agentmemory-model-init:
+    build:
+      context: .
+      dockerfile: docker/llama-provider.Dockerfile
+    image: turing-agentmemory-llama-provider:local
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mkdir -p /models/pinned
+        provision() {
+          url=$$1
+          sha256=$$2
+          final=$$3
+          partial="$$final.partial"
+          if [ -f "$$final" ] && printf '%s  %s\n' "$$sha256" "$$final" | sha256sum -c -; then
+            return 0
+          fi
+          curl -fL --output "$$partial" "$$url"
+          printf '%s  %s\n' "$$sha256" "$$partial" | sha256sum -c -
+          mv "$$partial" "$$final"
+        }
+        provision \
+          'https://huggingface.co/mykor/granite-embedding-311m-multilingual-r2-GGUF/resolve/4413a1d4c63ed0aeda030202ad982a613a91f9ea/granite-embedding-311M-multilingual-r2-Q4_K_M.gguf?download=true' \
+          '58d27f63e69ccf7abce27bf6b35bb0edebc3a1c05ad4a3165acaba1cdca107c0' \
+          '/models/pinned/granite-embedding-311M-multilingual-r2-Q4_K_M.gguf'
+        provision \
+          'https://huggingface.co/Mungert/Qwen3-Reranker-0.6B-GGUF/resolve/041387f8ed7ead711b9496b153b682c5b2f5d158/Qwen3-Reranker-0.6B-q8_0.gguf?download=true' \
+          '8b5337e5baadf83fdd6f7a865dde4b3627fc53a1c8e56cc2f83260dfdd089c49' \
+          '/models/pinned/Qwen3-Reranker-0.6B-q8_0.gguf'
+    volumes:
+      - agentmemory-llama-cache:/models
+    user: "10001:10001"
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+
   agentmemory-embed:
     build:
       context: .
       dockerfile: docker/llama-provider.Dockerfile
     image: turing-agentmemory-llama-provider:local
+    depends_on:
+      agentmemory-model-init:
+        condition: service_completed_successfully
     gpus: all
     command:
-      - --hf-repo
-      - mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M
+      - --model
+      - /models/pinned/granite-embedding-311M-multilingual-r2-Q4_K_M.gguf
       - --embedding
       - --pooling
       - mean
@@ -230,12 +274,13 @@ services:
       context: .
       dockerfile: docker/llama-provider.Dockerfile
     image: turing-agentmemory-llama-provider:local
+    depends_on:
+      agentmemory-model-init:
+        condition: service_completed_successfully
     gpus: all
     command:
-      - --hf-repo
-      - Mungert/Qwen3-Reranker-0.6B-GGUF
-      - --hf-file
-      - Qwen3-Reranker-0.6B-q8_0.gguf
+      - --model
+      - /models/pinned/Qwen3-Reranker-0.6B-q8_0.gguf
       - --rerank
       - --embedding
       - --pooling

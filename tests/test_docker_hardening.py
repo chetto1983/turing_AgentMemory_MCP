@@ -13,6 +13,20 @@ PINNED_LLAMA_RE = re.compile(
     r"^FROM ghcr\.io/ggml-org/llama\.cpp:server-cuda@sha256:[a-f0-9]{64}$",
     re.MULTILINE,
 )
+GRANITE_FILENAME = "granite-embedding-311M-multilingual-r2-Q4_K_M.gguf"
+GRANITE_REVISION = "4413a1d4c63ed0aeda030202ad982a613a91f9ea"
+GRANITE_SHA256 = "58d27f63e69ccf7abce27bf6b35bb0edebc3a1c05ad4a3165acaba1cdca107c0"
+GRANITE_URL = (
+    "https://huggingface.co/mykor/granite-embedding-311m-multilingual-r2-GGUF/"
+    f"resolve/{GRANITE_REVISION}/{GRANITE_FILENAME}?download=true"
+)
+QWEN_FILENAME = "Qwen3-Reranker-0.6B-q8_0.gguf"
+QWEN_REVISION = "041387f8ed7ead711b9496b153b682c5b2f5d158"
+QWEN_SHA256 = "8b5337e5baadf83fdd6f7a865dde4b3627fc53a1c8e56cc2f83260dfdd089c49"
+QWEN_URL = (
+    "https://huggingface.co/Mungert/Qwen3-Reranker-0.6B-GGUF/"
+    f"resolve/{QWEN_REVISION}/{QWEN_FILENAME}?download=true"
+)
 
 
 def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
@@ -75,11 +89,14 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
         assert "--gpu-layers" in service["command"]
         assert "all" in service["command"]
 
-    assert "mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M" in embed["command"]
+    assert embed["command"][:2] == ["--model", f"/models/pinned/{GRANITE_FILENAME}"]
+    assert "--hf-repo" not in embed["command"]
+    assert "--hf-file" not in embed["command"]
     assert "--ubatch-size" in embed["command"]
     assert "4096" in embed["command"]
-    assert "Mungert/Qwen3-Reranker-0.6B-GGUF" in rerank["command"]
-    assert "Qwen3-Reranker-0.6B-q8_0.gguf" in rerank["command"]
+    assert rerank["command"][:2] == ["--model", f"/models/pinned/{QWEN_FILENAME}"]
+    assert "--hf-repo" not in rerank["command"]
+    assert "--hf-file" not in rerank["command"]
     assert "--embedding" in rerank["command"]
     assert "--parallel" in rerank["command"]
     assert "--no-cache-prompt" in rerank["command"]
@@ -94,6 +111,70 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert "RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf" in app_env
     assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0.00001}" in app_env
     assert not any("host.docker.internal" in value for value in app_env)
+
+
+def test_compose_provisions_commit_pinned_models_with_exact_checksums() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    services = compose["services"]
+
+    assert "agentmemory-model-init" in services
+    script = services["agentmemory-model-init"]["command"][0]
+    for url, revision, filename, sha256 in (
+        (GRANITE_URL, GRANITE_REVISION, GRANITE_FILENAME, GRANITE_SHA256),
+        (QWEN_URL, QWEN_REVISION, QWEN_FILENAME, QWEN_SHA256),
+    ):
+        assert url in script
+        assert f"resolve/{revision}/{filename}" in script
+        assert f"/models/pinned/{filename}" in script
+        assert sha256 in script
+
+    assert "resolve/main/" not in script
+    assert "mkdir -p /models/pinned" in script
+    assert 'partial="$$final.partial"' in script
+    cache_check = 'if [ -f "$$final" ] && printf'
+    final_checksum = '"$$sha256" "$$final" | sha256sum -c -'
+    assert cache_check in script
+    assert final_checksum in script
+    assert script.count("sha256sum -c -") >= 2
+    download = 'curl -fL --output "$$partial" "$$url"'
+    partial_checksum = '"$$sha256" "$$partial" | sha256sum -c -'
+    atomic_rename = 'mv "$$partial" "$$final"'
+    assert download in script
+    assert partial_checksum in script
+    assert atomic_rename in script
+    assert (
+        script.index(cache_check) < script.index("return 0") < script.index(download)
+    )
+    assert (
+        script.index(download)
+        < script.index(partial_checksum)
+        < script.index(atomic_rename)
+    )
+
+
+def test_compose_model_init_is_hardened_and_gates_both_sidecars() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    services = compose["services"]
+
+    assert "agentmemory-model-init" in services
+    init = services["agentmemory-model-init"]
+    assert init["image"] == "turing-agentmemory-llama-provider:local"
+    assert init["user"] == "10001:10001"
+    assert init["restart"] == "no"
+    assert init["read_only"] is True
+    assert init["security_opt"] == ["no-new-privileges:true"]
+    assert {"/tmp", "/run"} <= set(init["tmpfs"])
+    assert "agentmemory-llama-cache:/models" in init["volumes"]
+    assert "ports" not in init
+
+    for name in ("agentmemory-embed", "agentmemory-rerank"):
+        service = services[name]
+        assert (
+            service["depends_on"]["agentmemory-model-init"]["condition"]
+            == "service_completed_successfully"
+        )
+        assert "agentmemory-llama-cache:/models" in service["volumes"]
+        assert "ports" not in service
 
 
 def test_compose_allows_overrideable_rerank_provider_min_score() -> None:
