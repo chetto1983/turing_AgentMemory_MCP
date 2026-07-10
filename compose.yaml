@@ -175,7 +175,7 @@ services:
       - GLINER_BACKEND=gliner2_http
       - GLINER_MODEL=lion-ai/gliner2-base-v1-onnx
       - GLINER_BASE_URL=http://agentmemory-gliner:8080
-      - GLINER_TIMEOUT_SECONDS=120
+      - GLINER_TIMEOUT_SECONDS=900
       - GLINER_LABELS
       - GLINER_THRESHOLD
       - GLINER_REDACT

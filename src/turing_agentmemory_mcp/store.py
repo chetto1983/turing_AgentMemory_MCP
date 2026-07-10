@@ -3405,7 +3405,7 @@ class TuringAgentMemory:
     def _clean_limit(limit: int) -> int:
         if limit <= 0:
             raise ValueError("limit must be positive")
-        return min(limit, 25)
+        return min(limit, 200)
 
     @staticmethod
     def _now_iso() -> str:

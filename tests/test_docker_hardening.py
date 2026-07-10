@@ -186,7 +186,7 @@ def test_compose_routes_mcp_to_cached_fast_gliner_sidecar() -> None:
     assert "GLINER_BACKEND=gliner2_http" in app_env
     assert "GLINER_MODEL=lion-ai/gliner2-base-v1-onnx" in app_env
     assert "GLINER_BASE_URL=http://agentmemory-gliner:8080" in app_env
-    assert "GLINER_TIMEOUT_SECONDS=120" in app_env
+    assert "GLINER_TIMEOUT_SECONDS=900" in app_env
     assert services["agentmemory-lab"]["ports"] == ["127.0.0.1:8096:8096"]
 
 
