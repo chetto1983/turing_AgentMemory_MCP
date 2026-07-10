@@ -164,6 +164,34 @@ def test_projection_with_entities_only_does_not_fabricate_facts() -> None:
     assert all(edge.kind == "MENTIONS" for edge in projection.edges)
 
 
+def test_projection_deduplicates_semantic_relations_at_highest_confidence() -> None:
+    extraction = extraction_with_relations()
+    relation = extraction.relations[0]
+    duplicate = RelationMention(
+        relation.relation,
+        relation.subject,
+        relation.object,
+        0.99,
+    )
+    extraction = replace(
+        extraction,
+        relations=(relation, duplicate, extraction.relations[1]),
+    )
+
+    projection = plan_temporal_projection(episode(), extraction)
+
+    participated = [fact for fact in projection.facts if fact.predicate == "participated_in"]
+    assert len(participated) == 1
+    assert participated[0].confidence == 0.99
+    related_edges = [
+        edge
+        for edge in projection.edges
+        if edge.properties.get("fact_id") == participated[0].id
+    ]
+    assert len(related_edges) == 4
+    assert {edge.properties["confidence"] for edge in related_edges} == {0.99}
+
+
 def test_normalize_date_expression_reports_precision_and_rejects_relative_dates() -> None:
     assert normalize_date_expression("2023-05-07") == ("2023-05-07", "day")
     assert normalize_date_expression("May 7, 2023") == ("2023-05-07", "day")

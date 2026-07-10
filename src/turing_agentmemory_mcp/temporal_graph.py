@@ -192,8 +192,7 @@ def plan_temporal_projection(
             )
         )
 
-    facts: list[FactProjection] = []
-    fact_edges: list[EdgeProjection] = []
+    facts_by_id: dict[str, FactProjection] = {}
     for relation in extraction.relations:
         predicate = _normalize_identifier(relation.relation)
         subject_id = _entity_id_for_endpoint(relation.subject, entity_id_by_mention)
@@ -233,19 +232,30 @@ def plan_temporal_projection(
             model=extraction.model,
             expires_at=episode.expires_at,
         )
-        facts.append(fact)
+        previous = facts_by_id.get(fact_id)
+        if previous is None or fact.confidence > previous.confidence:
+            facts_by_id[fact_id] = fact
+
+    facts = [facts_by_id[fact_id] for fact_id in sorted(facts_by_id)]
+    fact_edges: list[EdgeProjection] = []
+    for fact in facts:
         shared = {
-            "fact_id": fact_id,
-            "confidence": relation.score,
+            "fact_id": fact.id,
+            "confidence": fact.confidence,
             "source_memory_id": episode.memory_id,
             "observed_at": episode.observed_at,
         }
         fact_edges.extend(
             (
-                _edge(subject_id, fact_id, "SUBJECT_OF", shared),
-                _edge(object_id, fact_id, "OBJECT_OF", shared),
-                _edge(fact_id, episode.memory_id, "SUPPORTED_BY", shared),
-                _edge(subject_id, object_id, predicate.upper(), shared),
+                _edge(fact.subject_entity_id, fact.id, "SUBJECT_OF", shared),
+                _edge(fact.object_entity_id, fact.id, "OBJECT_OF", shared),
+                _edge(fact.id, episode.memory_id, "SUPPORTED_BY", shared),
+                _edge(
+                    fact.subject_entity_id,
+                    fact.object_entity_id,
+                    fact.predicate.upper(),
+                    shared,
+                ),
             )
         )
 
