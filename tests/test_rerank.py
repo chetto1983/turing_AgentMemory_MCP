@@ -14,6 +14,7 @@ from turing_agentmemory_mcp.rerank import (
     Scored,
     apply_rerank_guard,
     identity,
+    lexical_rerank,
     truncate_runes,
 )
 from turing_agentmemory_mcp.store import TuringAgentMemory
@@ -83,6 +84,7 @@ def test_openai_compatible_reranker_reads_provider_agnostic_env(monkeypatch) -> 
     monkeypatch.setenv("RERANK_API_KEY", "rerank-key")
     monkeypatch.setenv("RERANK_DIMENSIONS", "1024")
     monkeypatch.setenv("RERANK_TIMEOUT_SECONDS", "9.5")
+    monkeypatch.setenv("RERANK_PROVIDER_MIN_SCORE", "0.00001")
 
     reranker = OpenAICompatibleReranker.from_env()
 
@@ -91,6 +93,16 @@ def test_openai_compatible_reranker_reads_provider_agnostic_env(monkeypatch) -> 
     assert reranker.api_key == "rerank-key"
     assert reranker.dimensions == 1024
     assert reranker.timeout_s == 9.5
+    assert reranker.provider_min_score == 0.00001
+
+
+def test_lexical_rerank_prioritizes_query_overlap() -> None:
+    scored = lexical_rerank(
+        "blue key interlock",
+        ["monthly maintenance logging", "blue key interlock reset procedure"],
+    )
+
+    assert [item.index for item in scored] == [1, 0]
 
 
 def test_openai_compatible_reranker_sends_provider_api_key_and_dimensions(monkeypatch) -> None:
@@ -138,6 +150,50 @@ def test_openai_compatible_reranker_sends_provider_api_key_and_dimensions(monkey
         assert seen["api_key"] == "cloud-secret"
         assert seen["payload"]["model"] == "cloud-reranker"
         assert seen["payload"]["dimensions"] == 1024
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_openai_compatible_reranker_falls_back_on_tiny_provider_scores(monkeypatch) -> None:
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(length)
+            body = json.dumps(
+                {
+                    "model": "qwen-gguf",
+                    "results": [
+                        {"index": 0, "relevance_score": 3.0e-7},
+                        {"index": 1, "relevance_score": 1.0e-8},
+                    ],
+                }
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        monkeypatch.setenv("RERANK_BASE_URL", f"http://127.0.0.1:{server.server_port}")
+        monkeypatch.setenv("RERANK_MODEL", "qwen-gguf")
+        monkeypatch.setenv("RERANK_PROVIDER_MIN_SCORE", "0.00001")
+
+        scored = OpenAICompatibleReranker.from_env().rerank(
+            "blue key interlock",
+            ["monthly maintenance logging", "blue key interlock reset procedure"],
+        )
+
+        assert [item.index for item in scored] == [1, 0]
+        assert scored[0].score > scored[1].score
     finally:
         server.shutdown()
         server.server_close()

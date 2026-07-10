@@ -147,22 +147,36 @@ The runtime Dockerfiles pin the Python base image by digest. Refresh the digest
 deliberately during scheduled base-image maintenance and record the matching
 security scan result with the release artifact.
 
-The app container is configured to call OpenAI-compatible local provider
-endpoints through Docker's host gateway:
+The Compose stack includes two CUDA llama.cpp GGUF sidecars inside the Compose
+network:
 
-- `http://host.docker.internal:8081/v1/embeddings`
-- `http://host.docker.internal:8085/v1/rerank`
+- `agentmemory-embed` serves
+  `mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M` at
+  `http://agentmemory-embed:8080/v1/embeddings`.
+- `agentmemory-rerank` serves
+  `Mungert/Qwen3-Reranker-0.6B-GGUF` with
+  `Qwen3-Reranker-0.6B-q8_0.gguf` at
+  `http://agentmemory-rerank:8080/v1/rerank`.
+
+Both sidecars use `ghcr.io/ggml-org/llama.cpp:server-cuda`, run with `gpus: all`,
+`--device CUDA0`, and `--gpu-layers all`, and their health checks require both
+`nvidia-smi` and llama.cpp `/health` to succeed. Model files are cached in the
+`agentmemory-llama-cache` volume.
 
 For local, non-Docker runs the defaults are `http://127.0.0.1:8081` and
 `http://127.0.0.1:8085`.
+
+Changing embedding models requires rebuilding vectors for existing memories and
+document chunks. New benchmark scopes can be ingested fresh, but do not mix old
+vectors and new embedding models when comparing retrieval quality.
 
 Primary provider environment variables:
 
 - `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_DIMENSIONS`, `EMBED_API_KEY`,
   `EMBED_TIMEOUT_SECONDS`
 - `RERANK_BASE_URL`, `RERANK_MODEL`, `RERANK_DIMENSIONS`, `RERANK_API_KEY`,
-  `RERANK_TIMEOUT_SECONDS`, `RERANK_THRESHOLD`, `RERANK_BLEND`,
-  `RERANK_PRESERVE_SEED_MARGIN`
+  `RERANK_TIMEOUT_SECONDS`, `RERANK_PROVIDER_MIN_SCORE`,
+  `RERANK_THRESHOLD`, `RERANK_BLEND`, `RERANK_PRESERVE_SEED_MARGIN`
 - `PROVIDER_API_KEY` as a shared fallback when embedding and rerank use the
   same cloud provider key. `EMBED_API_KEY` and `RERANK_API_KEY` override it.
 - `PROVIDER_API_KEY_HEADER` and `PROVIDER_API_KEY_SCHEME` customize auth for
@@ -201,6 +215,12 @@ By default, rerank will not displace the top hybrid lexical/vector seed when the
 rerank winner trails it by at least `RERANK_PRESERVE_SEED_MARGIN` (`0.05` by
 default). Set the margin to `0` for pure rerank ordering or use
 `RERANK_BLEND=1` for reciprocal-rank blending.
+
+Set `RERANK_PROVIDER_MIN_SCORE` when a local GGUF reranker returns
+provider-specific near-zero scores that should not be trusted as calibrated
+relevance. If the provider's top score is below that value, AgentMemory still
+calls `/v1/rerank` first, then falls back to deterministic lexical query overlap
+for the final rerank order.
 
 ## UTCP Manual Export
 

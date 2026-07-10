@@ -1,0 +1,93 @@
+{
+  "benchmark": "backboard-locomo-direct-mcp",
+  "generated_at": "2026-07-10T06:52:57Z",
+  "dataset_path": "D:\\tmp\\Backboard-Locomo-Benchmark\\locomo_dataset.json",
+  "dataset_repo": "https://github.com/Backboard-io/Backboard-Locomo-Benchmark",
+  "dataset_git_commit": "164d45c",
+  "contract": {
+    "transport": "MCP stdio through docker exec",
+    "mcp_container": "turing-agentmemory-mcp-turing-agentmemory-mcp-1",
+    "ingest": "memory_store_messages",
+    "search": "memory_search",
+    "dataset_variant": "turns_only",
+    "category_filter": "exclude category 5 adversarial",
+    "scoring": "Evidence recall counts a hit when retrieved memory metadata dia_id matches a LoCoMo gold evidence id. Gold answers are not ingested."
+  },
+  "parameters": {
+    "top_k": 3,
+    "ks": [
+      1,
+      3
+    ],
+    "batch_size": 50,
+    "scope_prefix": "bench-backboard-locomo-direct-mcp-v1",
+    "skip_ingest": false
+  },
+  "counts": {
+    "conversations": 1,
+    "turns": 369,
+    "qa_total": 105,
+    "evaluated_questions": 81,
+    "excluded_adversarial_questions": 24
+  },
+  "metrics": {
+    "total": 0,
+    "evidence_total": 0,
+    "search_errors": 0,
+    "search_success_rate": 0.0,
+    "latency_ms": {
+      "mean": 0.0,
+      "p50": 0.0,
+      "max": 0.0
+    },
+    "evidence_any_at_1": 0.0,
+    "evidence_all_at_1": 0.0,
+    "answer_in_content_at_1": 0.0,
+    "evidence_or_answer_at_1": 0.0,
+    "evidence_any_at_3": 0.0,
+    "evidence_all_at_3": 0.0,
+    "answer_in_content_at_3": 0.0,
+    "evidence_or_answer_at_3": 0.0
+  },
+  "by_category": {},
+  "conversations": [
+    {
+      "sample_id": "conv-30",
+      "user_identifier": "bench-backboard-locomo-direct-mcp-v1-conv-30",
+      "turns": 369,
+      "qa_total": 105,
+      "evaluated_questions": 81,
+      "excluded_adversarial_questions": 24,
+      "ingest": {
+        "messages": 369,
+        "stored_results": 369,
+        "duration_ms": 61359.373
+      },
+      "metrics": {
+        "total": 81,
+        "evidence_total": 81,
+        "search_errors": 0,
+        "search_success_rate": 1.0,
+        "latency_ms": {
+          "mean": 1303.035,
+          "p50": 1297.868,
+          "max": 2725.303
+        },
+        "evidence_any_at_1": 0.419753,
+        "evidence_all_at_1": 0.37037,
+        "answer_in_content_at_1": 0.209877,
+        "evidence_or_answer_at_1": 0.419753,
+        "evidence_any_at_3": 0.506173,
+        "evidence_all_at_3": 0.45679,
+        "answer_in_content_at_3": 0.259259,
+        "evidence_or_answer_at_3": 0.506173
+      }
+    }
+  ],
+  "duration_seconds": 168.822,
+  "results": [],
+  "notes": [
+    "This is a direct MCP retrieval evaluation, not Backboard's LLM-as-judge answer generation.",
+    "Only raw conversation turns were ingested; event_summary, observation, session_summary, and QA gold answers were not ingested."
+  ]
+}

@@ -35,9 +35,9 @@ services:
       - |
         set -e
         rm -f /turing/turingdb.sock
-        turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon -start-timeout 60000
-        trap 'turingdb stop -turing-dir /turing -timeout 5000' TERM INT EXIT
-        tail -f /dev/null
+        turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon &
+        trap 'turingdb stop -turing-dir /turing || true; exit 0' TERM INT
+        while true; do sleep 3600 & wait $!; done
     environment:
       - HOME=/tmp
       - XDG_CACHE_HOME=/tmp/.cache
@@ -58,8 +58,8 @@ services:
       test: ["CMD-SHELL", "python - <<'PY'\nfrom turingdb import TuringDB\nTuringDB(type='json', host='http://127.0.0.1:6666').try_reach(timeout=2)\nPY"]
       interval: 5s
       timeout: 3s
-      retries: 20
-      start_period: 10s
+      retries: 80
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -78,6 +78,10 @@ services:
     depends_on:
       turingdb:
         condition: service_healthy
+      agentmemory-embed:
+        condition: service_healthy
+      agentmemory-rerank:
+        condition: service_healthy
     environment:
       - HOME=/tmp
       - XDG_CACHE_HOME=/tmp/.cache
@@ -85,14 +89,15 @@ services:
       - TURINGDB_URL=http://turingdb:6666
       - TURINGDB_HOME=/turing
       - TURINGDB_GRAPH=agent_memory
-      - EMBED_BASE_URL=http://host.docker.internal:8081
+      - EMBED_BASE_URL=http://agentmemory-embed:8080
       - EMBED_DIMENSIONS=768
-      - EMBED_MODEL=local-embedding
+      - EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M
       - EMBED_API_KEY
       - EMBED_API_KEY_HEADER
       - EMBED_API_KEY_SCHEME
-      - RERANK_BASE_URL=http://host.docker.internal:8085
-      - RERANK_MODEL=local-rerank
+      - RERANK_BASE_URL=http://agentmemory-rerank:8080
+      - RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf
+      - RERANK_PROVIDER_MIN_SCORE=0.00001
       - RERANK_DIMENSIONS
       - RERANK_TIMEOUT_SECONDS
       - RERANK_THRESHOLD
@@ -151,6 +156,140 @@ services:
         reservations:
           cpus: "0.25"
           memory: 256m
+
+  agentmemory-embed:
+    build:
+      context: .
+      dockerfile: docker/llama-provider.Dockerfile
+    image: turing-agentmemory-llama-provider:local
+    gpus: all
+    command:
+      - --hf-repo
+      - mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M
+      - --embedding
+      - --pooling
+      - mean
+      - --embd-normalize
+      - "2"
+      - --batch-size
+      - "4096"
+      - --ubatch-size
+      - "4096"
+      - --device
+      - CUDA0
+      - --gpu-layers
+      - all
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    environment:
+      - HOME=/models
+      - LLAMA_CACHE=/models/llama.cpp
+      - HF_HOME=/models/huggingface
+      - XDG_CACHE_HOME=/models/.cache
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    expose:
+      - "8080"
+    volumes:
+      - agentmemory-llama-cache:/models
+    user: "10001:10001"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+    healthcheck:
+      test: ["CMD-SHELL", "nvidia-smi >/dev/null && curl -fsS http://127.0.0.1:8080/health >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 80
+      start_period: 60s
+    shm_size: "1g"
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8g
+        reservations:
+          cpus: "1.0"
+          memory: 2g
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  agentmemory-rerank:
+    build:
+      context: .
+      dockerfile: docker/llama-provider.Dockerfile
+    image: turing-agentmemory-llama-provider:local
+    gpus: all
+    command:
+      - --hf-repo
+      - Mungert/Qwen3-Reranker-0.6B-GGUF
+      - --hf-file
+      - Qwen3-Reranker-0.6B-q8_0.gguf
+      - --rerank
+      - --embedding
+      - --pooling
+      - rank
+      - --device
+      - CUDA0
+      - --gpu-layers
+      - all
+      - --parallel
+      - "1"
+      - --no-cache-prompt
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    environment:
+      - HOME=/models
+      - LLAMA_CACHE=/models/llama.cpp
+      - HF_HOME=/models/huggingface
+      - XDG_CACHE_HOME=/models/.cache
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    expose:
+      - "8080"
+    volumes:
+      - agentmemory-llama-cache:/models
+    user: "10001:10001"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+    healthcheck:
+      test: ["CMD-SHELL", "nvidia-smi >/dev/null && curl -fsS http://127.0.0.1:8080/health >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 80
+      start_period: 60s
+    shm_size: "1g"
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8g
+        reservations:
+          cpus: "1.0"
+          memory: 2g
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   agentmemory-lab:
     build:
@@ -219,3 +358,4 @@ services:
 
 volumes:
   turing-data:
+  agentmemory-llama-cache:
