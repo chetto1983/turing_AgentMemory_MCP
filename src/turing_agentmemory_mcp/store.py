@@ -33,7 +33,10 @@ from turing_agentmemory_mcp.governance import (
 )
 from turing_agentmemory_mcp.hybrid import blend_hybrid_score, lexical_score
 from turing_agentmemory_mcp.ids import cypher_var, quote, stable_id, vector_id
-from turing_agentmemory_mcp.memory_extraction import MemoryExtractor
+from turing_agentmemory_mcp.memory_extraction import (
+    MEMORY_EXTRACTION_SCHEMA_VERSION,
+    MemoryExtractor,
+)
 from turing_agentmemory_mcp.models import (
     DocumentHit,
     IngestedDocument,
@@ -41,7 +44,11 @@ from turing_agentmemory_mcp.models import (
     RetrievalCandidate,
     RetrievalEvidence,
 )
-from turing_agentmemory_mcp.observability import SpanRecorder, span_recorder_from_env
+from turing_agentmemory_mcp.observability import (
+    RuntimeSignals,
+    SpanRecorder,
+    span_recorder_from_env,
+)
 from turing_agentmemory_mcp.provider_config import provider_env
 from turing_agentmemory_mcp.rerank import (
     OpenAICompatibleReranker,
@@ -96,6 +103,8 @@ class TuringAgentMemory:
         fusion_enabled: bool | None = None,
         fusion_weights: dict[str, float] | None = None,
         community_detector: NativeLeidenDetector | None = None,
+        community_rebuild_on_batch: bool = False,
+        runtime_signals: RuntimeSignals | None = None,
         observer: SpanRecorder | None = None,
         redactor: Redactor | None = None,
         audit_sink: AuditSink | None = None,
@@ -132,6 +141,51 @@ class TuringAgentMemory:
             }
         )
         self.community_detector = community_detector or NativeLeidenDetector()
+        if not isinstance(community_rebuild_on_batch, bool):
+            raise ValueError("community_rebuild_on_batch must be a boolean")
+        self.community_rebuild_on_batch = community_rebuild_on_batch
+        self.runtime_signals = runtime_signals or RuntimeSignals()
+        self.runtime_signals.configure_stage("graph", ready=False, identity={"graph": graph})
+        self.runtime_signals.configure_stage(
+            "extraction",
+            ready=memory_extractor is not None,
+            identity={
+                "model": getattr(memory_extractor, "model_name", "disabled"),
+                "schema_version": (
+                    MEMORY_EXTRACTION_SCHEMA_VERSION if memory_extractor is not None else "disabled"
+                ),
+            },
+        )
+        self.runtime_signals.configure_stage(
+            "sparse", ready=sparse_index is not None, identity={"backend": "sqlite-fts5"}
+        )
+        self.runtime_signals.configure_stage(
+            "fusion", ready=self.fusion_enabled, identity={"algorithm": "weighted-rrf"}
+        )
+        self.runtime_signals.configure_stage(
+            "embedding",
+            ready=True,
+            identity={
+                "model": getattr(self.embedder, "model", type(self.embedder).__name__),
+                "dimensions": self.dimensions,
+            },
+        )
+        self.runtime_signals.configure_stage(
+            "rerank",
+            ready=self.reranker is not None,
+            identity={
+                "model": (
+                    getattr(self.reranker, "model", type(self.reranker).__name__)
+                    if self.reranker is not None
+                    else "disabled"
+                )
+            },
+        )
+        self.runtime_signals.configure_stage(
+            "community",
+            ready=self.fusion_enabled,
+            identity={"backend": "graspologic-native", "seed": self.community_detector.seed},
+        )
         self.observer = observer or span_recorder_from_env()
         self.redactor = redactor or redactor_from_env()
         self.audit_sink = audit_sink or audit_sink_from_env()
@@ -165,6 +219,7 @@ class TuringAgentMemory:
         if self.sparse_index is not None:
             self.sparse_index.initialize()
             self.sparse_index.replay()
+        self.runtime_signals.configure_stage("graph", ready=True, identity={"graph": self.graph})
 
     def store_message(
         self,
@@ -426,6 +481,8 @@ class TuringAgentMemory:
                     ],
                     "fact_batch",
                 )
+            if new_payloads:
+                self._refresh_communities_after_batch(user_identifier)
             items = [item_by_id[str(payload["memory_id"])] for payload in prepared]
             self._audit(
                 operation=_audit_operation,
@@ -664,6 +721,7 @@ class TuringAgentMemory:
             query=query,
             candidate_limit=candidate_limit,
         )
+        self.runtime_signals.record_degraded_channels(tuple(sorted(degraded)))
         source_ids = list(
             dict.fromkeys(
                 evidence.source_memory_id
@@ -2356,7 +2414,7 @@ class TuringAgentMemory:
                 ],
                 "community_batch",
             )
-        return {
+        result = {
             "user_identifier": user_identifier,
             "community_count": len(projections),
             "isolate_count": len(detection.isolates),
@@ -2365,6 +2423,34 @@ class TuringAgentMemory:
             "seed": detection.seed,
             "resolution": detection.resolution,
         }
+        self.runtime_signals.record_projection(
+            "community", success=True, item_count=len(projections)
+        )
+        return result
+
+    def _refresh_communities_after_batch(self, user_identifier: str) -> None:
+        if not self.community_rebuild_on_batch or self.memory_extractor is None:
+            return
+        try:
+            self.rebuild_communities(user_identifier=user_identifier)
+        except Exception as exc:
+            self.runtime_signals.record_projection(
+                "community", success=False, error_type=type(exc).__name__
+            )
+
+    def runtime_status(self) -> dict[str, object]:
+        status = self.runtime_signals.snapshot()
+        if self.sparse_index is not None:
+            try:
+                sparse = self.sparse_index.status()
+            except Exception as exc:
+                sparse = {"status": "degraded", "error_type": type(exc).__name__}
+            projections = status.setdefault("projections", {})
+            if isinstance(projections, dict):
+                projections["sparse"] = sparse
+        status["fusion_enabled"] = self.fusion_enabled
+        status["community_rebuild_on_batch"] = self.community_rebuild_on_batch
+        return status
 
     def _community_graph_inputs(
         self,
@@ -2809,6 +2895,20 @@ class TuringAgentMemory:
             )
         except Exception:
             pass
+        rows = self._records(
+            self._query("SHOW VECTOR INDEXES", operation="vector_index.verify")
+        )
+        if not rows:
+            return
+        matching = [row for row in rows if str(row.get("name") or "") == name]
+        if not matching:
+            raise RuntimeError(f"vector index {name} was not created")
+        actual = int(matching[0].get("dimension") or 0)
+        if actual != self.dimensions:
+            raise RuntimeError(
+                f"vector index {name} dimension mismatch: "
+                f"expected {self.dimensions}, found {actual}"
+            )
 
     def _ensure_user(self, user_identifier: str) -> None:
         try:

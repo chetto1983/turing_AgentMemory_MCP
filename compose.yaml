@@ -146,6 +146,11 @@ services:
       - TURINGDB_URL=http://turingdb:6666
       - TURINGDB_HOME=/turing
       - TURINGDB_GRAPH=agent_memory
+      - TURINGDB_MEMORY_INDEX=agent_memory_episode_vectors_768
+      - TURINGDB_DOCUMENT_INDEX=agent_memory_document_vectors_768
+      - TURINGDB_ENTITY_INDEX=agent_memory_entity_vectors_768
+      - TURINGDB_FACT_INDEX=agent_memory_fact_vectors_768
+      - TURINGDB_COMMUNITY_INDEX=agent_memory_community_vectors_768
       - EMBED_BASE_URL=http://agentmemory-embed:8080
       - EMBED_DIMENSIONS=768
       - EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M
@@ -176,6 +181,16 @@ services:
       - GLINER_REDACT
       - GLINER_PRECISION
       - GLINER_PROVIDERS
+      - GLINER_MEMORY_SCHEMA=memory-v1
+      - AGENTMEMORY_FUSION_ENABLED=1
+      - AGENTMEMORY_SPARSE_PATH=/turing/data/agent-memory-fts.sqlite3
+      - AGENTMEMORY_COMMUNITY_REBUILD_ON_BATCH=1
+      - AGENTMEMORY_LEIDEN_SEED=42
+      - AGENTMEMORY_LEIDEN_RESOLUTION=1.0
+      - AGENTMEMORY_LEIDEN_RANDOMNESS=0.001
+      - AGENTMEMORY_LEIDEN_ITERATIONS=2
+      - AGENTMEMORY_LEIDEN_MAX_CLUSTER_SIZE=100
+      - AGENTMEMORY_FUSION_WEIGHTS
       - AGENTMEMORY_REDACTION_ENABLED
       - AGENTMEMORY_AUDIT_JSONL
       - AGENTMEMORY_OBSERVABILITY_JSONL
@@ -202,7 +217,7 @@ services:
       - /tmp
       - /run
     healthcheck:
-      test: ["CMD-SHELL", "python - <<'PY'\nimport socket\nsock = socket.create_connection(('127.0.0.1', 8080), timeout=2)\nsock.close()\nPY"]
+      test: ["CMD-SHELL", "python - <<'PY'\nimport json\nfrom urllib.request import urlopen\nwith urlopen('http://127.0.0.1:8080/health', timeout=2) as response:\n    payload = json.load(response)\nassert payload['status'] == 'ok'\nassert payload['runtime']['stages']['graph']['ready'] is True\nPY"]
       interval: 10s
       timeout: 3s
       retries: 12

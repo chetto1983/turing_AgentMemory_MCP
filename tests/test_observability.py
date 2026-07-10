@@ -309,3 +309,26 @@ def test_in_memory_span_recorder_reports_metrics_snapshot() -> None:
     assert metrics["embed"]["success_rate"] == 0.5
     assert metrics["embed"]["p50_ms"] >= 0.0
     assert metrics["embed"]["p95_ms"] >= 0.0
+
+
+def test_span_attributes_drop_content_and_query_values(tmp_path: Path) -> None:
+    from turing_agentmemory_mcp.observability import JsonlSpanRecorder
+
+    path = tmp_path / "private-events.jsonl"
+    recorder = JsonlSpanRecorder(path)
+
+    with recorder.span(
+        "memory.search",
+        {
+            "query": "private medical query",
+            "content": "private memory content",
+            "text": "private source text",
+            "query_length": 21,
+            "count": 2,
+        },
+    ):
+        pass
+
+    event = json.loads(path.read_text(encoding="utf-8"))
+    assert event["attributes"] == {"count": 2, "query_length": 21}
+    assert "private" not in path.read_text(encoding="utf-8")

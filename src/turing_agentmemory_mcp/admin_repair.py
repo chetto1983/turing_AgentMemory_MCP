@@ -5,10 +5,15 @@ import shutil
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Protocol
 
 from .sparse_index import SparseDocument, SparseIndex
 
 _SAFE_TIMESTAMP = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+class CommunityRebuilder(Protocol):
+    def rebuild_communities(self, *, user_identifier: str) -> dict[str, object]: ...
 
 
 def repair_vector_index(
@@ -85,6 +90,35 @@ def repair_sparse_projection(
         "status": "rebuilt",
         "applied": True,
         "projection": index.status(),
+    }
+
+
+def repair_community_projection(
+    store: CommunityRebuilder,
+    *,
+    user_identifier: str,
+    apply: bool = False,
+) -> dict[str, object]:
+    """Rebuild derived community graph, sparse, and vector projections."""
+    if not isinstance(user_identifier, str) or not user_identifier.strip():
+        raise ValueError("user_identifier must be non-empty")
+    result = {
+        "operation": "community_projection_repair",
+        "user_identifier": user_identifier,
+        "applied": False,
+        "notes": [
+            "Memory, entity, fact, and mention records are not modified.",
+            "Community nodes and their sparse/vector projections are derived and replaceable.",
+        ],
+    }
+    if not apply:
+        return {**result, "status": "would_rebuild"}
+    projection = store.rebuild_communities(user_identifier=user_identifier)
+    return {
+        **result,
+        "status": "rebuilt",
+        "applied": True,
+        "projection": projection,
     }
 
 

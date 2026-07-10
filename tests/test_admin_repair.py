@@ -4,7 +4,11 @@ import json
 import sys
 from pathlib import Path
 
-from turing_agentmemory_mcp.admin_repair import repair_sparse_projection, repair_vector_index
+from turing_agentmemory_mcp.admin_repair import (
+    repair_community_projection,
+    repair_sparse_projection,
+    repair_vector_index,
+)
 from turing_agentmemory_mcp.cli import main
 from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseIndex
 
@@ -128,3 +132,33 @@ def test_repair_sparse_projection_rebuilds_from_canonical_documents(tmp_path: Pa
     assert [hit.source_id for hit in index.search(user_identifier="alice", query="new", limit=10)] == [
         "new"
     ]
+
+
+class CommunityRepairStore:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def rebuild_communities(self, *, user_identifier: str) -> dict[str, object]:
+        self.calls.append(user_identifier)
+        return {"community_count": 4, "backend": "graspologic-native"}
+
+
+def test_repair_community_projection_is_dry_run_by_default() -> None:
+    store = CommunityRepairStore()
+
+    result = repair_community_projection(store, user_identifier="alice")
+
+    assert result["status"] == "would_rebuild"
+    assert result["applied"] is False
+    assert store.calls == []
+
+
+def test_repair_community_projection_rebuilds_derived_state() -> None:
+    store = CommunityRepairStore()
+
+    result = repair_community_projection(store, user_identifier="alice", apply=True)
+
+    assert result["status"] == "rebuilt"
+    assert result["applied"] is True
+    assert result["projection"]["community_count"] == 4
+    assert store.calls == ["alice"]

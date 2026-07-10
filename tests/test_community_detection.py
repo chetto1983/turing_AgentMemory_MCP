@@ -233,3 +233,23 @@ def test_store_rebuilds_embeds_and_sparse_indexes_grounded_communities(
         limit=10,
     )
     assert [hit.source_id for hit in hits] == [projection.id]
+
+
+def test_batch_community_refresh_records_degradation_without_failing_ingest(
+    tmp_path: Path,
+) -> None:
+    store = CommunityStore(tmp_path)
+    store.community_rebuild_on_batch = True
+    store.memory_extractor = object()  # type: ignore[assignment]
+
+    def fail(*, user_identifier: str) -> dict[str, object]:
+        raise RuntimeError(f"derived rebuild failed for {user_identifier}")
+
+    store.rebuild_communities = fail  # type: ignore[method-assign]
+
+    store._refresh_communities_after_batch("alice")
+
+    projection = store.runtime_status()["projections"]["community"]
+    assert projection["status"] == "degraded"
+    assert projection["error_type"] == "RuntimeError"
+    assert "alice" not in repr(projection)
