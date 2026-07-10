@@ -129,6 +129,7 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert "RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf" in app_env
     assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}" in app_env
     assert "RERANK_CANDIDATE_LIMIT=${RERANK_CANDIDATE_LIMIT:-50}" in app_env
+    assert "RERANK_BLEND=${RERANK_BLEND:-1}" in app_env
     assert not any("host.docker.internal" in value for value in app_env)
 
 
