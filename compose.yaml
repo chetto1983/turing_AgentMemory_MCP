@@ -176,7 +176,9 @@ services:
           if [ -f "$$final" ] && printf '%s  %s\n' "$$sha256" "$$final" | sha256sum -c -; then
             return 0
           fi
-          curl -fL --output "$$partial" "$$url"
+          curl -fL --retry 5 --retry-delay 2 --retry-all-errors \
+            --connect-timeout 30 --speed-limit 1024 --speed-time 120 \
+            --output "$$partial" "$$url"
           printf '%s  %s\n' "$$sha256" "$$partial" | sha256sum -c -
           mv "$$partial" "$$final"
         }

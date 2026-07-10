@@ -136,19 +136,36 @@ def test_compose_provisions_commit_pinned_models_with_exact_checksums() -> None:
     assert cache_check in script
     assert final_checksum in script
     assert script.count("sha256sum -c -") >= 2
-    download = 'curl -fL --output "$$partial" "$$url"'
+    normalized_script = re.sub(r"\\\s*", " ", script)
+    normalized_script = re.sub(r"\s+", " ", normalized_script)
+    download = (
+        'curl -fL --retry 5 --retry-delay 2 --retry-all-errors '
+        '--connect-timeout 30 --speed-limit 1024 --speed-time 120 '
+        '--output "$$partial" "$$url"'
+    )
+    for flag in (
+        "--retry 5",
+        "--retry-delay 2",
+        "--retry-all-errors",
+        "--connect-timeout 30",
+        "--speed-limit 1024",
+        "--speed-time 120",
+    ):
+        assert flag in script
     partial_checksum = '"$$sha256" "$$partial" | sha256sum -c -'
     atomic_rename = 'mv "$$partial" "$$final"'
-    assert download in script
+    assert download in normalized_script
     assert partial_checksum in script
     assert atomic_rename in script
     assert (
-        script.index(cache_check) < script.index("return 0") < script.index(download)
+        normalized_script.index(cache_check)
+        < normalized_script.index("return 0")
+        < normalized_script.index(download)
     )
     assert (
-        script.index(download)
-        < script.index(partial_checksum)
-        < script.index(atomic_rename)
+        normalized_script.index(download)
+        < normalized_script.index(partial_checksum)
+        < normalized_script.index(atomic_rename)
     )
 
 
