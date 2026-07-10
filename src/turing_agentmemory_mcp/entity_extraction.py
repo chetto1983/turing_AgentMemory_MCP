@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 import math
 import os
 from dataclasses import dataclass
 from typing import Any, Protocol
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 DEFAULT_METADATA_KEY = "entity_extraction"
 LEGACY_METADATA_KEYS = ("entity_detection",)
@@ -95,27 +98,15 @@ class GLiNEREntityProcessor:
     def process(self, text: str) -> ProcessedText:
         if not text.strip():
             return ProcessedText(text=text, metadata={})
-        entities = _normalize_entities(
+        return _processed_text_from_entities(
             self._predict(text),
             source_text=text,
-            include_text=not self.redact,
-        )
-        if not entities:
-            return ProcessedText(text=text, metadata={})
-        next_text = _redact_text(text, entities) if self.redact else text
-        return ProcessedText(
-            text=next_text,
-            metadata={
-                self.metadata_key: {
-                    "backend": self.backend,
-                    "model": self.model_name,
-                    "labels": self.labels,
-                    "threshold": self.threshold,
-                    "redacted": self.redact,
-                    "entity_count": len(entities),
-                    "entities": entities,
-                }
-            },
+            backend=self.backend,
+            model_name=self.model_name,
+            labels=self.labels,
+            threshold=self.threshold,
+            redact=self.redact,
+            metadata_key=self.metadata_key,
         )
 
     def _predict(self, text: str) -> Any:
@@ -132,9 +123,111 @@ class GLiNEREntityProcessor:
         return list(self.model.predict_entities(text, self.labels, threshold=self.threshold))
 
 
+@dataclass(frozen=True)
+class HTTPGLiNEREntityProcessor:
+    base_url: str
+    model_name: str
+    labels: list[str]
+    threshold: float = 0.5
+    redact: bool = False
+    metadata_key: str = DEFAULT_METADATA_KEY
+    timeout_s: float = 30.0
+    backend: str = "gliner2_http"
+
+    @property
+    def metadata_keys(self) -> tuple[str, ...]:
+        return (self.metadata_key, *LEGACY_METADATA_KEYS)
+
+    @classmethod
+    def from_env(cls) -> HTTPGLiNEREntityProcessor:
+        model_name = os.environ.get("GLINER_MODEL", DEFAULT_GLINER_MODEL).strip() or DEFAULT_GLINER_MODEL
+        labels = _split_csv(os.environ.get("GLINER_LABELS")) or list(DEFAULT_GLINER_LABELS)
+        threshold = float(os.environ.get("GLINER_THRESHOLD", "0.5"))
+        redact = _env_bool("GLINER_REDACT")
+        metadata_key = os.environ.get("GLINER_METADATA_KEY", DEFAULT_METADATA_KEY).strip()
+        base_url = os.environ.get("GLINER_BASE_URL", "http://agentmemory-gliner:8080").strip()
+        timeout_s = float(os.environ.get("GLINER_TIMEOUT_SECONDS", "30"))
+        if not metadata_key:
+            metadata_key = DEFAULT_METADATA_KEY
+        if not base_url:
+            raise ValueError("GLINER_BASE_URL must be non-empty")
+        if not math.isfinite(timeout_s) or timeout_s <= 0:
+            raise ValueError("GLINER_TIMEOUT_SECONDS must be a positive finite number")
+        return cls(
+            base_url=base_url.rstrip("/"),
+            model_name=model_name,
+            labels=labels,
+            threshold=threshold,
+            redact=redact,
+            metadata_key=metadata_key,
+            timeout_s=timeout_s,
+        )
+
+    def process(self, text: str) -> ProcessedText:
+        return self.process_many([text])[0]
+
+    def process_many(self, texts: list[str]) -> list[ProcessedText]:
+        if not texts:
+            return []
+        active_indices = [index for index, text in enumerate(texts) if text.strip()]
+        processed = [ProcessedText(text=text, metadata={}) for text in texts]
+        if not active_indices:
+            return processed
+        active_texts = [texts[index] for index in active_indices]
+        payload = {
+            "texts": active_texts,
+            "labels": self.labels,
+            "threshold": self.threshold,
+            "include_confidence": True,
+            "include_spans": True,
+        }
+        request = Request(
+            self.base_url + "/extract",
+            data=json.dumps(payload).encode("utf-8"),
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urlopen(request, timeout=self.timeout_s) as response:
+                decoded = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            raise RuntimeError(f"GLiNER provider HTTP {exc.code} at {self.base_url}") from exc
+        except (URLError, OSError, TimeoutError) as exc:
+            raise RuntimeError(f"GLiNER provider unavailable at {self.base_url}") from exc
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"GLiNER provider returned invalid JSON at {self.base_url}") from exc
+        if not isinstance(decoded, dict):
+            raise RuntimeError(f"GLiNER provider returned invalid JSON at {self.base_url}")
+        results = decoded.get("results")
+        if not isinstance(results, list):
+            raise RuntimeError(f"GLiNER provider returned invalid results at {self.base_url}")
+        if len(results) != len(active_texts):
+            raise RuntimeError(
+                f"GLiNER provider returned {len(results)} results for {len(active_texts)} texts at {self.base_url}"
+            )
+        provider_model = decoded.get("model")
+        if provider_model != self.model_name:
+            raise RuntimeError(f"GLiNER provider model mismatch at {self.base_url}")
+        for index, raw_entities in zip(active_indices, results, strict=True):
+            processed[index] = _processed_text_from_entities(
+                raw_entities,
+                source_text=texts[index],
+                backend=self.backend,
+                model_name=self.model_name,
+                labels=self.labels,
+                threshold=self.threshold,
+                redact=self.redact,
+                metadata_key=self.metadata_key,
+            )
+        return processed
+
+
 def entity_processor_from_env() -> EntityProcessor:
     if not _env_bool("GLINER_ENABLED"):
         return NoopEntityProcessor()
+    backend = (os.environ.get("GLINER_BACKEND", "auto").strip() or "auto").lower()
+    if backend == "gliner2_http":
+        return HTTPGLiNEREntityProcessor.from_env()
     return GLiNEREntityProcessor.from_env()
 
 
@@ -195,6 +288,40 @@ def _load_model(*, backend: str, model_name: str) -> Any:
             ) from exc
         return GLiNER2.from_pretrained(model_name)
     raise ValueError("GLINER_BACKEND must be one of: auto, gliner, gliner2, gliner2_onnx")
+
+
+def _processed_text_from_entities(
+    raw_entities: Any,
+    *,
+    source_text: str,
+    backend: str,
+    model_name: str,
+    labels: list[str],
+    threshold: float,
+    redact: bool,
+    metadata_key: str,
+) -> ProcessedText:
+    entities = _normalize_entities(
+        raw_entities,
+        source_text=source_text,
+        include_text=not redact,
+    )
+    if not entities:
+        return ProcessedText(text=source_text, metadata={})
+    return ProcessedText(
+        text=_redact_text(source_text, entities) if redact else source_text,
+        metadata={
+            metadata_key: {
+                "backend": backend,
+                "model": model_name,
+                "labels": labels,
+                "threshold": threshold,
+                "redacted": redact,
+                "entity_count": len(entities),
+                "entities": entities,
+            }
+        },
+    )
 
 
 def _normalize_entities(
