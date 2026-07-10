@@ -137,7 +137,7 @@ def test_gliner2_processor_uses_extract_entities(monkeypatch) -> None:
             threshold: float = 0.5,
             include_confidence: bool = False,
             include_spans: bool = False,
-        ) -> list[dict[str, object]]:
+        ) -> dict[str, dict[str, list[dict[str, object]]]]:
             calls.append(
                 {
                     "text": text,
@@ -147,7 +147,18 @@ def test_gliner2_processor_uses_extract_entities(monkeypatch) -> None:
                     "include_spans": include_spans,
                 }
             )
-            return [{"text": "alice@example.com", "label": "email", "start": 6, "end": 23, "score": 0.94}]
+            return {
+                "entities": {
+                    "email": [
+                        {
+                            "text": "alice@example.com",
+                            "start": 6,
+                            "end": 23,
+                            "confidence": 0.94,
+                        }
+                    ]
+                }
+            }
 
     class FakeGLiNER2:
         @classmethod
@@ -176,6 +187,47 @@ def test_gliner2_processor_uses_extract_entities(monkeypatch) -> None:
     ]
     assert result.metadata["entity_extraction"]["backend"] == "gliner2"
     assert result.metadata["entity_extraction"]["entity_count"] == 1
+    assert result.metadata["entity_extraction"]["entities"] == [
+        {"text": "alice@example.com", "label": "email", "start": 6, "end": 23, "score": 0.94}
+    ]
+
+
+def test_entity_processor_omits_native_entity_with_malformed_span(monkeypatch) -> None:
+    class FakeGLiNER2Model:
+        def extract_entities(
+            self,
+            text: str,
+            labels: list[str],
+            threshold: float = 0.5,
+            include_confidence: bool = False,
+            include_spans: bool = False,
+        ) -> dict[str, dict[str, list[dict[str, object]]]]:
+            return {
+                "entities": {
+                    "email": [
+                        {
+                            "text": "alice@example.com",
+                            "start": 6,
+                            "end": len(text) + 1,
+                            "confidence": 0.94,
+                        }
+                    ]
+                }
+            }
+
+    class FakeGLiNER2:
+        @classmethod
+        def from_pretrained(cls, model_name: str) -> FakeGLiNER2Model:
+            return FakeGLiNER2Model()
+
+    monkeypatch.setitem(sys.modules, "gliner2", types.SimpleNamespace(GLiNER2=FakeGLiNER2))
+    monkeypatch.setenv("GLINER_ENABLED", "1")
+    monkeypatch.setenv("GLINER_BACKEND", "gliner2")
+    monkeypatch.setenv("GLINER_LABELS", "email")
+
+    processor = entity_processor_from_env()
+
+    assert processor.process("Email alice@example.com").metadata == {}
 
 
 def test_entity_metadata_search_text_includes_labels_and_extracted_text() -> None:

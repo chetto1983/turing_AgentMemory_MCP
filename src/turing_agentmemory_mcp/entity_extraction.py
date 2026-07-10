@@ -117,18 +117,16 @@ class GLiNEREntityProcessor:
             },
         )
 
-    def _predict(self, text: str) -> list[Any]:
+    def _predict(self, text: str) -> Any:
         if self.backend == "gliner2_onnx":
             return list(self.model.extract_entities(text, self.labels, threshold=self.threshold))
         if self.backend == "gliner2":
-            return list(
-                self.model.extract_entities(
-                    text,
-                    self.labels,
-                    threshold=self.threshold,
-                    include_confidence=True,
-                    include_spans=True,
-                )
+            return self.model.extract_entities(
+                text,
+                self.labels,
+                threshold=self.threshold,
+                include_confidence=True,
+                include_spans=True,
             )
         return list(self.model.predict_entities(text, self.labels, threshold=self.threshold))
 
@@ -199,13 +197,13 @@ def _load_model(*, backend: str, model_name: str) -> Any:
 
 
 def _normalize_entities(
-    raw_entities: list[Any],
+    raw_entities: Any,
     *,
     source_text: str,
     include_text: bool,
 ) -> list[dict[str, object]]:
     entities: list[dict[str, object]] = []
-    for raw in raw_entities:
+    for raw in _flatten_entities(raw_entities):
         label = str(_entity_field(raw, "label", "entity", "type") or "").strip()
         text = str(_entity_field(raw, "text", "span") or "")
         start = _optional_int(_entity_field(raw, "start", "start_char", "start_idx"))
@@ -233,6 +231,28 @@ def _normalize_entities(
         entities.append(entity)
     entities.sort(key=lambda item: (int(item["start"]), int(item["end"]), str(item["label"])))
     return entities
+
+
+def _flatten_entities(raw: Any) -> list[Any]:
+    if isinstance(raw, (list, tuple)):
+        return list(raw)
+    if not isinstance(raw, dict):
+        return []
+    grouped = raw.get("entities")
+    if not isinstance(grouped, dict):
+        return []
+    flattened: list[Any] = []
+    for label, values in grouped.items():
+        if not isinstance(label, str) or not isinstance(values, (list, tuple)):
+            continue
+        for value in values:
+            if isinstance(value, dict):
+                entity = dict(value)
+                entity["label"] = label
+                flattened.append(entity)
+            elif isinstance(value, str):
+                flattened.append({"label": label, "text": value})
+    return flattened
 
 
 def _entity_field(entity: Any, *names: str) -> object | None:
