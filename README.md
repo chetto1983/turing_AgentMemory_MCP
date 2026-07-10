@@ -183,9 +183,10 @@ Primary provider environment variables:
   cloud gateways. Defaults are `Authorization` and `Bearer`; for providers that
   expect a raw key header, set for example
   `PROVIDER_API_KEY_HEADER=x-api-key` and `PROVIDER_API_KEY_SCHEME=`.
-- Optional local entity extraction:
-  `GLINER_ENABLED`, `GLINER_BACKEND`, `GLINER_MODEL`, `GLINER_LABELS`,
-  `GLINER_THRESHOLD`, `GLINER_REDACT`, `GLINER_PRECISION`, `GLINER_PROVIDERS`.
+- Local entity extraction:
+  `GLINER_ENABLED`, `GLINER_BACKEND`, `GLINER_MODEL`, `GLINER_BASE_URL`,
+  `GLINER_TIMEOUT_SECONDS`, `GLINER_LABELS`, `GLINER_THRESHOLD`, `GLINER_REDACT`,
+  `GLINER_PRECISION`, `GLINER_PROVIDERS`.
 - Governance and observability:
   `AGENTMEMORY_REDACTION_ENABLED=1` enables built-in secret/API-key/email
   pattern redaction before graph writes and vector embedding;
@@ -261,41 +262,21 @@ A UTCP bridge can then load the exported file with a config pointed to by
 }
 ```
 
-GLiNER is disabled by default. When enabled, it extracts named entities during
-memory and document ingest, stores them under `metadata.entity_extraction`, and
-uses those labels/spans as additional lexical retrieval signals. The stored text
-is unchanged unless `GLINER_REDACT=1` is explicitly set.
+The production Compose stack enables `fastino/gliner2-base-v1` in the
+CPU-only `agentmemory-gliner` sidecar. HTTP and stdio MCP processes share that
+single model instance through `GLINER_BACKEND=gliner2_http` and
+`GLINER_BASE_URL=http://agentmemory-gliner:8080`; it is readiness-gated before
+the MCP service starts. The `agentmemory-gliner-cache` volume persists Hugging
+Face artifacts across container recreation, and the sidecar has no host port.
 
-To enable general entity extraction with the small GLiNER model:
+Entity extraction runs during memory and document ingest, stores metadata under
+`metadata.entity_extraction`, and adds labels/spans to lexical retrieval. The
+stored text is unchanged unless `GLINER_REDACT=1` is explicitly set; with
+redaction, detected spans are replaced before storage and embedding and raw
+entity text is omitted from stored metadata.
 
-```powershell
-pip install -e ".[dev,gliner]"
-$env:GLINER_ENABLED="1"
-$env:GLINER_BACKEND="gliner"
-$env:GLINER_MODEL="gliner-community/gliner_small-v2.5"
-$env:GLINER_LABELS="person,organization,location,project,product,technology,library,framework,file path,error code,task,decision,preference,event,date,version"
-```
-
-For the GLiNER2 ONNX model path:
-
-```powershell
-$env:GLINER_ENABLED="1"
-$env:GLINER_BACKEND="gliner2_onnx"
-$env:GLINER_MODEL="lmo3/gliner2-multi-v1-onnx"
-$env:GLINER_LABELS="person,organization,location,project,product,technology,library,task,decision,event,date"
-```
-
-For Docker, build the app image with the optional extra:
-
-```powershell
-$env:PYPROJECT_EXTRAS="dev,gliner"
-docker compose build turing-agentmemory-mcp
-```
-
-`GLINER_BACKEND=auto` selects `gliner2_onnx` for ONNX model names, native
-`gliner2` for non-ONNX GLiNER2 model names, and classic `gliner` otherwise.
-With `GLINER_REDACT=1`, detected entity spans are replaced before storage and
-embedding, and raw entity text is omitted from the stored metadata.
+Native `gliner`, native `gliner2`, and `gliner2_onnx` backends remain available
+for non-Docker development with `pip install -e ".[dev,gliner]`.
 
 For retention, pass `expires_at` as an ISO-8601 timestamp on
 `memory_store_message`, `memory_store_messages`, `memory_update`,
