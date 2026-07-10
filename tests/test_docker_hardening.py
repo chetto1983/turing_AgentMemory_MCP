@@ -127,7 +127,7 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert "EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M" in app_env
     assert "RERANK_BASE_URL=http://agentmemory-rerank:8080" in app_env
     assert "RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf" in app_env
-    assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0.00001}" in app_env
+    assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}" in app_env
     assert not any("host.docker.internal" in value for value in app_env)
 
 
@@ -314,7 +314,7 @@ def test_compose_allows_overrideable_rerank_provider_min_score() -> None:
             if item.startswith("RERANK_PROVIDER_MIN_SCORE=")
         )
 
-    assert value(default) == "0.00001"
+    assert value(default) == "0"
     assert value(overridden) == "0.25"
 
 
