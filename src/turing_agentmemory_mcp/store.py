@@ -26,13 +26,21 @@ from turing_agentmemory_mcp.governance import (
 from turing_agentmemory_mcp.hybrid import blend_hybrid_score, lexical_score
 from turing_agentmemory_mcp.ids import cypher_var, quote, stable_id, vector_id
 from turing_agentmemory_mcp.memory_extraction import MemoryExtractor
-from turing_agentmemory_mcp.models import DocumentHit, IngestedDocument, MemoryItem
+from turing_agentmemory_mcp.models import (
+    DocumentHit,
+    IngestedDocument,
+    MemoryItem,
+    RetrievalCandidate,
+    RetrievalEvidence,
+)
 from turing_agentmemory_mcp.observability import SpanRecorder, span_recorder_from_env
 from turing_agentmemory_mcp.provider_config import provider_env
 from turing_agentmemory_mcp.rerank import OpenAICompatibleReranker, apply_rerank_guard
+from turing_agentmemory_mcp.retrieval_fusion import diversify_fused, fuse_rankings
 from turing_agentmemory_mcp.search_controls import (
     build_score_details,
     passes_threshold,
+    validate_fusion_weights,
     validate_search_query,
     validate_threshold,
 )
@@ -46,6 +54,8 @@ from turing_agentmemory_mcp.temporal_graph import (
     EntityProjection,
     EpisodeContext,
     TemporalProjection,
+    canonicalize_entity_name,
+    canonicalize_entity_type,
     plan_temporal_projection,
 )
 
@@ -69,6 +79,8 @@ class TuringAgentMemory:
         entity_processor: EntityProcessor | None = None,
         memory_extractor: MemoryExtractor | None = None,
         sparse_index: SparseIndex | None = None,
+        fusion_enabled: bool | None = None,
+        fusion_weights: dict[str, float] | None = None,
         observer: SpanRecorder | None = None,
         redactor: Redactor | None = None,
         audit_sink: AuditSink | None = None,
@@ -89,6 +101,20 @@ class TuringAgentMemory:
         self.entity_processor = entity_processor or entity_processor_from_env()
         self.memory_extractor = memory_extractor
         self.sparse_index = sparse_index
+        if fusion_enabled is not None and not isinstance(fusion_enabled, bool):
+            raise ValueError("fusion_enabled must be a boolean")
+        self.fusion_enabled = sparse_index is not None if fusion_enabled is None else fusion_enabled
+        self.fusion_weights = validate_fusion_weights(
+            fusion_weights
+            or {
+                "episode_dense": 1.0,
+                "fact_dense": 1.1,
+                "entity_dense": 0.9,
+                "bm25": 1.0,
+                "graph": 0.8,
+                "community": 0.7,
+            }
+        )
         self.observer = observer or span_recorder_from_env()
         self.redactor = redactor or redactor_from_env()
         self.audit_sink = audit_sink or audit_sink_from_env()
@@ -481,6 +507,22 @@ class TuringAgentMemory:
             created_before_dt = self._parse_filter_datetime(created_before, "created_before")
             updated_after_dt = self._parse_filter_datetime(updated_after, "updated_after")
             updated_before_dt = self._parse_filter_datetime(updated_before, "updated_before")
+            if self.fusion_enabled:
+                return self._search_memory_fused(
+                    user_identifier=user_identifier,
+                    query=query,
+                    limit=limit,
+                    memory_types=memory_types,
+                    session_id=session_id,
+                    source=source,
+                    tags=tags,
+                    created_after=created_after_dt,
+                    created_before=created_before_dt,
+                    updated_after=updated_after_dt,
+                    updated_before=updated_before_dt,
+                    threshold=threshold,
+                    explain=explain,
+                )
             literal = self._vector_literal(self._embed_text(query, operation="memory.search"))
             try:
                 vector_rows = self._records(
@@ -580,6 +622,469 @@ class TuringAgentMemory:
                 : max(limit * 3, limit)
             ]
             return self._rerank_memory(query, seeds)[:limit]
+
+    def _search_memory_fused(
+        self,
+        *,
+        user_identifier: str,
+        query: str,
+        limit: int,
+        memory_types: list[str] | None,
+        session_id: str,
+        source: str,
+        tags: list[str] | None,
+        created_after: datetime | None,
+        created_before: datetime | None,
+        updated_after: datetime | None,
+        updated_before: datetime | None,
+        threshold: float,
+        explain: bool,
+    ) -> list[MemoryItem]:
+        candidate_limit = min(max(limit * 8, 40), 200)
+        channels, degraded = self._collect_retrieval_evidence(
+            user_identifier=user_identifier,
+            query=query,
+            candidate_limit=candidate_limit,
+        )
+        source_ids = list(
+            dict.fromkeys(
+                evidence.source_memory_id
+                for ranking in channels.values()
+                for evidence in ranking
+                if evidence.source_memory_id
+            )
+        )
+        rows_by_id = self._memory_rows_for_ids(user_identifier, source_ids)
+        items_by_id: dict[str, MemoryItem] = {}
+        for source_id, row in rows_by_id.items():
+            if self._row_is_expired(row, "m.expires_at"):
+                continue
+            item = self._memory_from_row(row)
+            if not self._memory_matches_filters(
+                item,
+                session_id=session_id,
+                memory_types=memory_types,
+                source=source,
+                tags=tags,
+                created_after=created_after,
+                created_before=created_before,
+                updated_after=updated_after,
+                updated_before=updated_before,
+            ):
+                continue
+            items_by_id[source_id] = item
+
+        rankings: dict[str, list[RetrievalCandidate]] = {}
+        evidence_by_source: dict[str, list[RetrievalEvidence]] = {}
+        for channel in sorted(channels):
+            ranking: list[RetrievalCandidate] = []
+            seen_sources: set[str] = set()
+            for evidence in channels[channel]:
+                source_id = evidence.source_memory_id
+                item = items_by_id.get(source_id)
+                if item is None:
+                    continue
+                evidence_by_source.setdefault(source_id, []).append(evidence)
+                if source_id in seen_sources:
+                    continue
+                seen_sources.add(source_id)
+                ranking.append(
+                    RetrievalCandidate(
+                        candidate_id=source_id,
+                        kind=item.kind,
+                        content=item.content,
+                        source_memory_id=source_id,
+                        raw_score=evidence.raw_score,
+                    )
+                )
+            if ranking:
+                rankings[channel] = ranking
+        if not rankings:
+            return []
+        fused = diversify_fused(
+            fuse_rankings(
+                rankings,
+                weights=self.fusion_weights,
+                channel_caps=candidate_limit,
+            ),
+            limit=limit,
+            max_per_source=1,
+        )
+        results: list[MemoryItem] = []
+        for fused_candidate in fused:
+            if not passes_threshold(fused_candidate.score, threshold):
+                continue
+            source_id = fused_candidate.candidate.source_memory_id
+            item = items_by_id[source_id]
+            details: dict[str, object] | None = None
+            if explain:
+                evidence = evidence_by_source.get(source_id, [])
+                details = {
+                    "fusion_score": fused_candidate.score,
+                    "final_score": fused_candidate.score,
+                    "threshold": threshold,
+                    "channels": {
+                        channel: score.to_dict()
+                        for channel, score in fused_candidate.channels.items()
+                    },
+                    "evidence_ids": sorted(
+                        {value.evidence_id for value in evidence if value.evidence_id}
+                    ),
+                    "max_hop": max((value.hop for value in evidence), default=0),
+                    "degraded_channels": sorted(degraded),
+                }
+            results.append(
+                MemoryItem(
+                    id=item.id,
+                    user_identifier=item.user_identifier,
+                    kind=item.kind,
+                    content=item.content,
+                    score=fused_candidate.score,
+                    session_id=item.session_id,
+                    role=item.role,
+                    created_at=item.created_at,
+                    updated_at=item.updated_at,
+                    expires_at=item.expires_at,
+                    source=item.source,
+                    tags=item.tags,
+                    metadata=item.metadata,
+                    score_details=details,
+                )
+            )
+        return results
+
+    def _collect_retrieval_evidence(
+        self,
+        *,
+        user_identifier: str,
+        query: str,
+        candidate_limit: int,
+    ) -> tuple[dict[str, list[RetrievalEvidence]], dict[str, str]]:
+        channels: dict[str, list[RetrievalEvidence]] = {}
+        degraded: dict[str, str] = {}
+        query_vector: list[float] | None = None
+        try:
+            query_vector = self._embed_text(query, operation="memory.search")
+        except Exception as exc:
+            for channel in ("episode_dense", "fact_dense", "entity_dense"):
+                degraded[channel] = type(exc).__name__
+
+        if query_vector is not None:
+            for channel, collector in (
+                (
+                    "episode_dense",
+                    lambda: self._episode_dense_evidence(
+                        user_identifier, query_vector, candidate_limit
+                    ),
+                ),
+                (
+                    "fact_dense",
+                    lambda: self._fact_dense_evidence(
+                        user_identifier, query_vector, candidate_limit
+                    ),
+                ),
+                (
+                    "entity_dense",
+                    lambda: self._entity_dense_evidence(
+                        user_identifier, query_vector, candidate_limit
+                    ),
+                ),
+            ):
+                try:
+                    values = collector()
+                    if values:
+                        channels[channel] = values
+                except Exception as exc:
+                    degraded[channel] = type(exc).__name__
+
+        if self.sparse_index is not None:
+            try:
+                sparse_values = self._sparse_evidence(
+                    user_identifier, query, candidate_limit
+                )
+                if sparse_values:
+                    channels["bm25"] = sparse_values
+            except Exception as exc:
+                degraded["bm25"] = type(exc).__name__
+
+        if self.memory_extractor is not None:
+            try:
+                graph_values = self._query_graph_evidence(
+                    user_identifier, query, candidate_limit
+                )
+                if graph_values:
+                    channels["graph"] = graph_values
+            except Exception as exc:
+                degraded["graph"] = type(exc).__name__
+        return channels, degraded
+
+    def _episode_dense_evidence(
+        self,
+        user_identifier: str,
+        query_vector: list[float],
+        limit: int,
+    ) -> list[RetrievalEvidence]:
+        rows = self._records(
+            self._query(
+                f"VECTOR SEARCH IN {self.memory_index} FOR {limit} "
+                f"{self._vector_literal(query_vector)} YIELD ids, score "
+                "MATCH (m:Memory) "
+                f'WHERE m.vector_id = ids AND m.user_identifier = "{quote(user_identifier)}" '
+                'AND m.status = "active" RETURN m.id, score',
+                operation="memory.vector_search.fused",
+            )
+        )
+        return [
+            RetrievalEvidence(
+                source_memory_id=str(row.get("m.id")),
+                evidence_id=str(row.get("m.id")),
+                evidence_kind="episode",
+                raw_score=float(row.get("score") or 0.0),
+            )
+            for row in rows
+            if row.get("m.id")
+        ]
+
+    def _fact_dense_evidence(
+        self,
+        user_identifier: str,
+        query_vector: list[float],
+        limit: int,
+    ) -> list[RetrievalEvidence]:
+        rows = self._records(
+            self._query(
+                f"VECTOR SEARCH IN {self.fact_index} FOR {limit} "
+                f"{self._vector_literal(query_vector)} YIELD ids, score "
+                "MATCH (f:Fact) "
+                f'WHERE f.vector_id = ids AND f.user_identifier = "{quote(user_identifier)}" '
+                'AND f.status = "active" RETURN f.id, f.source_memory_id, score',
+                operation="fact.vector_search",
+            )
+        )
+        return [
+            RetrievalEvidence(
+                source_memory_id=str(row.get("f.source_memory_id")),
+                evidence_id=str(row.get("f.id")),
+                evidence_kind="fact",
+                raw_score=float(row.get("score") or 0.0),
+            )
+            for row in rows
+            if row.get("f.id") and row.get("f.source_memory_id")
+        ]
+
+    def _entity_dense_evidence(
+        self,
+        user_identifier: str,
+        query_vector: list[float],
+        limit: int,
+    ) -> list[RetrievalEvidence]:
+        rows = self._records(
+            self._query(
+                f"VECTOR SEARCH IN {self.entity_index} FOR {limit} "
+                f"{self._vector_literal(query_vector)} YIELD ids, score "
+                "MATCH (e:Entity) "
+                f'WHERE e.vector_id = ids AND e.user_identifier = "{quote(user_identifier)}" '
+                'AND e.status = "active" RETURN e.id, score',
+                operation="entity.vector_search",
+            )
+        )
+        seeds = {
+            str(row.get("e.id")): float(row.get("score") or 0.0)
+            for row in rows
+            if row.get("e.id")
+        }
+        return self._expand_entity_evidence(user_identifier, seeds, limit)
+
+    def _sparse_evidence(
+        self,
+        user_identifier: str,
+        query: str,
+        limit: int,
+    ) -> list[RetrievalEvidence]:
+        if self.sparse_index is None:
+            return []
+        hits = self.sparse_index.search(
+            user_identifier=user_identifier,
+            query=query,
+            limit=limit,
+            kinds=["episode", "fact", "entity", "community"],
+        )
+        fact_ids = [hit.source_id for hit in hits if hit.kind == "fact"]
+        fact_sources = self._fact_sources_by_ids(user_identifier, fact_ids)
+        entity_seeds = {
+            hit.source_id: max(hit.score, 1e-12)
+            for hit in hits
+            if hit.kind == "entity"
+        }
+        entity_evidence = self._expand_entity_evidence(
+            user_identifier, entity_seeds, limit
+        )
+        values: list[RetrievalEvidence] = []
+        for hit in hits:
+            if hit.kind == "episode":
+                values.append(
+                    RetrievalEvidence(
+                        hit.source_id,
+                        hit.source_id,
+                        "episode",
+                        hit.score,
+                    )
+                )
+            elif hit.kind == "fact" and hit.source_id in fact_sources:
+                values.append(
+                    RetrievalEvidence(
+                        fact_sources[hit.source_id],
+                        hit.source_id,
+                        "fact",
+                        hit.score,
+                    )
+                )
+        values.extend(entity_evidence)
+        return values[:limit]
+
+    def _query_graph_evidence(
+        self,
+        user_identifier: str,
+        query: str,
+        limit: int,
+    ) -> list[RetrievalEvidence]:
+        if self.memory_extractor is None:
+            return []
+        extractions = self.memory_extractor.extract_many([query])
+        if not isinstance(extractions, tuple) or len(extractions) != 1:
+            raise RuntimeError("query memory extractor returned an invalid result count")
+        seeds: dict[str, float] = {}
+        for entity in extractions[0].entities:
+            entity_type = canonicalize_entity_type(entity.label)
+            canonical_name = canonicalize_entity_name(entity.text)
+            entity_id = stable_id(
+                "ent", user_identifier, entity_type, canonical_name
+            )
+            seeds[entity_id] = max(seeds.get(entity_id, 0.0), entity.score)
+        return self._expand_entity_evidence(user_identifier, seeds, limit)
+
+    def _expand_entity_evidence(
+        self,
+        user_identifier: str,
+        entity_scores: dict[str, float],
+        limit: int,
+    ) -> list[RetrievalEvidence]:
+        if not entity_scores:
+            return []
+        condition = " OR ".join(
+            f'e.id = "{quote(entity_id)}"' for entity_id in entity_scores
+        )
+        queries = (
+            (
+                "graph.entity_direct_subject",
+                "MATCH (e:Entity)-[:SUBJECT_OF]->(f:Fact)-[:SUPPORTED_BY]->(m:Memory) ",
+                1,
+            ),
+            (
+                "graph.entity_direct_object",
+                "MATCH (e:Entity)-[:OBJECT_OF]->(f:Fact)-[:SUPPORTED_BY]->(m:Memory) ",
+                1,
+            ),
+            (
+                "graph.entity_two_hop_subject",
+                "MATCH (e:Entity)--(n:Entity)-[:SUBJECT_OF]->(f:Fact)-[:SUPPORTED_BY]->(m:Memory) ",
+                2,
+            ),
+            (
+                "graph.entity_two_hop_object",
+                "MATCH (e:Entity)--(n:Entity)-[:OBJECT_OF]->(f:Fact)-[:SUPPORTED_BY]->(m:Memory) ",
+                2,
+            ),
+        )
+        values: list[RetrievalEvidence] = []
+        for operation, prefix, hop in queries:
+            rows = self._records(
+                self._query(
+                    prefix
+                    + f'WHERE e.user_identifier = "{quote(user_identifier)}" '
+                    + f'AND ({condition}) AND e.status = "active" '
+                    + 'AND f.status = "active" AND m.status = "active" '
+                    + "RETURN m.id, f.id, f.confidence, e.id",
+                    operation=operation,
+                )
+            )
+            for row in rows:
+                source_memory_id = str(row.get("m.id") or "")
+                evidence_id = str(row.get("f.id") or "")
+                entity_id = str(row.get("e.id") or "")
+                if not source_memory_id or not evidence_id:
+                    continue
+                seed_score = entity_scores.get(entity_id, max(entity_scores.values()))
+                confidence = float(row.get("f.confidence") or 1.0)
+                values.append(
+                    RetrievalEvidence(
+                        source_memory_id=source_memory_id,
+                        evidence_id=evidence_id,
+                        evidence_kind="fact",
+                        raw_score=seed_score * confidence / hop,
+                        hop=hop,
+                        metadata={"entity_id": entity_id},
+                    )
+                )
+                if len(values) >= limit:
+                    return values
+        return values
+
+    def _fact_sources_by_ids(
+        self,
+        user_identifier: str,
+        fact_ids: list[str],
+    ) -> dict[str, str]:
+        if not fact_ids:
+            return {}
+        condition = " OR ".join(
+            f'f.id = "{quote(fact_id)}"' for fact_id in dict.fromkeys(fact_ids)
+        )
+        rows = self._records(
+            self._query(
+                "MATCH (f:Fact) "
+                f'WHERE f.user_identifier = "{quote(user_identifier)}" '
+                f'AND ({condition}) AND f.status = "active" '
+                "RETURN f.id, f.source_memory_id, f.confidence",
+                operation="fact.source_lookup",
+            )
+        )
+        return {
+            str(row.get("f.id")): str(row.get("f.source_memory_id"))
+            for row in rows
+            if row.get("f.id") and row.get("f.source_memory_id")
+        }
+
+    def _memory_rows_for_ids(
+        self,
+        user_identifier: str,
+        memory_ids: list[str],
+    ) -> dict[str, dict[str, Any]]:
+        if not memory_ids:
+            return {}
+        condition = " OR ".join(
+            f'm.id = "{quote(memory_id)}"'
+            for memory_id in dict.fromkeys(memory_ids)
+        )
+        try:
+            rows = self._records(
+                self._query(
+                    "MATCH (m:Memory) "
+                    f'WHERE m.user_identifier = "{quote(user_identifier)}" '
+                    f'AND ({condition}) AND m.status = "active" '
+                    "RETURN m.id, m.user_identifier, m.kind, m.content, m.session_id, m.role, "
+                    "m.created_at, m.updated_at, m.expires_at, m.source, "
+                    "m.tags_json, m.metadata_json",
+                    operation="memory.source_hydration",
+                )
+            )
+        except Exception as exc:
+            if "Unknown label: Memory" not in str(exc):
+                raise
+            return {}
+        return {
+            str(row.get("m.id")): row for row in rows if row.get("m.id")
+        }
 
     def get_memory(self, *, user_identifier: str, memory_id: str) -> MemoryItem | None:
         self._require_user(user_identifier)

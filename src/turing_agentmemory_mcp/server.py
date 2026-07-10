@@ -221,7 +221,7 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         threshold: float = 0.0,
         explain: bool = False,
     ) -> list[dict[str, Any]]:
-        """Search scoped memory by semantic similarity with optional metadata and date filters."""
+        """Search scoped memory with fused dense, BM25, entity, graph, and rerank signals."""
         with _tool_span("memory_search"):
             return [
                 item.to_dict()

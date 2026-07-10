@@ -18,6 +18,19 @@ class RetrievalCandidate:
 
 
 @dataclass(frozen=True)
+class RetrievalEvidence:
+    source_memory_id: str
+    evidence_id: str
+    evidence_kind: str
+    raw_score: float
+    hop: int = 0
+    metadata: dict[str, object] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class FusionChannelScore:
     rank: int
     raw_score: float | None

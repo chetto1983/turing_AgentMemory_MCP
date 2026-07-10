@@ -265,6 +265,10 @@ def canonicalize_entity_name(value: str) -> str:
     return normalized
 
 
+def canonicalize_entity_type(value: str) -> str:
+    return _normalize_identifier(value)
+
+
 def normalize_date_expression(value: str) -> tuple[str, str]:
     """Normalize explicit absolute dates while retaining their source precision."""
     normalized = _WHITESPACE_RE.sub(" ", unicodedata.normalize("NFKC", value)).strip()

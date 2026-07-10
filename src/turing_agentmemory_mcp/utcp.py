@@ -240,7 +240,7 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
     },
     {
         "name": "memory_search",
-        "description": "Search scoped memory by semantic similarity, hybrid lexical signals, and optional rerank.",
+        "description": "Search scoped memory with fused dense, BM25, entity, graph, and rerank signals.",
         "tags": ["memory", "search", "retrieval"],
         "inputs": _schema(
             {
