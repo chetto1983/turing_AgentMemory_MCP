@@ -13,6 +13,13 @@ RUN groupadd --system --gid 10001 app \
     && chown -R app:app /app /models /tmp /run
 
 RUN --mount=type=cache,target=/root/.cache/pip \
+    HOME=/root XDG_CACHE_HOME=/root/.cache \
+    pip install --root-user-action=ignore \
+        --index-url https://download.pytorch.org/whl/cpu \
+        "torch==2.13.0+cpu"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    HOME=/root XDG_CACHE_HOME=/root/.cache \
     pip install --root-user-action=ignore "gliner2[local]==1.3.2"
 
 COPY src/ /app/src/

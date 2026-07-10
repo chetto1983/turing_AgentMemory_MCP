@@ -47,6 +47,9 @@ def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
     assert "10001" in llama
     assert "USER app" in llama
     assert PINNED_GLINER_PYTHON_RE.search(gliner)
+    assert "HOME=/root XDG_CACHE_HOME=/root/.cache" in gliner
+    assert "--index-url https://download.pytorch.org/whl/cpu" in gliner
+    assert '"torch==2.13.0+cpu"' in gliner
     assert '"gliner2[local]==1.3.2"' in gliner
     assert "10001" in gliner
     assert "USER app" in gliner
