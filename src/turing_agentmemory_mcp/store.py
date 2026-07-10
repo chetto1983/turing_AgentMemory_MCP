@@ -111,6 +111,7 @@ class TuringAgentMemory:
         rerank_threshold: float | None = None,
         rerank_blend: bool | None = None,
         rerank_preserve_seed_margin: float | None = None,
+        rerank_candidate_limit: int | None = None,
     ) -> None:
         self.client = client
         self.turing_home = Path(turing_home)
@@ -123,6 +124,14 @@ class TuringAgentMemory:
         self.community_index = community_index
         self.embedder = embedder or OpenAICompatibleEmbedder.from_env(dimensions=self.dimensions)
         self.reranker = reranker or OpenAICompatibleReranker.from_env()
+        self.rerank_candidate_limit = max(
+            2,
+            int(
+                provider_env("RERANK_CANDIDATE_LIMIT", default="50")
+                if rerank_candidate_limit is None
+                else rerank_candidate_limit
+            ),
+        )
         self.entity_processor = entity_processor or entity_processor_from_env()
         self.memory_extractor = memory_extractor
         self.sparse_index = sparse_index
@@ -178,7 +187,8 @@ class TuringAgentMemory:
                     getattr(self.reranker, "model", type(self.reranker).__name__)
                     if self.reranker is not None
                     else "disabled"
-                )
+                ),
+                "candidate_limit": self.rerank_candidate_limit,
             },
         )
         self.runtime_signals.configure_stage(
@@ -3191,11 +3201,13 @@ class TuringAgentMemory:
                 model="",
                 fused=fused,
             )
-        documents = [self._memory_rerank_document(item) for item in seeds]
+        candidates = seeds[: self.rerank_candidate_limit]
+        tail = seeds[self.rerank_candidate_limit :]
+        documents = [self._memory_rerank_document(item) for item in candidates]
         status = "applied"
         model = str(getattr(self.reranker, "model", ""))
         try:
-            with self._span("rerank", {"kind": "memory", "count": len(seeds)}):
+            with self._span("rerank", {"kind": "memory", "count": len(candidates)}):
                 rerank_with_status = getattr(self.reranker, "rerank_with_status", None)
                 if callable(rerank_with_status):
                     result = rerank_with_status(query, documents)
@@ -3211,23 +3223,34 @@ class TuringAgentMemory:
             status = "provider_error"
         ordered = (
             apply_rerank_guard(
-                seeds,
+                candidates,
                 scored,
                 threshold=self.rerank_threshold,
                 blend=self.rerank_blend,
-                seed_scores=[item.score for item in seeds],
+                seed_scores=[item.score for item in candidates],
                 preserve_seed_margin=self.rerank_preserve_seed_margin,
             )
             if status == "applied"
-            else [(item, None) for item in seeds]
+            else [(item, None) for item in candidates]
         )
-        return self._annotate_memory_rerank(
-            seeds,
+        reranked = self._annotate_memory_rerank(
+            candidates,
             ordered,
             status=status,
             model=model,
             fused=fused,
         )
+        if tail:
+            reranked.extend(
+                self._annotate_memory_rerank(
+                    tail,
+                    [(item, None) for item in tail],
+                    status="candidate_limit",
+                    model=model,
+                    fused=fused,
+                )
+            )
+        return reranked
 
     def _annotate_memory_rerank(
         self,

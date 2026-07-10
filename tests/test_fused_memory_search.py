@@ -440,3 +440,28 @@ def test_fused_rerank_fallback_preserves_rrf_order_and_is_visible(tmp_path: Path
 
     assert [hit.id for hit in hits] == ["m1", "m2"]
     assert hits[0].score_details["rerank_status"] == "provider_error"
+
+
+def test_fused_rerank_bounds_gpu_candidates_and_preserves_tail(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("RERANK_CANDIDATE_LIMIT", "2")
+    reranker = StatusReranker("applied")
+    store = FusedStore(
+        tmp_path,
+        channels={
+            "episode_dense": [
+                evidence("m1", "m1", kind="episode", raw_score=0.9),
+                evidence("m2", "m2", kind="episode", raw_score=0.8),
+                evidence("m3", "m3", kind="episode", raw_score=0.7),
+            ]
+        },
+        rows=[memory_row("m1"), memory_row("m2"), memory_row("m3")],
+        reranker=reranker,
+    )
+
+    hits = store.search_memory(user_identifier="alice", query="Alice", limit=3)
+
+    assert len(reranker.documents) == 2
+    assert [hit.id for hit in hits] == ["m2", "m1", "m3"]
+    assert hits[2].score_details["rerank_status"] == "candidate_limit"
