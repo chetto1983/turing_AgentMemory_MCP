@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -203,19 +204,29 @@ def _normalize_entities(
     include_text: bool,
 ) -> list[dict[str, object]]:
     entities: list[dict[str, object]] = []
+    search_offsets: dict[tuple[str, str], int] = {}
     for raw in _flatten_entities(raw_entities):
         label = str(_entity_field(raw, "label", "entity", "type") or "").strip()
         text = str(_entity_field(raw, "text", "span") or "")
         start = _optional_int(_entity_field(raw, "start", "start_char", "start_idx"))
         end = _optional_int(_entity_field(raw, "end", "end_char", "end_idx"))
-        if start is None or end is None:
+        has_start = _entity_field_present(raw, "start", "start_char", "start_idx")
+        has_end = _entity_field_present(raw, "end", "end_char", "end_idx")
+        if has_start or has_end:
+            if start is None or end is None:
+                continue
+            if text and (start < 0 or end > len(source_text) or source_text[start:end] != text):
+                continue
+        else:
             if not text:
                 continue
-            found_at = source_text.find(text)
+            key = (label, text)
+            found_at = source_text.find(text, search_offsets.get(key, 0))
             if found_at < 0:
                 continue
             start = found_at
             end = found_at + len(text)
+            search_offsets[key] = end
         if not label or start < 0 or end <= start or end > len(source_text):
             continue
         entity: dict[str, object] = {
@@ -267,6 +278,12 @@ def _entity_field(entity: Any, *names: str) -> object | None:
     return None
 
 
+def _entity_field_present(entity: Any, *names: str) -> bool:
+    if isinstance(entity, dict):
+        return any(name in entity for name in names)
+    return any(hasattr(entity, name) for name in names)
+
+
 def _redact_text(text: str, entities: list[dict[str, object]]) -> str:
     redacted = text
     next_start = len(text) + 1
@@ -310,6 +327,7 @@ def _optional_float(value: object | None) -> float | None:
     if value is None:
         return None
     try:
-        return float(value)
+        result = float(value)
     except (TypeError, ValueError):
         return None
+    return result if math.isfinite(result) else None

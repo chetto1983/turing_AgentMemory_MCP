@@ -230,6 +230,121 @@ def test_entity_processor_omits_native_entity_with_malformed_span(monkeypatch) -
     assert processor.process("Email alice@example.com").metadata == {}
 
 
+def _native_gliner2_processor(monkeypatch, response: object, *, redact: bool = False):
+    class FakeGLiNER2Model:
+        def extract_entities(
+            self,
+            text: str,
+            labels: list[str],
+            threshold: float = 0.5,
+            include_confidence: bool = False,
+            include_spans: bool = False,
+        ) -> object:
+            return response
+
+    class FakeGLiNER2:
+        @classmethod
+        def from_pretrained(cls, model_name: str) -> FakeGLiNER2Model:
+            return FakeGLiNER2Model()
+
+    monkeypatch.setitem(sys.modules, "gliner2", types.SimpleNamespace(GLiNER2=FakeGLiNER2))
+    monkeypatch.setenv("GLINER_ENABLED", "1")
+    monkeypatch.setenv("GLINER_BACKEND", "gliner2")
+    monkeypatch.setenv("GLINER_LABELS", "email")
+    monkeypatch.setenv("GLINER_REDACT", "1" if redact else "0")
+    return entity_processor_from_env()
+
+
+def test_gliner2_normalizes_nested_string_entity_value(monkeypatch) -> None:
+    processor = _native_gliner2_processor(monkeypatch, {"entities": {"email": ["alice@example.com"]}})
+
+    result = processor.process("Email alice@example.com")
+
+    assert result.metadata["entity_extraction"]["entities"] == [
+        {"text": "alice@example.com", "label": "email", "start": 6, "end": 23}
+    ]
+
+
+def test_gliner2_assigns_repeated_string_values_to_distinct_spans_and_redacts_both(monkeypatch) -> None:
+    processor = _native_gliner2_processor(
+        monkeypatch,
+        {"entities": {"email": ["alice@example.com", "alice@example.com"]}},
+        redact=True,
+    )
+
+    result = processor.process("alice@example.com and alice@example.com")
+
+    assert result.text == "[EMAIL] and [EMAIL]"
+    assert result.metadata["entity_extraction"]["entities"] == [
+        {"label": "email", "start": 0, "end": 17},
+        {"label": "email", "start": 22, "end": 39},
+    ]
+
+
+def test_gliner2_omits_excess_repeated_string_values(monkeypatch) -> None:
+    processor = _native_gliner2_processor(
+        monkeypatch,
+        {"entities": {"email": ["alice@example.com", "alice@example.com"]}},
+    )
+
+    result = processor.process("alice@example.com")
+
+    assert result.metadata["entity_extraction"]["entity_count"] == 1
+    assert result.metadata["entity_extraction"]["entities"] == [
+        {"text": "alice@example.com", "label": "email", "start": 0, "end": 17}
+    ]
+
+
+def test_gliner2_rejects_partial_or_nonnumeric_explicit_spans(monkeypatch) -> None:
+    processor = _native_gliner2_processor(
+        monkeypatch,
+        {
+            "entities": {
+                "email": [
+                    {"text": "alice@example.com", "start": 0},
+                    {"text": "alice@example.com", "end": 17},
+                    {"text": "alice@example.com", "start": "zero", "end": 17},
+                ]
+            }
+        },
+    )
+
+    assert processor.process("alice@example.com").metadata == {}
+
+
+def test_gliner2_rejects_explicit_text_span_mismatch_without_redacting(monkeypatch) -> None:
+    processor = _native_gliner2_processor(
+        monkeypatch,
+        {"entities": {"email": [{"text": "not-alice", "start": 0, "end": 17}]}},
+        redact=True,
+    )
+
+    result = processor.process("alice@example.com")
+
+    assert result.text == "alice@example.com"
+    assert result.metadata == {}
+
+
+def test_gliner2_omits_nonfinite_confidence_scores_but_keeps_entities(monkeypatch) -> None:
+    processor = _native_gliner2_processor(
+        monkeypatch,
+        {
+            "entities": {
+                "email": [
+                    {"text": "one@example.com", "start": 0, "end": 15, "confidence": "nan"},
+                    {"text": "two@example.com", "start": 16, "end": 31, "confidence": float("inf")},
+                    {"text": "three@example.com", "start": 32, "end": 49, "confidence": float("-inf")},
+                ]
+            }
+        },
+    )
+
+    result = processor.process("one@example.com two@example.com three@example.com")
+
+    assert result.metadata["entity_extraction"]["entity_count"] == 3
+    assert all("score" not in entity for entity in result.metadata["entity_extraction"]["entities"])
+
+
 def test_entity_metadata_search_text_includes_labels_and_extracted_text() -> None:
     metadata = {
         "entity_extraction": {
