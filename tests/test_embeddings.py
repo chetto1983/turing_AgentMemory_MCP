@@ -31,6 +31,16 @@ def test_openai_compatible_embedder_reads_provider_agnostic_env(monkeypatch) -> 
     assert embedder.timeout_s == 12.5
 
 
+def test_openai_compatible_embedder_reads_retrieval_prompts(monkeypatch) -> None:
+    monkeypatch.setenv("EMBED_QUERY_PREFIX", "task: search result | query: ")
+    monkeypatch.setenv("EMBED_DOCUMENT_PREFIX", "title: none | text: ")
+
+    embedder = OpenAICompatibleEmbedder.from_env()
+
+    assert embedder.query_prefix == "task: search result | query: "
+    assert embedder.document_prefix == "title: none | text: "
+
+
 def test_openai_compatible_embedder_sends_provider_api_key_header(monkeypatch) -> None:
     seen: dict[str, Any] = {}
 
@@ -72,6 +82,55 @@ def test_openai_compatible_embedder_sends_provider_api_key_header(monkeypatch) -
         assert seen["path"] == "/v1/embeddings"
         assert seen["api_key"] == "cloud-secret"
         assert seen["payload"]["model"] == "cloud-embedder"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_openai_compatible_embedder_applies_distinct_query_and_document_prefixes(monkeypatch) -> None:
+    payloads: list[dict[str, Any]] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            payloads.append(payload)
+            body = json.dumps(
+                {
+                    "object": "list",
+                    "data": [
+                        {"index": index, "embedding": [1.0, 0.0]}
+                        for index, _ in enumerate(payload["input"])
+                    ],
+                }
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        monkeypatch.setenv("EMBED_BASE_URL", f"http://127.0.0.1:{server.server_port}")
+        monkeypatch.setenv("EMBED_DIMENSIONS", "2")
+        monkeypatch.setenv("EMBED_QUERY_PREFIX", "query: ")
+        monkeypatch.setenv("EMBED_DOCUMENT_PREFIX", "document: ")
+        embedder = OpenAICompatibleEmbedder.from_env()
+
+        assert embedder.embed_documents(["memory one", "memory two"]) == [[1.0, 0.0], [1.0, 0.0]]
+        assert embedder.embed_query("who owns Aurora?") == [1.0, 0.0]
+
+        assert [payload["input"] for payload in payloads] == [
+            ["document: memory one", "document: memory two"],
+            ["query: who owns Aurora?"],
+        ]
     finally:
         server.shutdown()
         server.server_close()

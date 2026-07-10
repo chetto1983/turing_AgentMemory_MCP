@@ -21,7 +21,7 @@ def test_summarize_entity_extraction_reports_models_and_entity_counts() -> None:
         {
             "metadata": {
                 "entity_extraction": {
-                    "model": "fastino/gliner2-base-v1",
+                    "model": "lion-ai/gliner2-base-v1-onnx",
                     "entity_count": 2,
                 }
             }
@@ -32,7 +32,7 @@ def test_summarize_entity_extraction_reports_models_and_entity_counts() -> None:
     assert runner.summarize_entity_extraction(rows) == {
         "annotated_memories": 1,
         "entities": 2,
-        "models": ["fastino/gliner2-base-v1"],
+        "models": ["lion-ai/gliner2-base-v1-onnx"],
     }
 
 
@@ -44,5 +44,5 @@ def test_summarize_entity_extraction_reports_models_and_entity_counts() -> None:
     ],
 )
 def test_require_entity_model_rejects_missing_or_different_model(summary: dict[str, object]) -> None:
-    with pytest.raises(RuntimeError, match="fastino/gliner2-base-v1"):
-        runner.require_entity_model(summary, "fastino/gliner2-base-v1")
+    with pytest.raises(RuntimeError, match="lion-ai/gliner2-base-v1-onnx"):
+        runner.require_entity_model(summary, "lion-ai/gliner2-base-v1-onnx")

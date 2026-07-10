@@ -2,17 +2,17 @@
 
 ## Purpose
 
-Add `fastino/gliner2-base-v1` to the production memory pipeline and validate it through the direct-MCP LoCoMo benchmark. The extractor must run locally, reuse a persistent model cache, preserve GPU capacity for embedding and reranking, and fail visibly if entity extraction is unavailable.
+Add the revision-pinned `lion-ai/gliner2-base-v1-onnx` export of `fastino/gliner2-base-v1` to the production memory pipeline and validate it through the direct-MCP LoCoMo benchmark. The extractor must run locally, reuse a persistent model cache, preserve GPU capacity for embedding and reranking, and fail visibly if entity extraction is unavailable.
 
 ## Context
 
-The repository already has a `GLiNEREntityProcessor`, but Compose leaves it disabled and the product image does not install local GLiNER2 inference dependencies. The current GLiNER2 adapter also assumes `extract_entities()` returns a flat list. GLiNER2 1.3.2 returns a nested payload shaped like `{"entities": {"label": [...]}}`; enabling the current adapter would therefore produce no normalized entities.
+The repository already has a `GLiNEREntityProcessor`, but Compose leaves it disabled and the product image does not install a shared local inference runtime. The FastGLiNER2 ONNX runtime returns flat entity records with scores and character spans; the sidecar must preserve the existing normalized metadata contract.
 
 The direct benchmark starts an additional MCP stdio process inside the product container. Loading the 205M model inside each MCP process would duplicate model memory. The NVIDIA RTX A2000 Laptop GPU has 4 GB and already serves Granite embedding and Qwen reranking, so GLiNER2 will run on CPU in one shared sidecar.
 
 ## Decision
 
-Run `fastino/gliner2-base-v1` in a dedicated CPU-only `agentmemory-gliner` service. Every HTTP and stdio MCP process will call this shared service. The service will load the model once, expose readiness and batch extraction endpoints, and store model files in a named Hugging Face cache volume.
+Run the exact `fastino/gliner2-base-v1` ONNX export, `lion-ai/gliner2-base-v1-onnx`, in a dedicated CPU-only `agentmemory-gliner` service through FastGLiNER2. Every HTTP and stdio MCP process will call this shared service. The service loads the commit-pinned model once, exposes readiness and batch extraction endpoints, and stores model files in a named Hugging Face cache volume.
 
 Rejected alternatives:
 
@@ -22,13 +22,13 @@ Rejected alternatives:
 
 ## Components
 
-### GLiNER2 provider
+### FastGLiNER2 provider
 
-Add a digest-pinned Python sidecar image that installs `gliner2[local]==1.3.2`. It runs as a non-root user with a read-only root filesystem and writes only to temporary mounts and the model cache.
+Add a digest-pinned Python sidecar image that installs `fast_gliner==0.2.1`. It runs as a non-root user with a read-only root filesystem and writes only to temporary mounts and the model cache.
 
-The provider loads `fastino/gliner2-base-v1` during startup on CPU. Its initial resource envelope is 4 CPUs and 4 GB RAM. It exposes only the Compose network; no host port is required.
+The provider loads `lion-ai/gliner2-base-v1-onnx` at immutable revision `5551729ccc76b30395bc9600f2348ec52a87cead` during startup on CPU. Its initial resource envelope is 4 CPUs and 4 GB RAM. It exposes only the Compose network; no host port is required.
 
-The HTTP server runs one inference worker so it loads one model instance. It serializes model access and uses `GLINER_BATCH_SIZE=8` inside `batch_extract_entities()`. Concurrent MCP requests may queue at the provider, but they cannot create additional model copies.
+The HTTP server runs one inference worker so it loads one model instance. FastGLiNER2 accepts one GLiNER2 text per inference, so the sidecar serializes each incoming batch internally while preserving input order. Concurrent MCP requests may queue at the provider, but they cannot create additional model copies.
 
 The provider API has two endpoints:
 
@@ -42,7 +42,7 @@ The API rejects empty label sets, malformed payloads, and result-count mismatche
 Add an HTTP-backed GLiNER2 processor selected by `GLINER_BACKEND=gliner2_http`. It uses:
 
 - `GLINER_BASE_URL=http://agentmemory-gliner:8080`
-- `GLINER_MODEL=fastino/gliner2-base-v1`
+- `GLINER_MODEL=lion-ai/gliner2-base-v1-onnx`
 - the existing `GLINER_LABELS`, `GLINER_THRESHOLD`, `GLINER_REDACT`, and metadata settings
 
 The processor supports both `process(text)` and `process_many(texts)`. It flattens the official nested GLiNER2 response into the existing entity metadata contract:
@@ -91,7 +91,7 @@ Implementation follows red-green-refactor in these slices:
 2. Add failing HTTP processor tests for single and batch extraction, ordering, redaction, provider errors, and result-count mismatches.
 3. Add failing store tests proving `memory_store_messages` uses one batch extraction call and makes no write when extraction fails.
 4. Add provider contract tests for health and `/extract` without loading model weights in unit tests.
-5. Add Compose hardening tests for the pinned package, CPU-only service, cache volume, health dependency, non-root/read-only settings, and enabled model configuration.
+5. Add Compose hardening tests for the pinned FastGLiNER package, CPU-only service, model revision, cache volume, health dependency, non-root/read-only settings, and enabled model configuration.
 6. Run an integration probe against the real cached model and verify entity metadata through a direct MCP call.
 
 ## Benchmark Validation
@@ -109,7 +109,7 @@ The direct runner measures evidence retrieval. Mem0's published 66.88% is GPT-4.
 
 ## Acceptance Criteria
 
-- Every product memory write uses `fastino/gliner2-base-v1` when GLiNER2 is enabled.
+- Every product memory write uses `lion-ai/gliner2-base-v1-onnx`, the ONNX export of `fastino/gliner2-base-v1`, when GLiNER2 is enabled.
 - Direct HTTP and stdio MCP processes share one cached model instance.
 - Model cache survives container recreation and no benchmark restart redownloads model files.
 - Entity metadata from the real model is searchable and follows the existing metadata schema.
@@ -118,6 +118,6 @@ The direct runner measures evidence retrieval. Mem0's published 66.88% is GPT-4.
 
 ## References
 
-- [GLiNER2 model card](https://huggingface.co/fastino/gliner2-base-v1)
+- [ONNX model card](https://huggingface.co/lion-ai/gliner2-base-v1-onnx)
 - [GLiNER2 reference implementation](https://github.com/fastino-ai/GLiNER2)
-- [GLiNER2 1.3.2 package](https://pypi.org/project/gliner2/1.3.2/)
+- [FastGLiNER2 runtime](https://github.com/talmago/fast_gliner)

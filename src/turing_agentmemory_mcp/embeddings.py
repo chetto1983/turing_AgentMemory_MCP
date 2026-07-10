@@ -59,6 +59,8 @@ class OpenAICompatibleEmbedder:
     api_key_header: str = "Authorization"
     api_key_scheme: str = "Bearer"
     timeout_s: float = 60.0
+    query_prefix: str = ""
+    document_prefix: str = ""
 
     @classmethod
     def from_env(cls, *, dimensions: int | None = None) -> OpenAICompatibleEmbedder:
@@ -72,10 +74,18 @@ class OpenAICompatibleEmbedder:
             api_key_header=provider_api_key_header("EMBED"),
             api_key_scheme=provider_api_key_scheme("EMBED"),
             timeout_s=float(provider_env("EMBED_TIMEOUT_SECONDS", default="60")),
+            query_prefix=provider_env("EMBED_QUERY_PREFIX"),
+            document_prefix=provider_env("EMBED_DOCUMENT_PREFIX"),
         )
 
     def embed(self, text: str) -> list[float]:
         return self.embed_many([text])[0]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_many([f"{self.query_prefix}{text}"])[0]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self.embed_many([f"{self.document_prefix}{text}" for text in texts])
 
     def embed_many(self, texts: list[str]) -> list[list[float]]:
         if not texts:

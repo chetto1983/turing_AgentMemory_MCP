@@ -31,7 +31,13 @@ QWEN_URL = (
     "https://huggingface.co/Mungert/Qwen3-Reranker-0.6B-GGUF/"
     f"resolve/{QWEN_REVISION}/{QWEN_FILENAME}?download=true"
 )
-
+GEMMA_FILENAME = "embeddinggemma-300M-Q8_0.gguf"
+GEMMA_REVISION = "6661a6504c30d8304af13455cb4a5d4f5bc6011f"
+GEMMA_SHA256 = "a0f7b4e13c397a6e1b32c2de75b1f65a14c92ec524d5f674d94a4290a1c4969b"
+GEMMA_URL = (
+    "https://huggingface.co/unsloth/embeddinggemma-300m-GGUF/"
+    f"resolve/{GEMMA_REVISION}/{GEMMA_FILENAME}?download=true"
+)
 
 def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
     app = (ROOT / "Dockerfile").read_text(encoding="utf-8")
@@ -48,9 +54,9 @@ def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
     assert "USER app" in llama
     assert PINNED_GLINER_PYTHON_RE.search(gliner)
     assert "HOME=/root XDG_CACHE_HOME=/root/.cache" in gliner
-    assert "--index-url https://download.pytorch.org/whl/cpu" in gliner
-    assert '"torch==2.13.0+cpu"' in gliner
-    assert '"gliner2[local]==1.3.2"' in gliner
+    assert '"fast_gliner==0.2.1"' in gliner
+    assert "download.pytorch.org" not in gliner
+    assert "gliner2[local]" not in gliner
     assert "10001" in gliner
     assert "USER app" in gliner
 
@@ -125,7 +131,32 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert not any("host.docker.internal" in value for value in app_env)
 
 
-def test_compose_routes_mcp_to_cached_cpu_gliner_sidecar() -> None:
+def test_compose_declares_profile_gated_embeddinggemma_gpu_candidate() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    services = compose["services"]
+    init = services["agentmemory-gemma-model-init"]
+    candidate = services["agentmemory-embed-gemma"]
+
+    assert init["profiles"] == ["embeddinggemma-eval"]
+    assert candidate["profiles"] == ["embeddinggemma-eval"]
+    assert candidate["image"] == "turing-agentmemory-llama-provider:local"
+    assert candidate["gpus"] == "all"
+    assert candidate["command"][:2] == ["--model", f"/models/pinned/{GEMMA_FILENAME}"]
+    assert "--embedding" in candidate["command"]
+    assert "--device" in candidate["command"]
+    assert "CUDA0" in candidate["command"]
+    assert candidate["read_only"] is True
+    assert candidate["security_opt"] == ["no-new-privileges:true"]
+    assert "agentmemory-llama-cache:/models" in candidate["volumes"]
+    assert candidate["depends_on"]["agentmemory-gemma-model-init"]["condition"] == "service_completed_successfully"
+
+    script = init["command"][0]
+    assert GEMMA_URL in script
+    assert f"/models/pinned/{GEMMA_FILENAME}" in script
+    assert GEMMA_SHA256 in script
+
+
+def test_compose_routes_mcp_to_cached_fast_gliner_sidecar() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
     gliner = services["agentmemory-gliner"]
@@ -139,6 +170,11 @@ def test_compose_routes_mcp_to_cached_cpu_gliner_sidecar() -> None:
     assert {"/tmp", "/run"} <= set(gliner["tmpfs"])
     assert gliner["expose"] == ["8080"]
     assert "agentmemory-gliner-cache:/models" in gliner["volumes"]
+    gliner_env = set(gliner["environment"])
+    assert "GLINER_MODEL=lion-ai/gliner2-base-v1-onnx" in gliner_env
+    assert "GLINER_MODEL_REVISION=5551729ccc76b30395bc9600f2348ec52a87cead" in gliner_env
+    assert "GLINER_DEVICE=cpu" in gliner_env
+    assert "GLINER_BATCH_SIZE=1" in gliner_env
     assert gliner["healthcheck"]["retries"] >= 80
     assert "urlopen('http://127.0.0.1:8080/health'" in gliner["healthcheck"]["test"][1]
     assert "agentmemory-gliner-cache" in compose["volumes"]
@@ -148,7 +184,7 @@ def test_compose_routes_mcp_to_cached_cpu_gliner_sidecar() -> None:
     assert app["depends_on"]["agentmemory-gliner"]["condition"] == "service_healthy"
     assert "GLINER_ENABLED=1" in app_env
     assert "GLINER_BACKEND=gliner2_http" in app_env
-    assert "GLINER_MODEL=fastino/gliner2-base-v1" in app_env
+    assert "GLINER_MODEL=lion-ai/gliner2-base-v1-onnx" in app_env
     assert "GLINER_BASE_URL=http://agentmemory-gliner:8080" in app_env
     assert "GLINER_TIMEOUT_SECONDS=120" in app_env
     assert services["agentmemory-lab"]["ports"] == ["127.0.0.1:8096:8096"]
@@ -168,6 +204,8 @@ def test_compose_provisions_commit_pinned_models_with_exact_checksums() -> None:
         assert f"resolve/{revision}/{filename}" in script
         assert f"/models/pinned/{filename}" in script
         assert sha256 in script
+
+    assert GEMMA_URL not in script
 
     assert "resolve/main/" not in script
     assert "mkdir -p /models/pinned" in script
@@ -234,6 +272,23 @@ def test_compose_model_init_is_hardened_and_gates_both_sidecars() -> None:
         assert "agentmemory-llama-cache:/models" in service["volumes"]
         assert "ports" not in service
 
+    gemma_init = services["agentmemory-gemma-model-init"]
+    assert gemma_init["profiles"] == ["embeddinggemma-eval"]
+    assert gemma_init["image"] == "turing-agentmemory-llama-provider:local"
+    assert gemma_init["user"] == "10001:10001"
+    assert gemma_init["restart"] == "no"
+    assert gemma_init["read_only"] is True
+    assert gemma_init["security_opt"] == ["no-new-privileges:true"]
+    assert {"/tmp", "/run"} <= set(gemma_init["tmpfs"])
+    assert "agentmemory-llama-cache:/models" in gemma_init["volumes"]
+    assert "ports" not in gemma_init
+
+    gemma = services["agentmemory-embed-gemma"]
+    assert (
+        gemma["depends_on"]["agentmemory-gemma-model-init"]["condition"]
+        == "service_completed_successfully"
+    )
+
 
 def test_compose_allows_overrideable_rerank_provider_min_score() -> None:
     default_env = os.environ.copy()
@@ -284,6 +339,12 @@ def test_e2e_writes_report_to_container_scratch_space() -> None:
     assert entrypoint[entrypoint.index("--out") + 1] == "/tmp/e2e-results.json"
 
 
+def test_compose_gates_e2e_harness_behind_an_explicit_profile() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+
+    assert compose["services"]["e2e"]["profiles"] == ["e2e"]
+
+
 def test_compose_repairs_legacy_volume_ownership_before_turingdb_start() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
@@ -304,11 +365,14 @@ def test_turingdb_startup_cleans_runtime_socket_and_allows_slow_vector_load() ->
     command = service["command"][0]
 
     assert "rm -f /turing/turingdb.sock" in command
-    assert "exec turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666" in command
-    assert "-demon" not in command
-    assert "trap " not in command
-    assert "wait " not in command
-    assert "while true" not in command
+    assert "touch /tmp/.turing_history" in command
+    assert "turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon" in command
+    assert "turingdb stop -turing-dir /turing" in command
+    assert "trap shutdown TERM INT" in command
+    assert "while :; do" in command
+    assert "TuringDB(type='json', host='http://127.0.0.1:6666').try_reach(timeout=2)" in command
+    assert "stdin_open" not in service
+    assert "exec turingdb start" not in command
     assert "-start-timeout" not in command
     assert "healthcheck" in service
     assert service["healthcheck"]["retries"] >= 80

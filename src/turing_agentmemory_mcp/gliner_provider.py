@@ -1,4 +1,4 @@
-"""Shared CPU-only GLiNER2 HTTP provider."""
+"""Shared FastGLiNER2 HTTP provider."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import json
 import logging
 import math
 import os
+import re
 import signal
 import threading
 import time
@@ -15,7 +16,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
-DEFAULT_MODEL_NAME = "fastino/gliner2-base-v1"
+DEFAULT_MODEL_NAME = "lion-ai/gliner2-base-v1-onnx"
+DEFAULT_MODEL_REVISION = "5551729ccc76b30395bc9600f2348ec52a87cead"
 MAX_BODY_BYTES = 1024 * 1024
 MAX_TEXTS = 256
 MAX_LABELS = 64
@@ -45,6 +47,51 @@ class ExtractProvider(Protocol):
 
 
 @dataclass
+class FastGLiNER2Adapter:
+    """Adapt FastGLiNER2's one-text API to the provider batch contract."""
+
+    model: Any
+
+    def batch_extract_entities(
+        self,
+        texts: list[str],
+        labels: list[str],
+        *,
+        batch_size: int,
+        threshold: float,
+        include_confidence: bool,
+        include_spans: bool,
+    ) -> list[list[dict[str, Any]]]:
+        del batch_size  # FastGLiNER2 currently accepts one text per inference.
+        results: list[list[dict[str, Any]]] = []
+        for text in texts:
+            raw_entities = self.model.predict_entities(text, labels)
+            if not isinstance(raw_entities, list):
+                raise ValueError("FastGLiNER2 returned a non-list result")
+            entities: list[dict[str, Any]] = []
+            for raw in raw_entities:
+                if not isinstance(raw, dict):
+                    continue
+                score = raw.get("score")
+                if (
+                    isinstance(score, bool)
+                    or not isinstance(score, (int, float))
+                    or not math.isfinite(float(score))
+                    or float(score) < threshold
+                ):
+                    continue
+                entity = dict(raw)
+                if not include_confidence:
+                    entity.pop("score", None)
+                if not include_spans:
+                    entity.pop("start", None)
+                    entity.pop("end", None)
+                entities.append(entity)
+            results.append(entities)
+        return results
+
+
+@dataclass
 class GLiNERProvider:
     model: Any
     model_name: str = DEFAULT_MODEL_NAME
@@ -55,8 +102,8 @@ class GLiNERProvider:
     def __post_init__(self) -> None:
         if isinstance(self.batch_size, bool) or not isinstance(self.batch_size, int) or self.batch_size <= 0:
             raise ValueError("batch_size must be a positive integer")
-        if self.device != "cpu":
-            raise ValueError("GLiNERProvider only supports the cpu device")
+        if self.device not in {"cpu", "cuda"}:
+            raise ValueError("GLiNERProvider device must be cpu or cuda")
 
     def extract(self, payload: dict[str, Any]) -> dict[str, Any]:
         texts, labels, threshold, include_confidence, include_spans = _validate_extract_payload(payload)
@@ -341,16 +388,24 @@ def _install_shutdown_signal_handlers(server: ThreadingHTTPServer) -> None:
     signal.signal(signal.SIGINT, shutdown_handler)
 
 
-def _read_settings() -> tuple[str, int, str, int]:
+def _read_settings() -> tuple[str, str, int, str, int, str]:
     model_name = os.environ.get("GLINER_MODEL", DEFAULT_MODEL_NAME).strip()
+    revision = os.environ.get("GLINER_MODEL_REVISION", DEFAULT_MODEL_REVISION).strip()
     host = os.environ.get("GLINER_HOST", "0.0.0.0").strip()
+    device = os.environ.get("GLINER_DEVICE", "cuda").strip().lower()
     if not model_name:
         raise ValueError("GLINER_MODEL must be non-empty")
+    if not revision:
+        raise ValueError("GLINER_MODEL_REVISION must be non-empty")
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("GLINER_MODEL_REVISION must be a 40-character lowercase commit SHA")
     if not host:
         raise ValueError("GLINER_HOST must be non-empty")
+    if device not in {"cpu", "cuda"}:
+        raise ValueError("GLINER_DEVICE must be cpu or cuda")
     batch_size = _read_bounded_int("GLINER_BATCH_SIZE", "8", 1, MAX_TEXTS)
     port = _read_bounded_int("GLINER_PORT", "8080", 1, 65_535)
-    return model_name, batch_size, host, port
+    return model_name, revision, batch_size, host, port, device
 
 
 def _read_bounded_int(name: str, default: str, minimum: int, maximum: int) -> int:
@@ -364,14 +419,30 @@ def _read_bounded_int(name: str, default: str, minimum: int, maximum: int) -> in
 
 
 def main() -> None:
-    model_name, batch_size, host, port = _read_settings()
+    model_name, revision, batch_size, host, port, device = _read_settings()
     try:
-        from gliner2 import GLiNER2
+        from fast_gliner import FastGLiNER2
+        from huggingface_hub import snapshot_download
+        from huggingface_hub.errors import LocalEntryNotFoundError
     except ImportError as exc:
-        raise RuntimeError("gliner2 is required to run the GLiNER provider") from exc
+        raise RuntimeError("fast_gliner is required to run the GLiNER provider") from exc
 
-    model = GLiNER2.from_pretrained(model_name, map_location="cpu")
-    provider = GLiNERProvider(model=model, model_name=model_name, device="cpu", batch_size=batch_size)
+    model_request = {
+        "repo_id": model_name,
+        "revision": revision,
+        "allow_patterns": ["model.onnx", "tokenizer.json"],
+    }
+    try:
+        model_dir = snapshot_download(**model_request, local_files_only=True)
+    except LocalEntryNotFoundError:
+        model_dir = snapshot_download(**model_request)
+    model = FastGLiNER2.from_pretrained(model_dir, execution_provider=device)
+    provider = GLiNERProvider(
+        model=FastGLiNER2Adapter(model),
+        model_name=model_name,
+        device=device,
+        batch_size=batch_size,
+    )
     server = make_server(provider, host=host, port=port)
     _install_shutdown_signal_handlers(server)
     try:

@@ -31,6 +31,21 @@ class CountingEmbedder:
         return [[float(len(text)), 1.0, 0.0] for text in texts]
 
 
+class PromptAwareEmbedder(CountingEmbedder):
+    def __init__(self) -> None:
+        super().__init__()
+        self.document_calls: list[list[str]] = []
+        self.query_calls: list[str] = []
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        self.document_calls.append(list(texts))
+        return [[float(len(text)), 1.0, 0.0] for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        self.query_calls.append(text)
+        return [float(len(text)), 1.0, 0.0]
+
+
 class ProjectEntityProcessor:
     def process(self, text: str) -> ProcessedText:
         entity = "TuringDB"
@@ -113,6 +128,18 @@ class RecordingStore(TuringAgentMemory):
 
     def _load_vectors(self, index_name: str, rows: list[tuple[int, list[float]]], stem: str) -> None:
         self.vector_loads.append(rows)
+
+
+def test_store_uses_specialized_document_and_query_embedding_methods(tmp_path: Path) -> None:
+    embedder = PromptAwareEmbedder()
+    store = RecordingStore(tmp_path, embedder)
+
+    assert store._embed_many(["stored memory"]) == [[13.0, 1.0, 0.0]]
+    assert store._embed_text("find stored memory", operation="memory.search") == [18.0, 1.0, 0.0]
+    assert store._embed_text("updated memory", operation="memory.update") == [14.0, 1.0, 0.0]
+
+    assert embedder.document_calls == [["stored memory"], ["updated memory"]]
+    assert embedder.query_calls == ["find stored memory"]
 
     def _write_memory(self, **kwargs: Any) -> MemoryItem:
         item = super()._write_memory(**kwargs)

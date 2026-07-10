@@ -1308,6 +1308,9 @@ class TuringAgentMemory:
             "embed",
             {"count": len(texts), "dimensions": self.dimensions, "operation": "batch"},
         ):
+            embed_documents = getattr(self.embedder, "embed_documents", None)
+            if callable(embed_documents):
+                return embed_documents(texts)
             embed_many = getattr(self.embedder, "embed_many", None)
             if callable(embed_many):
                 return embed_many(texts)
@@ -1318,6 +1321,14 @@ class TuringAgentMemory:
             "embed",
             {"count": 1, "dimensions": self.dimensions, "operation": operation},
         ):
+            if operation in {"memory.search", "document.search"}:
+                embed_query = getattr(self.embedder, "embed_query", None)
+                if callable(embed_query):
+                    return embed_query(text)
+            else:
+                embed_documents = getattr(self.embedder, "embed_documents", None)
+                if callable(embed_documents):
+                    return embed_documents([text])[0]
             return self.embedder.embed(text)
 
     def _batch_payload_key(self, payload: dict[str, object]) -> tuple[object, ...]:

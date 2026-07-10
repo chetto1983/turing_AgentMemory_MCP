@@ -33,9 +33,22 @@ services:
     entrypoint: ["/bin/sh", "-lc"]
     command:
       - |
-        set -e
+        set -eu
         rm -f /turing/turingdb.sock
-        exec turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666
+        touch /tmp/.turing_history
+        shutdown() {
+          turingdb stop -turing-dir /turing || true
+          exit 0
+        }
+        trap shutdown TERM INT
+        turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon
+        while :; do
+          python - <<'PY'
+        from turingdb import TuringDB
+        TuringDB(type='json', host='http://127.0.0.1:6666').try_reach(timeout=2)
+        PY
+          sleep 5
+        done
     environment:
       - HOME=/tmp
       - XDG_CACHE_HOME=/tmp/.cache
@@ -77,8 +90,10 @@ services:
       - HF_HOME=/models/huggingface
       - XDG_CACHE_HOME=/models/.cache
       - PYTHONPYCACHEPREFIX=/tmp/pycache
-      - GLINER_MODEL=fastino/gliner2-base-v1
-      - GLINER_BATCH_SIZE=8
+      - GLINER_MODEL=lion-ai/gliner2-base-v1-onnx
+      - GLINER_MODEL_REVISION=5551729ccc76b30395bc9600f2348ec52a87cead
+      - GLINER_DEVICE=cpu
+      - GLINER_BATCH_SIZE=1
       - GLINER_HOST=0.0.0.0
       - GLINER_PORT=8080
     expose:
@@ -153,7 +168,7 @@ services:
       - PROVIDER_API_KEY_SCHEME
       - GLINER_ENABLED=1
       - GLINER_BACKEND=gliner2_http
-      - GLINER_MODEL=fastino/gliner2-base-v1
+      - GLINER_MODEL=lion-ai/gliner2-base-v1-onnx
       - GLINER_BASE_URL=http://agentmemory-gliner:8080
       - GLINER_TIMEOUT_SECONDS=120
       - GLINER_LABELS
@@ -244,6 +259,40 @@ services:
       - /tmp
       - /run
 
+  agentmemory-gemma-model-init:
+    profiles: ["embeddinggemma-eval"]
+    build:
+      context: .
+      dockerfile: docker/llama-provider.Dockerfile
+    image: turing-agentmemory-llama-provider:local
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mkdir -p /models/pinned
+        final=/models/pinned/embeddinggemma-300M-Q8_0.gguf
+        partial="$$final.partial"
+        sha256=a0f7b4e13c397a6e1b32c2de75b1f65a14c92ec524d5f674d94a4290a1c4969b
+        if [ -f "$$final" ] && printf '%s  %s\n' "$$sha256" "$$final" | sha256sum -c -; then
+          exit 0
+        fi
+        curl -fL --retry 5 --retry-delay 2 --retry-all-errors \
+          --connect-timeout 30 --speed-limit 1024 --speed-time 120 \
+          --output "$$partial" \
+          'https://huggingface.co/unsloth/embeddinggemma-300m-GGUF/resolve/6661a6504c30d8304af13455cb4a5d4f5bc6011f/embeddinggemma-300M-Q8_0.gguf?download=true'
+        printf '%s  %s\n' "$$sha256" "$$partial" | sha256sum -c -
+        mv "$$partial" "$$final"
+    volumes:
+      - agentmemory-llama-cache:/models
+    user: "10001:10001"
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+
   agentmemory-embed:
     build:
       context: .
@@ -256,6 +305,77 @@ services:
     command:
       - --model
       - /models/pinned/granite-embedding-311M-multilingual-r2-Q4_K_M.gguf
+      - --embedding
+      - --pooling
+      - mean
+      - --embd-normalize
+      - "2"
+      - --batch-size
+      - "4096"
+      - --ubatch-size
+      - "4096"
+      - --device
+      - CUDA0
+      - --gpu-layers
+      - all
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    environment:
+      - HOME=/models
+      - LLAMA_CACHE=/models/llama.cpp
+      - HF_HOME=/models/huggingface
+      - XDG_CACHE_HOME=/models/.cache
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    expose:
+      - "8080"
+    volumes:
+      - agentmemory-llama-cache:/models
+    user: "10001:10001"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+    healthcheck:
+      test: ["CMD-SHELL", "nvidia-smi >/dev/null && curl -fsS http://127.0.0.1:8080/health >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 80
+      start_period: 60s
+    shm_size: "1g"
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8g
+        reservations:
+          cpus: "1.0"
+          memory: 2g
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  agentmemory-embed-gemma:
+    profiles: ["embeddinggemma-eval"]
+    build:
+      context: .
+      dockerfile: docker/llama-provider.Dockerfile
+    image: turing-agentmemory-llama-provider:local
+    depends_on:
+      agentmemory-gemma-model-init:
+        condition: service_completed_successfully
+    gpus: all
+    command:
+      - --model
+      - /models/pinned/embeddinggemma-300M-Q8_0.gguf
       - --embedding
       - --pooling
       - mean
@@ -432,6 +552,7 @@ services:
           memory: 96m
 
   e2e:
+    profiles: ["e2e"]
     build:
       context: .
       args:

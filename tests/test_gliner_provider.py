@@ -504,18 +504,21 @@ def test_unencodable_provider_response_returns_private_generic_json_error(
         ("GLINER_BATCH_SIZE", "257"),
         ("GLINER_PORT", "0"),
         ("GLINER_PORT", "65536"),
+        ("GLINER_MODEL_REVISION", "   "),
+        ("GLINER_MODEL_REVISION", "main"),
+        ("GLINER_DEVICE", "metal"),
     ],
 )
 def test_main_validates_settings_before_loading_model(monkeypatch, name: str, value: str) -> None:
     load_calls: list[tuple[str, object]] = []
 
-    class FakeGLiNER2:
+    class FakeFastGLiNER2:
         @classmethod
         def from_pretrained(cls, model_name: str, **kwargs: object) -> object:
             load_calls.append((model_name, kwargs))
             return object()
 
-    monkeypatch.setitem(sys.modules, "gliner2", SimpleNamespace(GLiNER2=FakeGLiNER2))
+    monkeypatch.setitem(sys.modules, "fast_gliner", SimpleNamespace(FastGLiNER2=FakeFastGLiNER2))
     monkeypatch.setenv(name, value)
     monkeypatch.setattr(gliner_provider, "make_server", lambda *args, **kwargs: pytest.fail("server started"))
 
@@ -527,9 +530,10 @@ def test_main_validates_settings_before_loading_model(monkeypatch, name: str, va
 
 def test_main_loads_the_model_once_after_validating_settings(monkeypatch) -> None:
     load_calls: list[tuple[str, dict[str, object]]] = []
+    download_calls: list[dict[str, object]] = []
     server_calls: list[object] = []
 
-    class FakeGLiNER2:
+    class FakeFastGLiNER2:
         @classmethod
         def from_pretrained(cls, model_name: str, **kwargs: object) -> object:
             load_calls.append((model_name, kwargs))
@@ -549,18 +553,120 @@ def test_main_loads_the_model_once_after_validating_settings(monkeypatch) -> Non
         server_calls.append((provider, host, port))
         return FakeServer()
 
-    monkeypatch.setitem(sys.modules, "gliner2", SimpleNamespace(GLiNER2=FakeGLiNER2))
+    def snapshot_download(**kwargs: object) -> str:
+        download_calls.append(kwargs)
+        return "/models/snapshot"
+
+    class CacheMiss(Exception):
+        pass
+
+    monkeypatch.setitem(sys.modules, "fast_gliner", SimpleNamespace(FastGLiNER2=FakeFastGLiNER2))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(snapshot_download=snapshot_download))
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub.errors",
+        SimpleNamespace(LocalEntryNotFoundError=CacheMiss),
+    )
     monkeypatch.setattr(gliner_provider, "make_server", make_fake_server)
     monkeypatch.setattr(gliner_provider.signal, "signal", lambda *args: None)
-    monkeypatch.setenv("GLINER_MODEL", "fastino/gliner2-base-v1")
+    monkeypatch.setenv("GLINER_MODEL", "lion-ai/gliner2-base-v1-onnx")
+    monkeypatch.setenv("GLINER_MODEL_REVISION", "5551729ccc76b30395bc9600f2348ec52a87cead")
     monkeypatch.setenv("GLINER_HOST", "127.0.0.1")
-    monkeypatch.setenv("GLINER_BATCH_SIZE", "8")
+    monkeypatch.setenv("GLINER_BATCH_SIZE", "1")
     monkeypatch.setenv("GLINER_PORT", "8080")
+    monkeypatch.setenv("GLINER_DEVICE", "cpu")
 
     gliner_provider.main()
 
-    assert load_calls == [("fastino/gliner2-base-v1", {"map_location": "cpu"})]
+    assert download_calls == [
+        {
+            "repo_id": "lion-ai/gliner2-base-v1-onnx",
+            "revision": "5551729ccc76b30395bc9600f2348ec52a87cead",
+            "allow_patterns": ["model.onnx", "tokenizer.json"],
+            "local_files_only": True,
+        }
+    ]
+    assert load_calls == [("/models/snapshot", {"execution_provider": "cpu"})]
     assert server_calls[1:] == ["serve", "close"]
+
+
+def test_main_downloads_the_pinned_model_only_when_cache_is_absent(monkeypatch) -> None:
+    download_calls: list[dict[str, object]] = []
+
+    class CacheMiss(Exception):
+        pass
+
+    class FakeFastGLiNER2:
+        @classmethod
+        def from_pretrained(cls, model_name: str, **kwargs: object) -> object:
+            return object()
+
+    class FakeServer:
+        def serve_forever(self) -> None:
+            pass
+
+        def server_close(self) -> None:
+            pass
+
+        def shutdown(self) -> None:
+            pass
+
+    def snapshot_download(**kwargs: object) -> str:
+        download_calls.append(kwargs)
+        if kwargs.get("local_files_only") is True:
+            raise CacheMiss()
+        return "/models/downloaded-snapshot"
+
+    monkeypatch.setitem(sys.modules, "fast_gliner", SimpleNamespace(FastGLiNER2=FakeFastGLiNER2))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(snapshot_download=snapshot_download))
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub.errors",
+        SimpleNamespace(LocalEntryNotFoundError=CacheMiss),
+    )
+    monkeypatch.setattr(gliner_provider, "make_server", lambda *args, **kwargs: FakeServer())
+    monkeypatch.setattr(gliner_provider.signal, "signal", lambda *args: None)
+    monkeypatch.setenv("GLINER_MODEL", "lion-ai/gliner2-base-v1-onnx")
+    monkeypatch.setenv("GLINER_MODEL_REVISION", "5551729ccc76b30395bc9600f2348ec52a87cead")
+    monkeypatch.setenv("GLINER_DEVICE", "cpu")
+
+    gliner_provider.main()
+
+    request = {
+        "repo_id": "lion-ai/gliner2-base-v1-onnx",
+        "revision": "5551729ccc76b30395bc9600f2348ec52a87cead",
+        "allow_patterns": ["model.onnx", "tokenizer.json"],
+    }
+    assert download_calls == [request | {"local_files_only": True}, request]
+
+
+def test_fast_gliner2_adapter_serializes_batch_and_applies_threshold() -> None:
+    class FakeFastGLiNER2:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, list[str]]] = []
+
+        def predict_entities(self, text: str, labels: list[str]) -> list[dict[str, object]]:
+            self.calls.append((text, labels))
+            return [
+                {"text": text, "label": "project", "score": 0.91, "start": 0, "end": len(text)},
+                {"text": "low", "label": "project", "score": 0.2, "start": 0, "end": 3},
+            ]
+
+    model = FakeFastGLiNER2()
+    adapter = gliner_provider.FastGLiNER2Adapter(model)
+
+    assert adapter.batch_extract_entities(
+        ["Aurora", "TuringDB"],
+        ["project"],
+        batch_size=16,
+        threshold=0.5,
+        include_confidence=True,
+        include_spans=True,
+    ) == [
+        [{"text": "Aurora", "label": "project", "score": 0.91, "start": 0, "end": 6}],
+        [{"text": "TuringDB", "label": "project", "score": 0.91, "start": 0, "end": 8}],
+    ]
+    assert model.calls == [("Aurora", ["project"]), ("TuringDB", ["project"])]
 
 
 def test_signal_handlers_shutdown_server_from_another_thread(monkeypatch) -> None:

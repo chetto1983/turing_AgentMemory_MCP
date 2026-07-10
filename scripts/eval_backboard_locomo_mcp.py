@@ -76,7 +76,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--require-entity-model",
-        default="fastino/gliner2-base-v1",
+        default="lion-ai/gliner2-base-v1-onnx",
         help="Fail ingest unless memory_store_messages reports this entity model. Set empty to disable.",
     )
     parser.add_argument(

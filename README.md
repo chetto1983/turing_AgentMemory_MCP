@@ -262,12 +262,15 @@ A UTCP bridge can then load the exported file with a config pointed to by
 }
 ```
 
-The production Compose stack enables `fastino/gliner2-base-v1` in the
-CPU-only `agentmemory-gliner` sidecar. HTTP and stdio MCP processes share that
-single model instance through `GLINER_BACKEND=gliner2_http` and
-`GLINER_BASE_URL=http://agentmemory-gliner:8080`; it is readiness-gated before
-the MCP service starts. The `agentmemory-gliner-cache` volume persists Hugging
-Face artifacts across container recreation, and the sidecar has no host port.
+The production Compose stack enables `lion-ai/gliner2-base-v1-onnx`, the ONNX
+export of `fastino/gliner2-base-v1`, in the CPU-only `agentmemory-gliner`
+sidecar. The FastGLiNER2 Rust runtime loads the model at its pinned Hugging Face
+revision; HTTP and stdio MCP processes share that single model instance through
+`GLINER_BACKEND=gliner2_http` and `GLINER_BASE_URL=http://agentmemory-gliner:8080`.
+It is readiness-gated before the MCP service starts. The
+`agentmemory-gliner-cache` volume persists the revision-pinned artifacts across
+container recreation, and the sidecar has no host port. Embedding and reranking
+retain the available GPU memory.
 
 Entity extraction runs during memory and document ingest, stores metadata under
 `metadata.entity_extraction`, and adds labels/spans to lexical retrieval. The
