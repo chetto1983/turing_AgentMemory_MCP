@@ -7,16 +7,24 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 PINNED_PYTHON_RE = re.compile(r"^FROM python:3\.14-slim@sha256:[a-f0-9]{64}$", re.MULTILINE)
+PINNED_LLAMA_RE = re.compile(
+    r"^FROM ghcr\.io/ggml-org/llama\.cpp:server-cuda@sha256:[a-f0-9]{64}$",
+    re.MULTILINE,
+)
 
 
 def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
     app = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     turingdb = (ROOT / "docker" / "turingdb.Dockerfile").read_text(encoding="utf-8")
+    llama = (ROOT / "docker" / "llama-provider.Dockerfile").read_text(encoding="utf-8")
 
     for dockerfile in (app, turingdb):
         assert PINNED_PYTHON_RE.search(dockerfile)
         assert "10001" in dockerfile
         assert "USER app" in dockerfile
+    assert PINNED_LLAMA_RE.search(llama)
+    assert "10001" in llama
+    assert "USER app" in llama
 
 
 def test_dockerfiles_use_pip_cache_mounts() -> None:
@@ -45,6 +53,45 @@ def test_compose_declares_runtime_hardening_controls() -> None:
     app = services["turing-agentmemory-mcp"]
     assert app["read_only"] is True
     assert {"/tmp", "/run"} <= set(app["tmpfs"])
+
+
+def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    services = compose["services"]
+
+    embed = services["agentmemory-embed"]
+    rerank = services["agentmemory-rerank"]
+    for service in (embed, rerank):
+        assert service["image"] == "turing-agentmemory-llama-provider:local"
+        assert service["gpus"] == "all"
+        assert service["read_only"] is True
+        assert service["security_opt"] == ["no-new-privileges:true"]
+        assert "agentmemory-llama-cache:/models" in service["volumes"]
+        assert "healthcheck" in service
+        assert "--device" in service["command"]
+        assert "CUDA0" in service["command"]
+        assert "--gpu-layers" in service["command"]
+        assert "all" in service["command"]
+
+    assert "mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M" in embed["command"]
+    assert "--ubatch-size" in embed["command"]
+    assert "4096" in embed["command"]
+    assert "Mungert/Qwen3-Reranker-0.6B-GGUF" in rerank["command"]
+    assert "Qwen3-Reranker-0.6B-q8_0.gguf" in rerank["command"]
+    assert "--embedding" in rerank["command"]
+    assert "--parallel" in rerank["command"]
+    assert "--no-cache-prompt" in rerank["command"]
+
+    app = services["turing-agentmemory-mcp"]
+    app_env = set(app["environment"])
+    assert app["depends_on"]["agentmemory-embed"]["condition"] == "service_healthy"
+    assert app["depends_on"]["agentmemory-rerank"]["condition"] == "service_healthy"
+    assert "EMBED_BASE_URL=http://agentmemory-embed:8080" in app_env
+    assert "EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M" in app_env
+    assert "RERANK_BASE_URL=http://agentmemory-rerank:8080" in app_env
+    assert "RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf" in app_env
+    assert "RERANK_PROVIDER_MIN_SCORE=0.00001" in app_env
+    assert not any("host.docker.internal" in value for value in app_env)
 
 
 def test_compose_routes_non_root_runtime_caches_to_tmpfs() -> None:
@@ -84,10 +131,15 @@ def test_compose_repairs_legacy_volume_ownership_before_turingdb_start() -> None
 
 def test_turingdb_startup_cleans_runtime_socket_and_allows_slow_vector_load() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
-    command = compose["services"]["turingdb"]["command"][0]
+    service = compose["services"]["turingdb"]
+    command = service["command"][0]
 
     assert "rm -f /turing/turingdb.sock" in command
-    assert "-start-timeout 60000" in command
+    assert "turingdb start" in command
+    assert "-demon &" in command
+    assert "-start-timeout" not in command
+    assert "healthcheck" in service
+    assert service["healthcheck"]["retries"] >= 80
 
 
 def test_compose_serves_agentmemory_lab_frontend_on_local_port() -> None:

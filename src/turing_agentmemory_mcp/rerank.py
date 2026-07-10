@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeVar
@@ -36,6 +37,7 @@ class OpenAICompatibleReranker:
     api_key_scheme: str = "Bearer"
     dimensions: int | None = None
     timeout_s: float = 30.0
+    provider_min_score: float = 0.0
 
     @classmethod
     def from_env(cls) -> OpenAICompatibleReranker:
@@ -48,6 +50,7 @@ class OpenAICompatibleReranker:
             api_key_scheme=provider_api_key_scheme("RERANK"),
             dimensions=provider_optional_int("RERANK_DIMENSIONS"),
             timeout_s=float(provider_env("RERANK_TIMEOUT_SECONDS", default="30")),
+            provider_min_score=max(0.0, float(provider_env("RERANK_PROVIDER_MIN_SCORE", default="0"))),
         )
 
     def rerank(self, query: str, documents: list[str]) -> list[Scored]:
@@ -85,11 +88,31 @@ class OpenAICompatibleReranker:
             if index < 0 or index >= len(documents):
                 return identity(documents)
             scored.append(Scored(index=index, score=float(row.get("relevance_score", 0.0))))
-        return sorted(scored, key=lambda item: item.score, reverse=True)
+        ordered = sorted(scored, key=lambda item: item.score, reverse=True)
+        if self.provider_min_score > 0.0 and ordered[0].score < self.provider_min_score:
+            return lexical_rerank(query, documents)
+        return ordered
 
 
 def identity(documents: list[str]) -> list[Scored]:
     return [Scored(index=index, score=0.0) for index in range(len(documents))]
+
+
+def lexical_rerank(query: str, documents: list[str]) -> list[Scored]:
+    query_terms = _terms(query)
+    if not query_terms:
+        return identity(documents)
+    query_set = set(query_terms)
+    query_norm = _normalize_text(query)
+    scored: list[Scored] = []
+    for index, document in enumerate(documents):
+        doc_terms = set(_terms(document))
+        overlap = len(query_set & doc_terms)
+        score = float(overlap) / float(len(query_set))
+        if query_norm and query_norm in _normalize_text(document):
+            score += 1.0
+        scored.append(Scored(index=index, score=score))
+    return sorted(scored, key=lambda item: (-item.score, item.index))
 
 
 def apply_rerank_guard(
@@ -160,3 +183,11 @@ def blend_rerank_orders(seed: list[T], scored: list[Scored]) -> list[tuple[T, fl
 
 def truncate_runes(value: str, limit: int) -> str:
     return value if len(value) <= limit else value[:limit]
+
+
+def _terms(value: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", value.lower())
+
+
+def _normalize_text(value: str) -> str:
+    return " ".join(_terms(value))
