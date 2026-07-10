@@ -252,20 +252,32 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         tags: list[str] | None = None,
         metadata: dict[str, object] | None = None,
         expires_at: str = "",
+        refresh_communities: bool = True,
     ) -> list[dict[str, Any]]:
         """Store conversation messages in one duplicate-safe batch."""
         with _tool_span("memory_store_messages"):
+            store_arguments: dict[str, object] = {
+                "user_identifier": user_identifier,
+                "messages": messages,
+                "source": source,
+                "tags": tags,
+                "metadata": metadata,
+                "expires_at": expires_at,
+            }
+            if not refresh_communities:
+                store_arguments["refresh_communities"] = False
             return [
                 item.to_dict()
-                for item in memory.store_messages(
-                    user_identifier=user_identifier,
-                    messages=messages,
-                    source=source,
-                    tags=tags,
-                    metadata=metadata,
-                    expires_at=expires_at,
-                )
+                for item in memory.store_messages(**store_arguments)
             ]
+
+    @app.tool()
+    def memory_rebuild_communities(
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Rebuild derived Leiden communities after a bulk ingest."""
+        with _tool_span("memory_rebuild_communities"):
+            return memory.rebuild_communities(user_identifier=user_identifier)
 
     @app.tool()
     def memory_get(

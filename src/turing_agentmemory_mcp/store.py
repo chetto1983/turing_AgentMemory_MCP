@@ -284,6 +284,7 @@ class TuringAgentMemory:
         tags: list[str] | None = None,
         metadata: dict[str, object] | None = None,
         expires_at: str = "",
+        refresh_communities: bool = True,
         _audit_operation: str = "memory.store_messages",
     ) -> list[MemoryItem]:
         with self._span(
@@ -291,6 +292,8 @@ class TuringAgentMemory:
             {"user_identifier": user_identifier, "source": source, "count": len(messages)},
         ):
             self._require_user(user_identifier)
+            if not isinstance(refresh_communities, bool):
+                raise ValueError("refresh_communities must be a boolean")
             if not messages:
                 return []
             prepared: list[dict[str, object]] = []
@@ -481,7 +484,7 @@ class TuringAgentMemory:
                     ],
                     "fact_batch",
                 )
-            if new_payloads:
+            if new_payloads and refresh_communities:
                 self._refresh_communities_after_batch(user_identifier)
             items = [item_by_id[str(payload["memory_id"])] for payload in prepared]
             self._audit(

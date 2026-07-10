@@ -55,6 +55,10 @@ class FakeMemory:
             )
         ]
 
+    def rebuild_communities(self, *, user_identifier: str) -> dict[str, object]:
+        self.calls.append({"rebuild_user_identifier": user_identifier})
+        return {"community_count": 2}
+
 
 def _payload(result: Any) -> Any:
     if hasattr(result, "structured_content") and result.structured_content is not None:
@@ -114,3 +118,20 @@ def test_memory_store_messages_tool_exposes_batch_store() -> None:
             "expires_at": "",
         }
     ]
+
+
+def test_memory_rebuild_communities_tool_exposes_derived_repair() -> None:
+    fake = FakeMemory()
+
+    async def run() -> None:
+        async with Client(create_mcp_app(fake)) as client:
+            result = _payload(
+                await client.call_tool(
+                    "memory_rebuild_communities",
+                    {"user_identifier": "alice"},
+                )
+            )
+            assert result == {"community_count": 2}
+
+    asyncio.run(run())
+    assert fake.calls == [{"rebuild_user_identifier": "alice"}]

@@ -31,7 +31,7 @@ CATEGORY_NAMES = {
     5: "adversarial",
 }
 COMPARABLE_CUTOFFS = (20, 50, 200)
-MAX_INGEST_BATCH = 256
+MAX_INGEST_BATCH = 50
 
 
 class ResumeState(NamedTuple):
@@ -356,18 +356,25 @@ async def ingest_conversation(
                 "user_identifier": user_identifier,
                 "source": "backboard-locomo",
                 "tags": ["benchmark", "backboard", "locomo", "turns-only"],
+                "refresh_communities": False,
             },
         )
         if not isinstance(result, list):
             raise RuntimeError("memory_store_messages returned a non-list result")
         stored += len(result)
         stored_rows.extend(row for row in result if isinstance(row, dict))
+    community = await call_tool(
+        client,
+        "memory_rebuild_communities",
+        {"user_identifier": user_identifier},
+    )
     return (
         {
             "messages": len(messages),
             "stored_results": stored,
             "duration_ms": round((time.perf_counter() - started) * 1000, 3),
             "entity_extraction": summarize_entity_extraction(stored_rows),
+            "community": community,
         },
         stored_rows,
     )
@@ -590,7 +597,12 @@ async def run() -> dict[str, Any]:
     async with Client(transport) as client:
         tools = await client.list_tools()
         tool_names = {tool.name for tool in tools}
-        required = {"memory_store_messages", "memory_search", "memory_runtime_status"}
+        required = {
+            "memory_store_messages",
+            "memory_rebuild_communities",
+            "memory_search",
+            "memory_runtime_status",
+        }
         missing = sorted(required - tool_names)
         if missing:
             raise RuntimeError(f"MCP server missing required tools: {missing}")

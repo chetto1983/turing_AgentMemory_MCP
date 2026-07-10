@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import sys
 import types
@@ -55,14 +56,51 @@ def test_require_entity_model_rejects_missing_or_different_model(summary: dict[s
 
 def test_comparable_cutoffs_are_fixed_at_20_50_and_200() -> None:
     assert runner.COMPARABLE_CUTOFFS == (20, 50, 200)
-    assert runner.MAX_INGEST_BATCH == 256
+    assert runner.MAX_INGEST_BATCH == 50
     assert runner.retrieval_cutoffs(200) == [1, 3, 5, 10, 20, 50, 200]
 
 
 def test_ingest_batch_validation_matches_gliner_sidecar_contract() -> None:
-    assert runner.validate_batch_size(256) == 256
-    with pytest.raises(ValueError, match="between 1 and 256"):
-        runner.validate_batch_size(257)
+    assert runner.validate_batch_size(50) == 50
+    with pytest.raises(ValueError, match="between 1 and 50"):
+        runner.validate_batch_size(51)
+
+
+def test_ingest_defers_communities_then_rebuilds_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    async def fake_call(_client: object, name: str, arguments: dict[str, object]) -> object:
+        calls.append((name, arguments))
+        if name == "memory_store_messages":
+            return [{"id": str(row["memory_id"]), "metadata": {}} for row in arguments["messages"]]
+        return {"community_count": 2}
+
+    monkeypatch.setattr(runner, "call_tool", fake_call)
+    messages = [
+        {"memory_id": f"m{index}", "session_id": "s1", "role": "user", "content": "x"}
+        for index in range(3)
+    ]
+
+    info, _rows = asyncio.run(
+        runner.ingest_conversation(
+            object(),
+            user_identifier="alice",
+            messages=messages,
+            batch_size=2,
+        )
+    )
+
+    assert [name for name, _ in calls] == [
+        "memory_store_messages",
+        "memory_store_messages",
+        "memory_rebuild_communities",
+    ]
+    assert all(
+        arguments["refresh_communities"] is False
+        for name, arguments in calls
+        if name == "memory_store_messages"
+    )
+    assert info["community"] == {"community_count": 2}
 
 
 def test_metrics_report_first_relevant_reciprocal_rank() -> None:
