@@ -905,6 +905,87 @@ def test_fast_gliner2_adapter_extracts_constrained_memory_with_complete_endpoint
     ]
 
 
+def test_fast_gliner2_adapter_converts_utf8_byte_offsets_to_character_offsets() -> None:
+    text = "Alice — family 🌟 Rome"
+
+    def byte_span(value: str) -> tuple[int, int]:
+        start = text.encode("utf-8").index(value.encode("utf-8"))
+        return start, start + len(value.encode("utf-8"))
+
+    family_start, family_end = byte_span("family")
+    rome_start, rome_end = byte_span("Rome")
+
+    class ByteOffsetModel:
+        def predict_entities(self, value: str, labels: list[str]) -> list[dict[str, object]]:
+            return [
+                {
+                    "text": "family",
+                    "label": "group",
+                    "score": 0.9,
+                    "start": family_start,
+                    "end": family_end,
+                }
+            ]
+
+        def extract_relations(
+            self,
+            value: str,
+            labels: list[str],
+            schema: list[dict[str, object]],
+        ) -> list[dict[str, object]]:
+            return [
+                {
+                    "relation": "located_in",
+                    "score": 0.8,
+                    "subject": {
+                        "text": "family",
+                        "label": "group",
+                        "score": 0.9,
+                        "start": family_start,
+                        "end": family_end,
+                    },
+                    "object": {
+                        "text": "Rome",
+                        "label": "location",
+                        "score": 0.9,
+                        "start": rome_start,
+                        "end": rome_end,
+                    },
+                }
+            ]
+
+        def classify(self, value: str, labels: list[str]) -> list[tuple[str, float]]:
+            return [("semantic_fact", 0.9)]
+
+    result = gliner_provider.FastGLiNER2Adapter(ByteOffsetModel()).batch_extract_memory(
+        [text], batch_size=1, threshold=0.5
+    )[0]
+
+    expected_family = (text.index("family"), text.index("family") + len("family"))
+    expected_rome = (text.index("Rome"), text.index("Rome") + len("Rome"))
+    assert (result["entities"][0]["start"], result["entities"][0]["end"]) == expected_family
+    assert (result["relations"][0]["subject"]["start"], result["relations"][0]["subject"]["end"]) == expected_family
+    assert (result["relations"][0]["object"]["start"], result["relations"][0]["object"]["end"]) == expected_rome
+
+
+def test_fast_gliner2_adapter_rejects_offsets_that_match_neither_contract() -> None:
+    class CorruptModel:
+        def predict_entities(self, text: str, labels: list[str]) -> list[dict[str, object]]:
+            return [
+                {"text": "Alice", "label": "person", "score": 0.9, "start": 2, "end": 7}
+            ]
+
+    with pytest.raises(ValueError, match="offsets"):
+        gliner_provider.FastGLiNER2Adapter(CorruptModel()).batch_extract_entities(
+            ["Alice in Rome"],
+            ["person"],
+            batch_size=1,
+            threshold=0.5,
+            include_confidence=True,
+            include_spans=True,
+        )
+
+
 def test_signal_handlers_shutdown_server_from_another_thread(monkeypatch) -> None:
     handlers: dict[int, object] = {}
     shutdown_called = threading.Event()

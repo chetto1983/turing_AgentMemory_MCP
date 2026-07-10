@@ -89,7 +89,7 @@ class FastGLiNER2Adapter:
                     or float(score) < threshold
                 ):
                     continue
-                entity = dict(raw)
+                entity = _normalize_entity_offsets(text, raw)
                 if not include_confidence:
                     entity.pop("score", None)
                 if not include_spans:
@@ -117,6 +117,8 @@ class FastGLiNER2Adapter:
             raw_classifications = self.model.classify(text, memory_kinds)
             entities = _filter_scored_objects(raw_entities, threshold, "entity")
             relations = _filter_scored_objects(raw_relations, threshold, "relation")
+            entities = [_normalize_entity_offsets(text, entity) for entity in entities]
+            relations = [_normalize_relation_offsets(text, relation) for relation in relations]
             entities = _merge_relation_endpoints(entities, relations)
             classifications = _normalize_classifications(raw_classifications)
             results.append(
@@ -238,6 +240,48 @@ def _filter_scored_objects(value: object, threshold: float, kind: str) -> list[d
         if score >= threshold:
             filtered.append(dict(item))
     return filtered
+
+
+def _normalize_entity_offsets(text: str, entity: dict[str, Any]) -> dict[str, Any]:
+    value = entity.get("text")
+    start = entity.get("start")
+    end = entity.get("end")
+    if (
+        not isinstance(value, str)
+        or not value
+        or isinstance(start, bool)
+        or not isinstance(start, int)
+        or isinstance(end, bool)
+        or not isinstance(end, int)
+    ):
+        raise ValueError("FastGLiNER2 returned malformed entity offsets")
+    normalized = dict(entity)
+    if 0 <= start < end <= len(text) and text[start:end] == value:
+        return normalized
+
+    encoded = text.encode("utf-8")
+    if not 0 <= start < end <= len(encoded):
+        raise ValueError("FastGLiNER2 returned invalid entity offsets")
+    try:
+        prefix = encoded[:start].decode("utf-8")
+        byte_value = encoded[start:end].decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("FastGLiNER2 returned invalid UTF-8 entity offsets") from exc
+    if byte_value != value:
+        raise ValueError("FastGLiNER2 entity offsets match neither characters nor UTF-8 bytes")
+    normalized["start"] = len(prefix)
+    normalized["end"] = len(prefix) + len(byte_value)
+    return normalized
+
+
+def _normalize_relation_offsets(text: str, relation: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(relation)
+    for endpoint_name in ("subject", "object"):
+        endpoint = relation.get(endpoint_name)
+        if not isinstance(endpoint, dict):
+            raise ValueError("FastGLiNER2 returned malformed relation endpoint")
+        normalized[endpoint_name] = _normalize_entity_offsets(text, endpoint)
+    return normalized
 
 
 def _merge_relation_endpoints(
