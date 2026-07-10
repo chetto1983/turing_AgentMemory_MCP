@@ -304,11 +304,10 @@ def test_turingdb_startup_cleans_runtime_socket_and_allows_slow_vector_load() ->
     command = service["command"][0]
 
     assert "rm -f /turing/turingdb.sock" in command
-    assert "turingdb start" in command
-    assert "-demon &" in command
-    assert command.index("trap ") < command.index("turingdb start")
-    assert "turingdb_pid=$$!" in command
-    assert 'wait "$$turingdb_pid"' in command
+    assert "exec turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666" in command
+    assert "-demon" not in command
+    assert "trap " not in command
+    assert "wait " not in command
     assert "while true" not in command
     assert "-start-timeout" not in command
     assert "healthcheck" in service
