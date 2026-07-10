@@ -35,7 +35,12 @@ from turing_agentmemory_mcp.models import (
 )
 from turing_agentmemory_mcp.observability import SpanRecorder, span_recorder_from_env
 from turing_agentmemory_mcp.provider_config import provider_env
-from turing_agentmemory_mcp.rerank import OpenAICompatibleReranker, apply_rerank_guard
+from turing_agentmemory_mcp.rerank import (
+    OpenAICompatibleReranker,
+    RerankResult,
+    apply_rerank_guard,
+    assemble_rerank_document,
+)
 from turing_agentmemory_mcp.retrieval_fusion import diversify_fused, fuse_rankings
 from turing_agentmemory_mcp.search_controls import (
     build_score_details,
@@ -701,13 +706,14 @@ class TuringAgentMemory:
                 rankings[channel] = ranking
         if not rankings:
             return []
+        rerank_pool_limit = min(max(limit * 3, limit), candidate_limit)
         fused = diversify_fused(
             fuse_rankings(
                 rankings,
                 weights=self.fusion_weights,
                 channel_caps=candidate_limit,
             ),
-            limit=limit,
+            limit=rerank_pool_limit,
             max_per_source=1,
         )
         results: list[MemoryItem] = []
@@ -716,13 +722,15 @@ class TuringAgentMemory:
                 continue
             source_id = fused_candidate.candidate.source_memory_id
             item = items_by_id[source_id]
-            details: dict[str, object] | None = None
+            details: dict[str, object] = {
+                "fusion_score": fused_candidate.score,
+                "final_score": fused_candidate.score,
+                "threshold": threshold,
+            }
             if explain:
                 evidence = evidence_by_source.get(source_id, [])
-                details = {
-                    "fusion_score": fused_candidate.score,
-                    "final_score": fused_candidate.score,
-                    "threshold": threshold,
+                details.update(
+                    {
                     "channels": {
                         channel: score.to_dict()
                         for channel, score in fused_candidate.channels.items()
@@ -732,7 +740,8 @@ class TuringAgentMemory:
                     ),
                     "max_hop": max((value.hop for value in evidence), default=0),
                     "degraded_channels": sorted(degraded),
-                }
+                    }
+                )
             results.append(
                 MemoryItem(
                     id=item.id,
@@ -751,7 +760,7 @@ class TuringAgentMemory:
                     score_details=details,
                 )
             )
-        return results
+        return self._rerank_memory(query, results)[:limit]
 
     def _collect_retrieval_evidence(
         self,
@@ -2674,18 +2683,74 @@ class TuringAgentMemory:
         )
 
     def _rerank_memory(self, query: str, seeds: list[MemoryItem]) -> list[MemoryItem]:
-        if len(seeds) < 2 or self.reranker is None:
-            return seeds
-        with self._span("rerank", {"kind": "memory", "count": len(seeds)}):
-            scored = self.reranker.rerank(query, [item.content for item in seeds])
-        ordered = apply_rerank_guard(
-            seeds,
-            scored,
-            threshold=self.rerank_threshold,
-            blend=self.rerank_blend,
-            seed_scores=[item.score for item in seeds],
-            preserve_seed_margin=self.rerank_preserve_seed_margin,
+        fused = any(
+            item.score_details is not None and "fusion_score" in item.score_details
+            for item in seeds
         )
+        if len(seeds) < 2:
+            return self._annotate_memory_rerank(
+                seeds,
+                [(item, None) for item in seeds],
+                status="not_needed",
+                model=str(getattr(self.reranker, "model", "")),
+                fused=fused,
+            )
+        if self.reranker is None:
+            return self._annotate_memory_rerank(
+                seeds,
+                [(item, None) for item in seeds],
+                status="disabled",
+                model="",
+                fused=fused,
+            )
+        documents = [self._memory_rerank_document(item) for item in seeds]
+        status = "applied"
+        model = str(getattr(self.reranker, "model", ""))
+        try:
+            with self._span("rerank", {"kind": "memory", "count": len(seeds)}):
+                rerank_with_status = getattr(self.reranker, "rerank_with_status", None)
+                if callable(rerank_with_status):
+                    result = rerank_with_status(query, documents)
+                    if not isinstance(result, RerankResult):
+                        raise ValueError("reranker returned an invalid status result")
+                    scored = result.scores
+                    status = result.status
+                    model = result.model
+                else:
+                    scored = self.reranker.rerank(query, documents)
+        except Exception:
+            scored = []
+            status = "provider_error"
+        ordered = (
+            apply_rerank_guard(
+                seeds,
+                scored,
+                threshold=self.rerank_threshold,
+                blend=self.rerank_blend,
+                seed_scores=[item.score for item in seeds],
+                preserve_seed_margin=self.rerank_preserve_seed_margin,
+            )
+            if status == "applied"
+            else [(item, None) for item in seeds]
+        )
+        return self._annotate_memory_rerank(
+            seeds,
+            ordered,
+            status=status,
+            model=model,
+            fused=fused,
+        )
+
+    def _annotate_memory_rerank(
+        self,
+        seeds: list[MemoryItem],
+        ordered: list[tuple[MemoryItem, float | None]],
+        *,
+        status: str,
+        model: str,
+        fused: bool,
+    ) -> list[MemoryItem]:
+        del seeds
         return [
             MemoryItem(
                 id=item.id,
@@ -2701,10 +2766,56 @@ class TuringAgentMemory:
                 source=item.source,
                 tags=item.tags,
                 metadata=item.metadata,
-                score_details=self._reranked_score_details(item.score_details, item.score, score),
+                score_details=(
+                    self._fused_rerank_score_details(
+                        item.score_details,
+                        fusion_score=item.score,
+                        rerank_score=score,
+                        status=status,
+                        model=model,
+                    )
+                    if fused
+                    else self._reranked_score_details(item.score_details, item.score, score)
+                ),
             )
             for item, score in ordered
         ]
+
+    @staticmethod
+    def _memory_rerank_document(item: MemoryItem) -> str:
+        provenance: dict[str, object] = {
+            "memory_id": item.id,
+            "kind": item.kind,
+            "source": item.source,
+            "session_id": item.session_id,
+            "role": item.role,
+            "created_at": item.created_at,
+            "updated_at": item.updated_at,
+        }
+        for key in ("path", "locator", "conversation_id", "document_id"):
+            if key in item.metadata:
+                provenance[key] = item.metadata[key]
+        if item.score_details is not None and "evidence_ids" in item.score_details:
+            provenance["evidence_ids"] = item.score_details["evidence_ids"]
+        return assemble_rerank_document(content=item.content, provenance=provenance)
+
+    @staticmethod
+    def _fused_rerank_score_details(
+        score_details: dict[str, object] | None,
+        *,
+        fusion_score: float,
+        rerank_score: float | None,
+        status: str,
+        model: str,
+    ) -> dict[str, object]:
+        details = dict(score_details or {})
+        details.setdefault("fusion_score", fusion_score)
+        details["rerank_status"] = status
+        details["rerank_model"] = model
+        if rerank_score is not None:
+            details["rerank_score"] = rerank_score
+        details["final_score"] = rerank_score if rerank_score is not None else fusion_score
+        return details
 
     def _rerank_documents(self, query: str, seeds: list[DocumentHit]) -> list[DocumentHit]:
         if len(seeds) < 2 or self.reranker is None:

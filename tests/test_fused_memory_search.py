@@ -16,6 +16,7 @@ from turing_agentmemory_mcp.memory_extraction import (
     MemoryExtraction,
 )
 from turing_agentmemory_mcp.models import RetrievalEvidence
+from turing_agentmemory_mcp.rerank import RerankResult, Scored
 from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseIndex
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
@@ -59,12 +60,13 @@ class FusedStore(TuringAgentMemory):
         channels: dict[str, list[RetrievalEvidence]],
         rows: list[dict[str, object]],
         degraded: dict[str, str] | None = None,
+        reranker: object | None = None,
     ) -> None:
         super().__init__(
             client=object(),  # type: ignore[arg-type]
             turing_home=tmp_path,
             embedder=NullEmbedder(),
-            reranker=None,
+            reranker=reranker,  # type: ignore[arg-type]
             fusion_enabled=True,
             fusion_weights={
                 "episode_dense": 1.0,
@@ -371,3 +373,62 @@ def test_collector_failure_is_reported_without_losing_other_channels(tmp_path: P
         "graph": "RuntimeError",
     }
     assert "private" not in json.dumps(degraded)
+
+
+class StatusReranker:
+    def __init__(self, status: str) -> None:
+        self.status = status
+        self.documents: list[str] = []
+
+    def rerank_with_status(self, query: str, documents: list[str]) -> RerankResult:
+        self.documents = list(documents)
+        scores = [Scored(index=1, score=0.95), Scored(index=0, score=0.8)]
+        return RerankResult(scores=scores, status=self.status, model="test-qwen")
+
+
+def test_fused_rerank_applies_provenance_context_and_reports_status(tmp_path: Path) -> None:
+    reranker = StatusReranker("applied")
+    store = FusedStore(
+        tmp_path,
+        channels={
+            "episode_dense": [
+                evidence("m1", "m1", kind="episode", raw_score=0.9),
+                evidence("m2", "m2", kind="episode", raw_score=0.8),
+            ]
+        },
+        rows=[memory_row("m1"), memory_row("m2")],
+        reranker=reranker,
+    )
+
+    hits = store.search_memory(
+        user_identifier="alice",
+        query="Alice",
+        limit=2,
+        explain=True,
+    )
+
+    assert [hit.id for hit in hits] == ["m2", "m1"]
+    assert "memory_id: m1" in reranker.documents[0]
+    assert "source: locomo" in reranker.documents[0]
+    assert "created_at: 2026-07-10T10:00:00Z" in reranker.documents[0]
+    assert hits[0].score_details["rerank_status"] == "applied"
+    assert hits[0].score_details["rerank_model"] == "test-qwen"
+
+
+def test_fused_rerank_fallback_preserves_rrf_order_and_is_visible(tmp_path: Path) -> None:
+    store = FusedStore(
+        tmp_path,
+        channels={
+            "episode_dense": [
+                evidence("m1", "m1", kind="episode", raw_score=0.9),
+                evidence("m2", "m2", kind="episode", raw_score=0.8),
+            ]
+        },
+        rows=[memory_row("m1"), memory_row("m2")],
+        reranker=StatusReranker("provider_error"),
+    )
+
+    hits = store.search_memory(user_identifier="alice", query="Alice", limit=2)
+
+    assert [hit.id for hit in hits] == ["m1", "m2"]
+    assert hits[0].score_details["rerank_status"] == "provider_error"
