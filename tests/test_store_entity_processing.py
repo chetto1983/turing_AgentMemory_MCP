@@ -224,6 +224,36 @@ def test_store_messages_malformed_batch_entity_result_prevents_all_writes(tmp_pa
     assert embedder.embed_many_calls == []
 
 
+def test_ensure_graph_loaded_reuses_existing_graph_without_create_attempt(tmp_path: Path) -> None:
+    class GraphClient:
+        def __init__(self) -> None:
+            self.calls: list[tuple[object, ...]] = []
+
+        def list_loaded_graphs(self) -> list[str]:
+            self.calls.append(("list_loaded",))
+            return ["agent_memory"]
+
+        def load_graph(self, graph: str, *, raise_if_loaded: bool) -> None:
+            self.calls.append(("load", graph, raise_if_loaded))
+
+        def create_graph(self, graph: str) -> None:
+            self.calls.append(("create", graph))
+
+        def set_graph(self, graph: str) -> None:
+            self.calls.append(("set", graph))
+
+    store = RecordingStore(tmp_path, CountingEmbedder())
+    client = GraphClient()
+    store.client = client  # type: ignore[assignment]
+
+    store._ensure_graph_loaded()
+
+    assert client.calls == [
+        ("list_loaded",),
+        ("set", store.graph),
+    ]
+
+
 def test_document_ingest_extracts_entities_before_chunking_hashing_and_persistence(
     tmp_path: Path,
 ) -> None:

@@ -1333,12 +1333,17 @@ class TuringAgentMemory:
 
     def _ensure_graph_loaded(self) -> None:
         try:
-            self.client.create_graph(self.graph)
+            loaded_graphs = self.client.list_loaded_graphs()
         except Exception:
+            loaded_graphs = []
+        if self.graph not in loaded_graphs:
             try:
                 self.client.load_graph(self.graph, raise_if_loaded=False)
             except Exception:
-                pass
+                try:
+                    self.client.create_graph(self.graph)
+                except Exception:
+                    pass
         self.client.set_graph(self.graph)
 
     def _ensure_vector_index(self, name: str) -> None:
