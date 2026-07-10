@@ -70,6 +70,48 @@ services:
           cpus: "0.25"
           memory: 256m
 
+  agentmemory-gliner:
+    build:
+      context: .
+      dockerfile: docker/gliner-provider.Dockerfile
+    image: turing-agentmemory-gliner-provider:local
+    environment:
+      - HOME=/models
+      - HF_HOME=/models/huggingface
+      - XDG_CACHE_HOME=/models/.cache
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
+      - GLINER_MODEL=fastino/gliner2-base-v1
+      - GLINER_BATCH_SIZE=8
+      - GLINER_HOST=0.0.0.0
+      - GLINER_PORT=8080
+    expose:
+      - "8080"
+    volumes:
+      - agentmemory-gliner-cache:/models
+    user: "10001:10001"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nfrom urllib.request import urlopen\nwith urlopen('http://127.0.0.1:8080/health', timeout=2) as response:\n    assert response.status == 200\nPY"]
+      interval: 10s
+      timeout: 3s
+      retries: 80
+      start_period: 300s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4g
+        reservations:
+          cpus: "1.0"
+          memory: 1g
+
   turing-agentmemory-mcp:
     build:
       context: .
@@ -82,6 +124,8 @@ services:
       agentmemory-embed:
         condition: service_healthy
       agentmemory-rerank:
+        condition: service_healthy
+      agentmemory-gliner:
         condition: service_healthy
     environment:
       - HOME=/tmp
@@ -110,9 +154,11 @@ services:
       - PROVIDER_API_KEY
       - PROVIDER_API_KEY_HEADER
       - PROVIDER_API_KEY_SCHEME
-      - GLINER_ENABLED
-      - GLINER_BACKEND
-      - GLINER_MODEL
+      - GLINER_ENABLED=1
+      - GLINER_BACKEND=gliner2_http
+      - GLINER_MODEL=fastino/gliner2-base-v1
+      - GLINER_BASE_URL=http://agentmemory-gliner:8080
+      - GLINER_TIMEOUT_SECONDS=120
       - GLINER_LABELS
       - GLINER_THRESHOLD
       - GLINER_REDACT
@@ -407,3 +453,4 @@ services:
 volumes:
   turing-data:
   agentmemory-llama-cache:
+  agentmemory-gliner-cache:

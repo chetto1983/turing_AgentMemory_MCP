@@ -13,6 +13,10 @@ PINNED_LLAMA_RE = re.compile(
     r"^FROM ghcr\.io/ggml-org/llama\.cpp:server-cuda@sha256:[a-f0-9]{64}$",
     re.MULTILINE,
 )
+PINNED_GLINER_PYTHON_RE = re.compile(
+    r"^FROM python:3\.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf$",
+    re.MULTILINE,
+)
 GRANITE_FILENAME = "granite-embedding-311M-multilingual-r2-Q4_K_M.gguf"
 GRANITE_REVISION = "4413a1d4c63ed0aeda030202ad982a613a91f9ea"
 GRANITE_SHA256 = "58d27f63e69ccf7abce27bf6b35bb0edebc3a1c05ad4a3165acaba1cdca107c0"
@@ -33,6 +37,7 @@ def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
     app = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     turingdb = (ROOT / "docker" / "turingdb.Dockerfile").read_text(encoding="utf-8")
     llama = (ROOT / "docker" / "llama-provider.Dockerfile").read_text(encoding="utf-8")
+    gliner = (ROOT / "docker" / "gliner-provider.Dockerfile").read_text(encoding="utf-8")
 
     for dockerfile in (app, turingdb):
         assert PINNED_PYTHON_RE.search(dockerfile)
@@ -41,6 +46,10 @@ def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
     assert PINNED_LLAMA_RE.search(llama)
     assert "10001" in llama
     assert "USER app" in llama
+    assert PINNED_GLINER_PYTHON_RE.search(gliner)
+    assert '"gliner2[local]==1.3.2"' in gliner
+    assert "10001" in gliner
+    assert "USER app" in gliner
 
 
 def test_dockerfiles_use_pip_cache_mounts() -> None:
@@ -111,6 +120,35 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert "RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf" in app_env
     assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0.00001}" in app_env
     assert not any("host.docker.internal" in value for value in app_env)
+
+
+def test_compose_routes_mcp_to_cached_cpu_gliner_sidecar() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    services = compose["services"]
+    gliner = services["agentmemory-gliner"]
+
+    assert "gpus" not in gliner
+    assert "ports" not in gliner
+    assert gliner["read_only"] is True
+    assert gliner["user"] == "10001:10001"
+    assert gliner["restart"] == "unless-stopped"
+    assert gliner["security_opt"] == ["no-new-privileges:true"]
+    assert {"/tmp", "/run"} <= set(gliner["tmpfs"])
+    assert gliner["expose"] == ["8080"]
+    assert "agentmemory-gliner-cache:/models" in gliner["volumes"]
+    assert gliner["healthcheck"]["retries"] >= 80
+    assert "urlopen('http://127.0.0.1:8080/health'" in gliner["healthcheck"]["test"][1]
+    assert "agentmemory-gliner-cache" in compose["volumes"]
+
+    app = services["turing-agentmemory-mcp"]
+    app_env = set(app["environment"])
+    assert app["depends_on"]["agentmemory-gliner"]["condition"] == "service_healthy"
+    assert "GLINER_ENABLED=1" in app_env
+    assert "GLINER_BACKEND=gliner2_http" in app_env
+    assert "GLINER_MODEL=fastino/gliner2-base-v1" in app_env
+    assert "GLINER_BASE_URL=http://agentmemory-gliner:8080" in app_env
+    assert "GLINER_TIMEOUT_SECONDS=120" in app_env
+    assert services["agentmemory-lab"]["ports"] == ["127.0.0.1:8096:8096"]
 
 
 def test_compose_provisions_commit_pinned_models_with_exact_checksums() -> None:
@@ -195,8 +233,10 @@ def test_compose_model_init_is_hardened_and_gates_both_sidecars() -> None:
 
 
 def test_compose_allows_overrideable_rerank_provider_min_score() -> None:
+    default_env = os.environ.copy()
+    default_env.pop("RERANK_PROVIDER_MIN_SCORE", None)
     default = yaml.safe_load(
-        subprocess.check_output(["docker", "compose", "config"], text=True)
+        subprocess.check_output(["docker", "compose", "config"], text=True, env=default_env)
     )
     override_env = os.environ.copy()
     override_env["RERANK_PROVIDER_MIN_SCORE"] = "0.25"

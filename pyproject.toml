@@ -23,7 +23,7 @@ dev = [
 ]
 gliner = [
   "gliner>=0.2.27",
-  "gliner2",
+  "gliner2[local]==1.3.2",
   "gliner2-onnx",
 ]
 
