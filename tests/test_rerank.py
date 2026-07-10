@@ -105,6 +105,24 @@ def test_lexical_rerank_prioritizes_query_overlap() -> None:
     assert [item.index for item in scored] == [1, 0]
 
 
+def test_lexical_rerank_matches_accented_latin_casefolded_text() -> None:
+    scored = lexical_rerank("É", ["tea", "é"])
+
+    assert scored[0].index == 1
+
+
+def test_lexical_rerank_matches_cyrillic_casefolded_text() -> None:
+    scored = lexical_rerank("МОСКВА", ["Санкт-Петербург", "Москва"])
+
+    assert scored[0].index == 1
+
+
+def test_lexical_rerank_matches_cjk_text() -> None:
+    scored = lexical_rerank("检索", ["写入记忆", "检索记忆"])
+
+    assert scored[0].index == 1
+
+
 def test_openai_compatible_reranker_sends_provider_api_key_and_dimensions(monkeypatch) -> None:
     seen: dict[str, Any] = {}
 

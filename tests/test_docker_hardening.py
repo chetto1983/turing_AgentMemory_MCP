@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -90,8 +92,34 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert "EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M" in app_env
     assert "RERANK_BASE_URL=http://agentmemory-rerank:8080" in app_env
     assert "RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf" in app_env
-    assert "RERANK_PROVIDER_MIN_SCORE=0.00001" in app_env
+    assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0.00001}" in app_env
     assert not any("host.docker.internal" in value for value in app_env)
+
+
+def test_compose_allows_overrideable_rerank_provider_min_score() -> None:
+    default = yaml.safe_load(
+        subprocess.check_output(["docker", "compose", "config"], text=True)
+    )
+    override_env = os.environ.copy()
+    override_env["RERANK_PROVIDER_MIN_SCORE"] = "0.25"
+    overridden = yaml.safe_load(
+        subprocess.check_output(
+            ["docker", "compose", "config"], text=True, env=override_env
+        )
+    )
+
+    def value(config: dict) -> str:
+        environment = config["services"]["turing-agentmemory-mcp"]["environment"]
+        if isinstance(environment, dict):
+            return str(environment["RERANK_PROVIDER_MIN_SCORE"])
+        return next(
+            item.split("=", 1)[1]
+            for item in environment
+            if item.startswith("RERANK_PROVIDER_MIN_SCORE=")
+        )
+
+    assert value(default) == "0.00001"
+    assert value(overridden) == "0.25"
 
 
 def test_compose_routes_non_root_runtime_caches_to_tmpfs() -> None:
@@ -137,6 +165,10 @@ def test_turingdb_startup_cleans_runtime_socket_and_allows_slow_vector_load() ->
     assert "rm -f /turing/turingdb.sock" in command
     assert "turingdb start" in command
     assert "-demon &" in command
+    assert command.index("trap ") < command.index("turingdb start")
+    assert "turingdb_pid=$$!" in command
+    assert 'wait "$$turingdb_pid"' in command
+    assert "while true" not in command
     assert "-start-timeout" not in command
     assert "healthcheck" in service
     assert service["healthcheck"]["retries"] >= 80

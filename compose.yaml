@@ -35,9 +35,10 @@ services:
       - |
         set -e
         rm -f /turing/turingdb.sock
-        turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon &
         trap 'turingdb stop -turing-dir /turing || true; exit 0' TERM INT
-        while true; do sleep 3600 & wait $!; done
+        turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon &
+        turingdb_pid=$$!
+        wait "$$turingdb_pid"
     environment:
       - HOME=/tmp
       - XDG_CACHE_HOME=/tmp/.cache
@@ -97,7 +98,7 @@ services:
       - EMBED_API_KEY_SCHEME
       - RERANK_BASE_URL=http://agentmemory-rerank:8080
       - RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf
-      - RERANK_PROVIDER_MIN_SCORE=0.00001
+      - RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0.00001}
       - RERANK_DIMENSIONS
       - RERANK_TIMEOUT_SECONDS
       - RERANK_THRESHOLD
