@@ -186,7 +186,7 @@ def test_http_memory_extractor_posts_versioned_batch_and_normalizes(monkeypatch)
 
 
 def test_http_memory_extractor_chunks_long_text_and_restores_offsets(monkeypatch) -> None:
-    prefix = "A" * memory_extraction.MAX_MEMORY_EXTRACTION_TEXT_CHARS
+    prefix = "A" * 16_724
     text = prefix + " Rome"
     requests: list[list[str]] = []
 
@@ -233,11 +233,9 @@ def test_http_memory_extractor_chunks_long_text_and_restores_offsets(monkeypatch
     )[0]
 
     assert len(requests) == 1
-    assert len(requests[0]) == 2
-    assert all(
-        len(chunk) <= memory_extraction.MAX_MEMORY_EXTRACTION_TEXT_CHARS
-        for chunk in requests[0]
-    )
+    assert memory_extraction.MAX_MEMORY_EXTRACTION_TEXT_CHARS == 1024
+    assert len(requests[0]) == 17
+    assert all(len(chunk) <= 1024 for chunk in requests[0])
     assert result.entities[0].text == "Rome"
     assert result.entities[0].start == len(prefix) + 1
     assert result.entities[0].end == len(text)

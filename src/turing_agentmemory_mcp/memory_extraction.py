@@ -10,7 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 MEMORY_EXTRACTION_SCHEMA_VERSION = "memory-v1"
-MAX_MEMORY_EXTRACTION_TEXT_CHARS = 16_384
+MAX_MEMORY_EXTRACTION_TEXT_CHARS = 1024
 MAX_MEMORY_EXTRACTION_BATCH_TEXTS = 256
 MEMORY_ENTITY_LABELS = (
     "person",
