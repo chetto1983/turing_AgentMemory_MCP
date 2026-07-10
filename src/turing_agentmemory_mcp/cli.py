@@ -30,6 +30,19 @@ def main() -> int:
     manual.add_argument("--server-name", default=None)
     manual.add_argument("--command-json", default=None)
 
+    lab = sub.add_parser("lab", help="Serve the local AgentMemory Lab frontend")
+    lab.add_argument("--host", default="127.0.0.1")
+    lab.add_argument("--port", type=int, default=8096)
+    lab.add_argument("--benchmark-dir", default=None)
+
+    repair = sub.add_parser(
+        "repair-vector-index",
+        help="Quarantine a corrupt TuringDB vector directory and recreate an empty one",
+    )
+    repair.add_argument("--turing-home", default="/turing")
+    repair.add_argument("--timestamp", default=None)
+    repair.add_argument("--apply", action="store_true")
+
     args = parser.parse_args()
     if args.command == "serve":
         from turing_agentmemory_mcp.server import create_mcp_app
@@ -74,6 +87,21 @@ def main() -> int:
                 command=command,
             )
         print(json.dumps(manual_json, indent=2, sort_keys=True))
+        return 0
+    if args.command == "lab":
+        from turing_agentmemory_mcp.lab import run_lab
+
+        run_lab(host=args.host, port=args.port, benchmark_dir=args.benchmark_dir)
+        return 0
+    if args.command == "repair-vector-index":
+        from turing_agentmemory_mcp.admin_repair import repair_vector_index
+
+        result = repair_vector_index(
+            Path(args.turing_home),
+            timestamp=args.timestamp,
+            apply=args.apply,
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     return 2
 

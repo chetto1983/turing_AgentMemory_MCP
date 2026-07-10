@@ -12,6 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Turing AgentMemory MCP Contributors" }]
 dependencies = [
   "fastmcp>=2.14,<3",
+  "markitdown[pdf,docx,pptx,xlsx]>=0.1.6,<0.2",
   "turingdb==1.35",
 ]
 

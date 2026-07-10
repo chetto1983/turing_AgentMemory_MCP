@@ -34,9 +34,10 @@ def test_build_utcp_manual_describes_agentmemory_mcp_tools() -> None:
         "memory_search",
         "memory_get_context",
         "document_ingest_text",
+        "document_ingest_file",
         "document_search",
     } <= set(tools)
-    assert len(tools) == 15
+    assert len(tools) == 16
 
     search_tool = tools["memory_search"]
     assert search_tool["inputs"]["required"] == ["query"]  # type: ignore[index]
@@ -47,6 +48,9 @@ def test_build_utcp_manual_describes_agentmemory_mcp_tools() -> None:
 
     ingest_tool = tools["document_ingest_text"]
     assert ingest_tool["inputs"]["required"] == ["title", "text"]  # type: ignore[index]
+    ingest_file_tool = tools["document_ingest_file"]
+    assert ingest_file_tool["inputs"]["required"] == ["title", "path"]  # type: ignore[index]
+    assert "MarkItDown" in ingest_file_tool["description"]
     assert "citations" in tools["document_search"]["description"]
 
     for tool in tools.values():

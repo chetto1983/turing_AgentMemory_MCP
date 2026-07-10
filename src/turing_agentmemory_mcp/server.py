@@ -8,6 +8,7 @@ from typing import Any
 from fastmcp import FastMCP
 from turingdb import TuringDB
 
+from turing_agentmemory_mcp.document_processing import convert_document_to_markdown
 from turing_agentmemory_mcp.provider_config import store_embedding_dimensions
 from turing_agentmemory_mcp.store import TuringAgentMemory
 from turing_agentmemory_mcp.warning_filters import suppress_fastmcp_authlib_warning
@@ -344,6 +345,33 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
                 source=source,
                 tags=tags,
                 metadata=metadata,
+                expires_at=expires_at,
+            ).to_dict()
+
+    @app.tool()
+    def document_ingest_file(
+        title: str,
+        path: str,
+        user_identifier: str = "default",
+        document_id: str | None = None,
+        source: str = "",
+        tags: list[str] | None = None,
+        metadata: dict[str, object] | None = None,
+        expires_at: str | None = None,
+    ) -> dict[str, Any]:
+        """Convert a local file to Markdown with MarkItDown, then ingest it with citations."""
+        with _tool_span("document_ingest_file"):
+            converted = convert_document_to_markdown(path)
+            enriched_metadata = dict(metadata or {})
+            enriched_metadata["document_processing"] = converted.metadata
+            return memory.ingest_document_text(
+                user_identifier=user_identifier,
+                title=title,
+                text=converted.text,
+                document_id=document_id,
+                source=source,
+                tags=tags,
+                metadata=enriched_metadata,
                 expires_at=expires_at,
             ).to_dict()
 

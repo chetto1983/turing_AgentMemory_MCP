@@ -10,8 +10,8 @@ retrieval.
   `memory_get`, `memory_list`, `memory_update`, `memory_delete`,
   `memory_add_entity`, `memory_add_preference`, `memory_add_fact`.
 - Document tools for ingestion, repair, deletion, and retrieval:
-  `document_ingest_text`, `document_reindex_text`, `document_delete`,
-  `document_search`.
+  `document_ingest_text`, `document_ingest_file`, `document_reindex_text`,
+  `document_delete`, `document_search`.
 - TuringDB graph edges for ownership and context:
   `(:User)-[:HAS_MEMORY]->(:Memory)`,
   `(:User)-[:HAS_DOCUMENT]->(:Document)-[:HAS_CHUNK]->(:Chunk)`,
@@ -31,6 +31,8 @@ retrieval.
   `AGENTMEMORY_AUTH_TOKEN` or `AGENTMEMORY_AUTH_TOKENS` is set.
 - Hybrid retrieval combines vector similarity with lexical exact token, phrase,
   ID, error-code, and file-path matching.
+- Microsoft MarkItDown converts local PDF, Office, spreadsheet, HTML, and other
+  supported files to Markdown before the existing chunking/citation pipeline.
 
 ## Why It Is A Separate Repo
 
@@ -50,6 +52,41 @@ The MCP service expects a TuringDB daemon reachable at `TURINGDB_URL` and a
 shared TuringDB home mounted at `TURINGDB_HOME`. TuringDB currently loads vectors
 from server-side CSV files, so the MCP container and database container share the
 same `/turing` volume.
+
+## Document Processing
+
+Use `document_ingest_text` when your caller already has clean text. Use
+`document_ingest_file` for local files that should be normalized to Markdown
+first:
+
+```json
+{
+  "title": "Machine Runbook",
+  "path": "D:\\docs\\runbook.pdf",
+  "user_identifier": "alice",
+  "source": "ops",
+  "tags": ["pdf", "runbook"]
+}
+```
+
+The file path is resolved locally inside the MCP runtime. The converter uses
+MarkItDown's local-file conversion path, stores extracted Markdown as document
+chunks, and adds provenance under `metadata.document_processing`.
+
+## AgentMemory Lab
+
+The repo includes a lightweight Memgraph Lab-inspired local console for
+benchmark artifacts and graph-shaped inspection:
+
+```powershell
+docker compose up -d turing-agentmemory-mcp agentmemory-lab
+```
+
+Open `http://127.0.0.1:8096` for the Lab frontend and
+`http://127.0.0.1:8095/mcp/` for the MCP HTTP endpoint. The Lab container
+mounts the repo read-only at `/work`, reads benchmark JSON from
+`/work/.benchmarks`, and runs with the same non-root, read-only, no-new-
+privileges hardening as the MCP service.
 
 ## Backup And Restore
 
@@ -74,6 +111,28 @@ docker compose up -d
 
 Keep audit/span JSONL under `/turing` if you want those files captured by the
 same backup procedure.
+
+## Vector Index Repair
+
+If TuringDB reports vector index corruption, stop writers, take a backup, then
+quarantine only the vector directory. The graph/data files stay in place and the
+next MCP bootstrap recreates empty vector indexes. Start with a dry run:
+
+```powershell
+docker compose run --rm -T turing-agentmemory-mcp repair-vector-index --turing-home /turing
+```
+
+Apply the repair only after reviewing the JSON plan:
+
+```powershell
+docker compose stop turing-agentmemory-mcp turingdb
+docker compose run --rm -T turing-agentmemory-mcp repair-vector-index --turing-home /turing --apply
+docker compose up -d turingdb turing-agentmemory-mcp
+```
+
+The command moves `/turing/vector` to `/turing/vector.corrupt-<timestamp>` and
+creates a fresh empty `/turing/vector`. Run document or memory reindex jobs
+afterward for any records whose vectors need to be rebuilt.
 
 ## Build Attestation
 

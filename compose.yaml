@@ -34,7 +34,8 @@ services:
     command:
       - |
         set -e
-        turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon -start-timeout 5000
+        rm -f /turing/turingdb.sock
+        turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon -start-timeout 60000
         trap 'turingdb stop -turing-dir /turing -timeout 5000' TERM INT EXIT
         tail -f /dev/null
     environment:
@@ -150,6 +151,55 @@ services:
         reservations:
           cpus: "0.25"
           memory: 256m
+
+  agentmemory-lab:
+    build:
+      context: .
+      args:
+        PYPROJECT_EXTRAS: ${PYPROJECT_EXTRAS:-dev}
+    image: turing-agentmemory-mcp:local
+    depends_on:
+      turing-agentmemory-mcp:
+        condition: service_healthy
+    command:
+      - lab
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8096"
+      - --benchmark-dir
+      - /work/.benchmarks
+    environment:
+      - HOME=/tmp
+      - XDG_CACHE_HOME=/tmp/.cache
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
+    ports:
+      - "127.0.0.1:8096:8096"
+    volumes:
+      - .:/work:ro
+    user: "10001:10001"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nimport socket\nsock = socket.create_connection(('127.0.0.1', 8096), timeout=2)\nsock.close()\nPY"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
+        reservations:
+          cpus: "0.1"
+          memory: 96m
 
   e2e:
     build:

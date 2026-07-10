@@ -19,6 +19,16 @@ def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
         assert "USER app" in dockerfile
 
 
+def test_dockerfiles_use_pip_cache_mounts() -> None:
+    app = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    turingdb = (ROOT / "docker" / "turingdb.Dockerfile").read_text(encoding="utf-8")
+
+    assert app.count("--mount=type=cache,target=/root/.cache/pip") >= 2
+    assert "--mount=type=cache,target=/root/.cache/pip" in turingdb
+    assert "--no-cache-dir" not in app
+    assert "--no-cache-dir" not in turingdb
+
+
 def test_compose_declares_runtime_hardening_controls() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
@@ -70,6 +80,34 @@ def test_compose_repairs_legacy_volume_ownership_before_turingdb_start() -> None
     turingdb_deps = services["turingdb"]["depends_on"]
     assert turingdb_deps["turingdb-volume-init"]["condition"] == "service_completed_successfully"
     assert services["turingdb"]["user"] == "10001:10001"
+
+
+def test_turingdb_startup_cleans_runtime_socket_and_allows_slow_vector_load() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    command = compose["services"]["turingdb"]["command"][0]
+
+    assert "rm -f /turing/turingdb.sock" in command
+    assert "-start-timeout 60000" in command
+
+
+def test_compose_serves_agentmemory_lab_frontend_on_local_port() -> None:
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    lab = compose["services"]["agentmemory-lab"]
+
+    assert lab["image"] == "turing-agentmemory-mcp:local"
+    assert lab["command"] == [
+        "lab",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8096",
+        "--benchmark-dir",
+        "/work/.benchmarks",
+    ]
+    assert lab["ports"] == ["127.0.0.1:8096:8096"]
+    assert ".:/work:ro" in lab["volumes"]
+    assert lab["read_only"] is True
+    assert {"/tmp", "/run"} <= set(lab["tmpfs"])
 
 
 def test_readme_documents_backup_restore_and_build_attestation() -> None:

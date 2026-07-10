@@ -345,6 +345,25 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
         "outputs": DOCUMENT_OUTPUT,
     },
     {
+        "name": "document_ingest_file",
+        "description": "Convert a local file to Markdown with MarkItDown, then ingest it with citations.",
+        "tags": ["document", "write", "ingest", "citations", "markitdown"],
+        "inputs": _schema(
+            {
+                "title": _string(),
+                "path": _string(),
+                "user_identifier": _string("default"),
+                "document_id": _string(),
+                "source": _string(""),
+                "tags": _string_array(),
+                "metadata": _object(),
+                "expires_at": _string(),
+            },
+            ["title", "path"],
+        ),
+        "outputs": DOCUMENT_OUTPUT,
+    },
+    {
         "name": "document_reindex_text",
         "description": "Replace one scoped document's chunks and vectors with fresh text.",
         "tags": ["document", "write", "reindex", "citations"],

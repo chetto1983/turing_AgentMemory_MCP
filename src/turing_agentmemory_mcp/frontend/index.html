@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AgentMemory Lab</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="rail" aria-label="Workspace">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>AgentMemory Lab</span>
+        </div>
+
+        <section class="panel">
+          <div class="panel-heading">Connection</div>
+          <div class="kv">
+            <span>MCP</span>
+            <strong id="status-mcp">stdio validated</strong>
+          </div>
+          <div class="kv">
+            <span>TuringDB</span>
+            <strong id="status-store">ready</strong>
+          </div>
+          <div class="kv">
+            <span>Aura</span>
+            <strong id="status-aura">embed + rerank</strong>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">Graph Style</div>
+          <div class="toggle-grid" id="type-filters"></div>
+        </section>
+
+        <section class="panel grow">
+          <div class="panel-heading">Inspector</div>
+          <div id="inspector" class="inspector">
+            <div class="muted">Select a node</div>
+          </div>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <label class="query-box">
+            <span>Query</span>
+            <textarea id="query-input" spellcheck="false">MATCH (n)-[r]->(m) RETURN n,r,m LIMIT 25</textarea>
+          </label>
+          <div class="query-actions">
+            <button class="primary" id="run-query" type="button">Run</button>
+            <button id="query-memory" type="button">Memory</button>
+            <button id="query-docs" type="button">Documents</button>
+            <button id="query-bench" type="button">Benchmarks</button>
+          </div>
+        </header>
+
+        <section class="metrics" aria-label="Benchmark summary">
+          <div>
+            <span>Artifact</span>
+            <strong id="metric-artifact">loading</strong>
+          </div>
+          <div>
+            <span>Ops</span>
+            <strong id="metric-ops">0</strong>
+          </div>
+          <div>
+            <span>Success</span>
+            <strong id="metric-success">0%</strong>
+          </div>
+          <div>
+            <span>Best p50</span>
+            <strong id="metric-p50">0 ms</strong>
+          </div>
+          <div>
+            <span>Slow p95</span>
+            <strong id="metric-p95">0 ms</strong>
+          </div>
+        </section>
+
+        <section class="stage">
+          <div class="tabs" role="tablist" aria-label="Result view">
+            <button class="tab active" id="tab-graph" type="button">Graph</button>
+            <button class="tab" id="tab-table" type="button">Table</button>
+          </div>
+          <div class="graph-view" id="graph-view">
+            <svg id="graph-canvas" viewBox="0 0 1000 620" role="img" aria-label="AgentMemory benchmark graph"></svg>
+          </div>
+          <div class="table-view hidden" id="table-view">
+            <table>
+              <thead>
+                <tr>
+                  <th>Operation</th>
+                  <th>Count</th>
+                  <th>p50</th>
+                  <th>p95</th>
+                  <th>p99</th>
+                  <th>Success</th>
+                </tr>
+              </thead>
+              <tbody id="benchmark-table"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="statusbar">
+          <span id="query-status">Ready</span>
+          <span id="query-counts">0 nodes, 0 relationships</span>
+          <span id="field-status">fields pending</span>
+        </footer>
+      </main>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>
