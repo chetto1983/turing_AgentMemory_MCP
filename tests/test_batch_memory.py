@@ -73,6 +73,9 @@ class RecordingMemoryStore(TuringAgentMemory):
     def _write(self, query: str) -> None:
         self.write_queries.append(query)
 
+    def _write_many(self, queries: list[str]) -> None:
+        self.write_queries.extend(queries)
+
     def _load_vectors(self, index_name: str, rows: list[tuple[int, list[float]]], stem: str) -> None:
         self.vector_loads.append(rows)
         self.indexed_vector_loads.append((index_name, rows))
@@ -661,3 +664,26 @@ def test_ingest_document_text_batches_chunk_embeddings_and_vector_loads(tmp_path
     assert embedder.embed_calls == []
     assert len(store.vector_loads) == 1
     assert len(store.vector_loads[0]) == document.chunk_count
+
+
+def test_ingest_document_text_batches_graph_queries_below_payload_limit(tmp_path: Path) -> None:
+    store = RecordingDocumentStore(tmp_path, CountingBatchEmbedder())
+    store.document_graph_batch_bytes = 1_400
+
+    document = store.ingest_document_text(
+        user_identifier="alice",
+        document_id="doc-large",
+        title="Large Document",
+        text=" ".join(f"section-{index:04d}" for index in range(500)),
+        chunk_chars=200,
+        source="manual",
+        tags=["large"],
+    )
+
+    assert len(store.write_queries) > 2
+    assert all(len(query.encode("utf-8")) <= 1_400 for query in store.write_queries)
+    graph_writes = "\n".join(store.write_queries)
+    assert graph_writes.count(":Document {") == 1
+    assert graph_writes.count(":Chunk {") == document.chunk_count
+    assert graph_writes.count(":HAS_CHUNK") == document.chunk_count
+    assert graph_writes.count(":NEXT_CHUNK") == document.chunk_count - 1

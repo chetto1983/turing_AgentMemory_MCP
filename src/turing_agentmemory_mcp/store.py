@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -82,6 +83,17 @@ from turing_agentmemory_mcp.temporal_graph import (
 _MISSING = object()
 
 
+@dataclass(frozen=True)
+class _DocumentChunkGraphUnit:
+    chunk_id: str
+    chunk_var: str
+    node: str
+    has_chunk_edge: str
+    previous_chunk_id: str = ""
+    previous_var: str = ""
+    next_chunk_edge: str = ""
+
+
 class TuringAgentMemory:
     def __init__(
         self,
@@ -112,6 +124,8 @@ class TuringAgentMemory:
         rerank_blend: bool | None = None,
         rerank_preserve_seed_margin: float | None = None,
         rerank_candidate_limit: int | None = None,
+        document_graph_batch_chunks: int = 250,
+        document_graph_batch_bytes: int = 256 << 10,
     ) -> None:
         self.client = client
         self.turing_home = Path(turing_home)
@@ -122,6 +136,12 @@ class TuringAgentMemory:
         self.entity_index = entity_index
         self.fact_index = fact_index
         self.community_index = community_index
+        if document_graph_batch_chunks < 1:
+            raise ValueError("document_graph_batch_chunks must be positive")
+        if document_graph_batch_bytes < 1_024:
+            raise ValueError("document_graph_batch_bytes must be at least 1024")
+        self.document_graph_batch_chunks = document_graph_batch_chunks
+        self.document_graph_batch_bytes = document_graph_batch_bytes
         self._ensured_vector_indexes: set[str] = set()
         self.embedder = embedder or OpenAICompatibleEmbedder.from_env(dimensions=self.dimensions)
         self.reranker = reranker or OpenAICompatibleReranker.from_env()
@@ -1803,7 +1823,7 @@ class TuringAgentMemory:
         updated_at = self._now_iso()
         clean_tags = self._clean_tags(tags)
         clean_metadata = dict(metadata or {})
-        nodes = [
+        document_node = (
             f'({doc_var}:Document {{id: "{quote(document_id)}", user_identifier: "{quote(user_identifier)}", '
             f'title: "{quote(title)}", chunk_count: {len(chunks)}, chunk_chars: {chunk_chars}, '
             f'text_hash: "{quote(text_hash)}", source: "{quote(source)}", '
@@ -1811,17 +1831,19 @@ class TuringAgentMemory:
             f'metadata_json: "{quote(self._json_dumps(clean_metadata))}", '
             f'created_at: "{quote(created_at)}", updated_at: "{quote(updated_at)}", '
             f'expires_at: "{quote(expires_at)}", status: "searchable"}})'
-        ]
-        edges = [f"(u)-[:HAS_DOCUMENT]->({doc_var})"]
+        )
+        user_document_edge = f"(u)-[:HAS_DOCUMENT]->({doc_var})"
+        chunk_units: list[_DocumentChunkGraphUnit] = []
         vector_rows: list[tuple[int, list[float]]] = []
         vectors = self._embed_many(chunks)
+        previous_chunk_id = ""
         previous_var = ""
         for idx, (chunk_text, vector) in enumerate(zip(chunks, vectors, strict=True), start=1):
             chunk_id = f"{document_id}#{idx}"
             chunk_var = cypher_var(chunk_id)
             vid = self._document_vector_id(user_identifier, chunk_id)
             locator = f"chunk={idx}"
-            nodes.append(
+            node = (
                 f'({chunk_var}:Chunk {{chunk_id: "{quote(chunk_id)}", vector_id: {vid}, '
                 f'document_id: "{quote(document_id)}", user_identifier: "{quote(user_identifier)}", '
                 f'title: "{quote(title)}", ordinal: {idx}, locator: "{locator}", '
@@ -1830,15 +1852,36 @@ class TuringAgentMemory:
                 f'created_at: "{quote(created_at)}", updated_at: "{quote(updated_at)}", '
                 f'expires_at: "{quote(expires_at)}", status: "active", text: "{quote(chunk_text)}"}})'
             )
-            edges.append(f"({doc_var})-[:HAS_CHUNK {{ordinal: {idx}}}]->({chunk_var})")
-            if previous_var:
-                edges.append(f"({previous_var})-[:NEXT_CHUNK]->({chunk_var})")
+            has_chunk_edge = f"({doc_var})-[:HAS_CHUNK {{ordinal: {idx}}}]->({chunk_var})"
+            next_chunk_edge = (
+                f"({previous_var})-[:NEXT_CHUNK]->({chunk_var})" if previous_var else ""
+            )
+            chunk_units.append(
+                _DocumentChunkGraphUnit(
+                    chunk_id=chunk_id,
+                    chunk_var=chunk_var,
+                    node=node,
+                    has_chunk_edge=has_chunk_edge,
+                    previous_chunk_id=previous_chunk_id,
+                    previous_var=previous_var,
+                    next_chunk_edge=next_chunk_edge,
+                )
+            )
+            previous_chunk_id = chunk_id
             previous_var = chunk_var
             vector_rows.append((vid, vector))
-        self._write(
-            f'MATCH (u:User) WHERE u.identifier = "{quote(user_identifier)}" CREATE '
-            + ", ".join(nodes + edges)
+        graph_queries = self._document_graph_queries(
+            user_identifier=user_identifier,
+            document_id=document_id,
+            doc_var=doc_var,
+            document_node=document_node,
+            user_document_edge=user_document_edge,
+            chunk_units=chunk_units,
         )
+        if len(graph_queries) == 1:
+            self._write(graph_queries[0])
+        else:
+            self._write_many(graph_queries)
         self._load_vectors(
             self._tenant_vector_index(self.document_index, user_identifier),
             vector_rows,
@@ -1857,6 +1900,114 @@ class TuringAgentMemory:
             metadata=clean_metadata,
             text_hash=text_hash,
             chunk_chars=chunk_chars,
+        )
+
+    def _document_graph_queries(
+        self,
+        *,
+        user_identifier: str,
+        document_id: str,
+        doc_var: str,
+        document_node: str,
+        user_document_edge: str,
+        chunk_units: list[_DocumentChunkGraphUnit],
+    ) -> list[str]:
+        user_match = f'MATCH (u:User) WHERE u.identifier = "{quote(user_identifier)}"'
+        all_literals = [document_node, *(unit.node for unit in chunk_units), user_document_edge]
+        for unit in chunk_units:
+            all_literals.append(unit.has_chunk_edge)
+            if unit.next_chunk_edge:
+                all_literals.append(unit.next_chunk_edge)
+        combined = f"{user_match} CREATE " + ", ".join(all_literals)
+        if len(combined.encode("utf-8")) <= self.document_graph_batch_bytes:
+            return [combined]
+
+        document_query = f"{user_match} CREATE {document_node}, {user_document_edge}"
+        if len(document_query.encode("utf-8")) > self.document_graph_batch_bytes:
+            raise ValueError(
+                "document metadata exceeds AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES"
+            )
+
+        queries = [document_query]
+        batch: list[_DocumentChunkGraphUnit] = []
+        for unit in chunk_units:
+            candidate = [*batch, unit]
+            candidate_query = self._document_chunk_batch_query(
+                user_identifier=user_identifier,
+                document_id=document_id,
+                doc_var=doc_var,
+                units=candidate,
+            )
+            exceeds_limit = len(candidate_query.encode("utf-8")) > self.document_graph_batch_bytes
+            exceeds_count = len(candidate) > self.document_graph_batch_chunks
+            if batch and (exceeds_limit or exceeds_count):
+                queries.append(
+                    self._document_chunk_batch_query(
+                        user_identifier=user_identifier,
+                        document_id=document_id,
+                        doc_var=doc_var,
+                        units=batch,
+                    )
+                )
+                batch = [unit]
+                candidate_query = self._document_chunk_batch_query(
+                    user_identifier=user_identifier,
+                    document_id=document_id,
+                    doc_var=doc_var,
+                    units=batch,
+                )
+            else:
+                batch = candidate
+            if len(candidate_query.encode("utf-8")) > self.document_graph_batch_bytes:
+                raise ValueError(
+                    f"document chunk {unit.chunk_id} exceeds "
+                    "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES"
+                )
+        if batch:
+            queries.append(
+                self._document_chunk_batch_query(
+                    user_identifier=user_identifier,
+                    document_id=document_id,
+                    doc_var=doc_var,
+                    units=batch,
+                )
+            )
+        return queries
+
+    @staticmethod
+    def _document_chunk_batch_query(
+        *,
+        user_identifier: str,
+        document_id: str,
+        doc_var: str,
+        units: list[_DocumentChunkGraphUnit],
+    ) -> str:
+        first = units[0]
+        matches = [f"({doc_var}:Document)"]
+        predicates = [
+            f'{doc_var}.id = "{quote(document_id)}"',
+            f'{doc_var}.user_identifier = "{quote(user_identifier)}"',
+        ]
+        if first.previous_var:
+            matches.append(f"({first.previous_var}:Chunk)")
+            predicates.extend(
+                [
+                    f'{first.previous_var}.chunk_id = "{quote(first.previous_chunk_id)}"',
+                    f'{first.previous_var}.user_identifier = "{quote(user_identifier)}"',
+                ]
+            )
+        literals: list[str] = []
+        for unit in units:
+            literals.extend((unit.node, unit.has_chunk_edge))
+            if unit.next_chunk_edge:
+                literals.append(unit.next_chunk_edge)
+        return (
+            "MATCH "
+            + ", ".join(matches)
+            + " WHERE "
+            + " AND ".join(predicates)
+            + " CREATE "
+            + ", ".join(literals)
         )
 
     def _update_document_metadata(
