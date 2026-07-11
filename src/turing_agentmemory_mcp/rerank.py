@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import re
+import time
 import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -15,8 +16,10 @@ from turing_agentmemory_mcp.provider_config import (
     provider_api_key_header,
     provider_api_key_scheme,
     provider_env,
+    provider_error_code,
     provider_optional_int,
     provider_secret,
+    retryable_provider_code,
 )
 
 DEFAULT_MAX_RERANK_DOCUMENT_CHARS = 2048
@@ -87,7 +90,15 @@ class OpenAICompatibleReranker:
     dimensions: int | None = None
     timeout_s: float = 30.0
     provider_min_score: float = 0.0
+    max_attempts: int = 3
+    retry_base_s: float = 0.5
     limits: RerankLimits = RerankLimits()
+
+    def __post_init__(self) -> None:
+        if isinstance(self.max_attempts, bool) or self.max_attempts <= 0:
+            raise ValueError("rerank max attempts must be positive")
+        if self.retry_base_s < 0:
+            raise ValueError("rerank retry base seconds must not be negative")
 
     @classmethod
     def from_env(cls) -> OpenAICompatibleReranker:
@@ -101,6 +112,8 @@ class OpenAICompatibleReranker:
             dimensions=provider_optional_int("RERANK_DIMENSIONS"),
             timeout_s=float(provider_env("RERANK_TIMEOUT_SECONDS", default="30")),
             provider_min_score=max(0.0, float(provider_env("RERANK_PROVIDER_MIN_SCORE", default="0"))),
+            max_attempts=int(provider_env("RERANK_MAX_ATTEMPTS", default="3")),
+            retry_base_s=float(provider_env("RERANK_RETRY_BASE_SECONDS", default="0.5")),
             limits=RerankLimits(
                 max_document_chars=int(
                     provider_env(
@@ -154,11 +167,25 @@ class OpenAICompatibleReranker:
         )
         if self.api_key:
             req.add_header(self.api_key_header, api_key_header_value(self.api_key, self.api_key_scheme))
-        try:
-            with urlopen(req, timeout=self.timeout_s) as resp:
-                decoded = json.loads(resp.read().decode("utf-8"))
-        except (HTTPError, URLError, json.JSONDecodeError, TimeoutError, OSError):
-            return self._result(identity(documents), "provider_error", bounded_documents)
+        decoded: object = None
+        for attempt in range(self.max_attempts):
+            try:
+                with urlopen(req, timeout=self.timeout_s) as resp:
+                    decoded = json.loads(resp.read().decode("utf-8"))
+            except HTTPError as exc:
+                if retryable_provider_code(exc.code) and attempt + 1 < self.max_attempts:
+                    time.sleep(self.retry_base_s * (2**attempt))
+                    continue
+                return self._result(identity(documents), "provider_error", bounded_documents)
+            except (URLError, json.JSONDecodeError, TimeoutError, OSError):
+                return self._result(identity(documents), "provider_error", bounded_documents)
+            error_code = provider_error_code(decoded)
+            if error_code and retryable_provider_code(error_code) and attempt + 1 < self.max_attempts:
+                time.sleep(self.retry_base_s * (2**attempt))
+                continue
+            if error_code:
+                return self._result(identity(documents), "provider_error", bounded_documents)
+            break
         if not isinstance(decoded, dict):
             return self._result(identity(documents), "invalid_response", bounded_documents)
         results = decoded.get("results")

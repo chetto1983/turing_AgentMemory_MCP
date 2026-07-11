@@ -186,3 +186,50 @@ def test_openai_compatible_embedder_applies_distinct_query_and_document_prefixes
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def test_openai_compatible_embedder_retries_embedded_provider_overload() -> None:
+    calls = 0
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            nonlocal calls
+            calls += 1
+            length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(length)
+            if calls == 1:
+                payload = {
+                    "error": {
+                        "code": 429,
+                        "message": "Model busy, retry later",
+                    }
+                }
+            else:
+                payload = {"data": [{"index": 0, "embedding": [1.0, 0.0]}]}
+            body = json.dumps(payload).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        embedder = OpenAICompatibleEmbedder(
+            base_url=f"http://127.0.0.1:{server.server_port}",
+            dimensions=2,
+            max_attempts=2,
+            retry_base_s=0,
+        )
+
+        assert embedder.embed("retry me") == [1.0, 0.0]
+        assert calls == 2
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

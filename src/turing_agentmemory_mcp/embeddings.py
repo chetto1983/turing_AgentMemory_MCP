@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import re
+import time
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.error import HTTPError, URLError
@@ -14,8 +15,10 @@ from turing_agentmemory_mcp.provider_config import (
     provider_api_key_header,
     provider_api_key_scheme,
     provider_env,
+    provider_error_code,
     provider_optional_int,
     provider_secret,
+    retryable_provider_code,
 )
 
 TOKEN_RE = re.compile(r"[a-zA-Z0-9_]+")
@@ -62,6 +65,8 @@ class OpenAICompatibleEmbedder:
     timeout_s: float = 60.0
     batch_size: int = 128
     request_dimensions: int | None = None
+    max_attempts: int = 3
+    retry_base_s: float = 0.5
     query_prefix: str = ""
     document_prefix: str = ""
 
@@ -72,6 +77,10 @@ class OpenAICompatibleEmbedder:
             raise ValueError("embedding batch size must be positive")
         if self.request_dimensions is not None and self.request_dimensions != self.dimensions:
             raise ValueError("embedding request dimensions must match store dimensions")
+        if isinstance(self.max_attempts, bool) or self.max_attempts <= 0:
+            raise ValueError("embedding max attempts must be positive")
+        if self.retry_base_s < 0:
+            raise ValueError("embedding retry base seconds must not be negative")
 
     @classmethod
     def from_env(cls, *, dimensions: int | None = None) -> OpenAICompatibleEmbedder:
@@ -87,6 +96,8 @@ class OpenAICompatibleEmbedder:
             timeout_s=float(provider_env("EMBED_TIMEOUT_SECONDS", default="60")),
             batch_size=int(provider_env("EMBED_BATCH_SIZE", default="128")),
             request_dimensions=provider_optional_int("EMBED_REQUEST_DIMENSIONS"),
+            max_attempts=int(provider_env("EMBED_MAX_ATTEMPTS", default="3")),
+            retry_base_s=float(provider_env("EMBED_RETRY_BASE_SECONDS", default="0.5")),
             query_prefix=provider_env("EMBED_QUERY_PREFIX"),
             document_prefix=provider_env("EMBED_DOCUMENT_PREFIX"),
         )
@@ -123,13 +134,29 @@ class OpenAICompatibleEmbedder:
         )
         if self.api_key:
             req.add_header(self.api_key_header, api_key_header_value(self.api_key, self.api_key_scheme))
-        try:
-            with urlopen(req, timeout=self.timeout_s) as resp:
-                decoded = json.loads(resp.read().decode("utf-8"))
-        except HTTPError as exc:
-            raise RuntimeError(f"embedding provider HTTP {exc.code}") from exc
-        except URLError as exc:
-            raise RuntimeError(f"embedding provider unavailable at {self.base_url}: {exc.reason}") from exc
+        decoded: object = None
+        for attempt in range(self.max_attempts):
+            try:
+                with urlopen(req, timeout=self.timeout_s) as resp:
+                    decoded = json.loads(resp.read().decode("utf-8"))
+            except HTTPError as exc:
+                if retryable_provider_code(exc.code) and attempt + 1 < self.max_attempts:
+                    time.sleep(self.retry_base_s * (2**attempt))
+                    continue
+                raise RuntimeError(f"embedding provider HTTP {exc.code}") from exc
+            except URLError as exc:
+                raise RuntimeError(
+                    f"embedding provider unavailable at {self.base_url}: {exc.reason}"
+                ) from exc
+            error_code = provider_error_code(decoded)
+            if error_code and retryable_provider_code(error_code) and attempt + 1 < self.max_attempts:
+                time.sleep(self.retry_base_s * (2**attempt))
+                continue
+            if error_code:
+                raise RuntimeError(f"embedding provider error {error_code}")
+            break
+        if not isinstance(decoded, dict):
+            raise RuntimeError("embedding provider returned an invalid response")
         rows = decoded.get("data") or []
         if len(rows) != len(texts):
             raise RuntimeError(

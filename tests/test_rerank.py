@@ -189,6 +189,45 @@ def test_rerank_with_status_rejects_duplicate_provider_indices(monkeypatch) -> N
     assert result.scores == identity(["one", "two"])
 
 
+def test_reranker_retries_embedded_provider_overload(monkeypatch) -> None:
+    responses = [
+        {"error": {"code": 429, "message": "Model busy, retry later"}},
+        {
+            "results": [
+                {"index": 1, "relevance_score": 0.9},
+                {"index": 0, "relevance_score": 0.1},
+            ]
+        },
+    ]
+    calls = 0
+
+    class Response:
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            nonlocal calls
+            payload = responses[calls]
+            calls += 1
+            return json.dumps(payload).encode("utf-8")
+
+    monkeypatch.setattr("turing_agentmemory_mcp.rerank.urlopen", lambda *args, **kwargs: Response())
+    reranker = OpenAICompatibleReranker(
+        base_url="http://provider",
+        max_attempts=2,
+        retry_base_s=0,
+    )
+
+    result = reranker.rerank_with_status("query", ["one", "two"])
+
+    assert result.status == "applied"
+    assert [item.index for item in result.scores] == [1, 0]
+    assert calls == 2
+
+
 def test_lexical_rerank_prioritizes_query_overlap() -> None:
     scored = lexical_rerank(
         "blue key interlock",
