@@ -43,7 +43,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A coverage gate enforces a floor measured against the actual current suite (not guessed).
   5. `store.py` (~3900 LOC) is decomposed into cohesive ≤600-LOC modules so the file-size cap passes with no allowlist, with behavior preserved (the E2E score gate and full pytest suite stay green across the split).
 
-**Plans:** 4/9 plans executed
+**Plans:** 5/9 plans executed
 Plans:
 **Wave 1**
 
@@ -51,7 +51,7 @@ Plans:
 - [x] 01-02-PLAN.md — Decompose server.py, document_jobs.py, gliner_provider.py
 - [x] 01-03-PLAN.md — Decompose benchmark.py + e2e_score.py (preserve the E2E gate's `main` export)
 - [x] 01-04-PLAN.md — Decompose the two over-cap operator scripts (real_document_benchmark, eval_backboard_locomo)
-- [ ] 01-05-PLAN.md — Decompose the two over-cap test files (test_gliner_provider, test_batch_memory)
+- [x] 01-05-PLAN.md — Decompose the two over-cap test files (test_gliner_provider, test_batch_memory)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -228,7 +228,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. CI + Git-Hook Discipline | 4/9 | In Progress|  |
+| 1. CI + Git-Hook Discipline | 5/9 | In Progress|  |
 | 2. UTCP Spike | 0/TBD | Not started | - |
 | 3. TuringDB Retrieval Baseline | 0/TBD | Not started | - |
 | 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
