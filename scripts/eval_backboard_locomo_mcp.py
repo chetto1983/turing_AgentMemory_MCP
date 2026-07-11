@@ -16,6 +16,8 @@ import statistics
 import subprocess
 import time
 from collections import Counter, defaultdict
+from collections.abc import Sequence
+from contextlib import AsyncExitStack
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -33,12 +35,23 @@ CATEGORY_NAMES = {
 }
 COMPARABLE_CUTOFFS = (20, 50, 200)
 MAX_INGEST_BATCH = 1024
+MAX_SEARCH_CONCURRENCY = 4
 
 
 class ResumeState(NamedTuple):
     completed_samples: frozenset[str]
     conversations: list[dict[str, Any]]
     results: list[dict[str, Any]]
+
+
+class QuestionEvaluation(NamedTuple):
+    question_index: int
+    evidence: list[str]
+    retrieved_refs: list[str]
+    answer_hit_by_k: dict[int, bool]
+    latency_ms: float
+    error: str
+    row: dict[str, Any] | None
 
 
 def parse_args() -> argparse.Namespace:
@@ -108,6 +121,12 @@ def parse_args() -> argparse.Namespace:
         "--resume",
         action="store_true",
         help="Resume completed conversations from the output checkpoint.",
+    )
+    parser.add_argument(
+        "--search-concurrency",
+        type=int,
+        default=1,
+        help=f"Independent direct-MCP search workers (1-{MAX_SEARCH_CONCURRENCY}).",
     )
     return parser.parse_args()
 
@@ -242,6 +261,31 @@ def validate_batch_size(value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_INGEST_BATCH:
         raise ValueError(f"batch_size must be between 1 and {MAX_INGEST_BATCH}")
     return value
+
+
+def validate_search_concurrency(value: int) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 1 <= value <= MAX_SEARCH_CONCURRENCY
+    ):
+        raise ValueError(f"search_concurrency must be between 1 and {MAX_SEARCH_CONCURRENCY}")
+    return value
+
+
+def mcp_transport(container: str) -> StdioTransport:
+    return StdioTransport(
+        command="docker.exe",
+        args=[
+            "exec",
+            "-i",
+            container,
+            "turing-agentmemory-mcp",
+            "serve",
+            "--transport",
+            "stdio",
+        ],
+    )
 
 
 def answer_in_hits(answer: Any, hits: list[dict[str, Any]], k: int) -> bool:
@@ -543,8 +587,78 @@ def finalize_metrics(bucket: dict[str, Any], ks: list[int]) -> dict[str, Any]:
     return out
 
 
-async def evaluate_conversation(
+async def evaluate_question(
     client: Client,
+    *,
+    sample_id: str,
+    question_index: int,
+    qa: dict[str, Any],
+    user_identifier: str,
+    top_k: int,
+    ks: list[int],
+    save_result: bool,
+) -> QuestionEvaluation:
+    category = int(qa.get("category") or 0)
+    question = str(qa.get("question") or "")
+    evidence = [str(ref) for ref in qa.get("evidence") or []]
+    started = time.perf_counter()
+    error = ""
+    hits: list[dict[str, Any]] = []
+    try:
+        hits = await call_tool(
+            client,
+            "memory_search",
+            {
+                "query": question,
+                "user_identifier": user_identifier,
+                "limit": top_k,
+                "source": "backboard-locomo",
+                "tags": ["locomo"],
+            },
+        )
+        hits = hits or []
+    except Exception as exc:  # noqa: BLE001 - report per-question MCP failures.
+        error = f"{type(exc).__name__}: {exc}"
+    latency_ms = (time.perf_counter() - started) * 1000
+    retrieved_refs = [result_ref(hit) for hit in hits]
+    answer_hit_by_k = {k: answer_in_hits(qa.get("answer"), hits, k) for k in ks}
+    row = None
+    if save_result:
+        row = {
+            "sample_id": sample_id,
+            "question_index": question_index,
+            "category": category,
+            "question_type": CATEGORY_NAMES.get(category, "unknown"),
+            "question": question,
+            "answer": qa.get("answer"),
+            "evidence": evidence,
+            "retrieved_refs": retrieved_refs,
+            "evidence_any_at_top_k": bool(set(evidence) & set(retrieved_refs))
+            if evidence
+            else False,
+            "evidence_all_at_top_k": set(evidence).issubset(set(retrieved_refs))
+            if evidence
+            else False,
+            "answer_in_content_at_top_k": answer_hit_by_k[top_k],
+            "answer_in_content_by_k": {str(k): answer_hit_by_k[k] for k in ks},
+            "latency_ms": round(latency_ms, 3),
+            "error": error,
+            **retrieval_diagnostics(hits),
+            "retrieved": [compact_hit(hit, rank) for rank, hit in enumerate(hits, 1)],
+        }
+    return QuestionEvaluation(
+        question_index=question_index,
+        evidence=evidence,
+        retrieved_refs=retrieved_refs,
+        answer_hit_by_k=answer_hit_by_k,
+        latency_ms=latency_ms,
+        error=error,
+        row=row,
+    )
+
+
+async def evaluate_conversation(
+    clients: Sequence[Client],
     *,
     item: dict[str, Any],
     user_identifier: str,
@@ -552,72 +666,57 @@ async def evaluate_conversation(
     ks: list[int],
     save_results: bool,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    if not clients:
+        raise ValueError("at least one MCP search client is required")
     sample_id = str(item.get("sample_id") or "sample")
     qa_items = question_rows(item)
     metrics = init_metric_counts()
     rows: list[dict[str, Any]] = []
-    for idx, qa in enumerate(qa_items, 1):
-        category = int(qa.get("category") or 0)
-        question = str(qa.get("question") or "")
-        evidence = [str(ref) for ref in qa.get("evidence") or []]
-        started = time.perf_counter()
-        error = ""
-        hits: list[dict[str, Any]] = []
-        try:
-            hits = await call_tool(
+    queue: asyncio.Queue[tuple[int, dict[str, Any]]] = asyncio.Queue()
+    for question_index, qa in enumerate(qa_items, 1):
+        queue.put_nowait((question_index, qa))
+    completed = 0
+
+    async def search_worker(client: Client) -> None:
+        nonlocal completed
+        while True:
+            try:
+                question_index, qa = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+            evaluation = await evaluate_question(
                 client,
-                "memory_search",
-                {
-                    "query": question,
-                    "user_identifier": user_identifier,
-                    "limit": top_k,
-                    "source": "backboard-locomo",
-                    "tags": ["locomo"],
-                },
+                sample_id=sample_id,
+                question_index=question_index,
+                qa=qa,
+                user_identifier=user_identifier,
+                top_k=top_k,
+                ks=ks,
+                save_result=save_results,
             )
-            hits = hits or []
-        except Exception as exc:  # noqa: BLE001 - report per-question MCP failures.
-            error = f"{type(exc).__name__}: {exc}"
-        latency_ms = (time.perf_counter() - started) * 1000
-        retrieved_refs = [result_ref(hit) for hit in hits]
-        answer_hit_by_k = {k: answer_in_hits(qa.get("answer"), hits, k) for k in ks}
-        update_metrics(
-            metrics,
-            evidence=evidence,
-            retrieved_refs=retrieved_refs,
-            answer_hit_by_k=answer_hit_by_k,
-            ks=ks,
-            latency_ms=latency_ms,
-            search_error=bool(error),
-        )
-        if save_results:
-            rows.append(
-                {
-                    "sample_id": sample_id,
-                    "question_index": idx,
-                    "category": category,
-                    "question_type": CATEGORY_NAMES.get(category, "unknown"),
-                    "question": question,
-                    "answer": qa.get("answer"),
-                    "evidence": evidence,
-                    "retrieved_refs": retrieved_refs,
-                    "evidence_any_at_top_k": bool(set(evidence) & set(retrieved_refs)) if evidence else False,
-                    "evidence_all_at_top_k": set(evidence).issubset(set(retrieved_refs)) if evidence else False,
-                    "answer_in_content_at_top_k": answer_hit_by_k[top_k],
-                    "answer_in_content_by_k": {str(k): answer_hit_by_k[k] for k in ks},
-                    "latency_ms": round(latency_ms, 3),
-                    "error": error,
-                    **retrieval_diagnostics(hits),
-                    "retrieved": [compact_hit(hit, rank) for rank, hit in enumerate(hits, 1)],
-                }
+            update_metrics(
+                metrics,
+                evidence=evaluation.evidence,
+                retrieved_refs=evaluation.retrieved_refs,
+                answer_hit_by_k=evaluation.answer_hit_by_k,
+                ks=ks,
+                latency_ms=evaluation.latency_ms,
+                search_error=bool(evaluation.error),
             )
-        if idx % 25 == 0 or idx == len(qa_items):
-            print(
-                f"  searched {sample_id}: {idx}/{len(qa_items)} "
-                f"evidence_any@{top_k}="
-                f"{metrics['evidence_any_hits'][top_k]}/{max(metrics['evidence_total'], 1)}",
-                flush=True,
-            )
+            if evaluation.row is not None:
+                rows.append(evaluation.row)
+            completed += 1
+            if completed % 25 == 0 or completed == len(qa_items):
+                print(
+                    f"  searched {sample_id}: {completed}/{len(qa_items)} "
+                    f"evidence_any@{top_k}="
+                    f"{metrics['evidence_any_hits'][top_k]}/{max(metrics['evidence_total'], 1)}",
+                    flush=True,
+                )
+            queue.task_done()
+
+    await asyncio.gather(*(search_worker(client) for client in clients))
+    rows.sort(key=lambda row: int(row["question_index"]))
     return finalize_metrics(metrics, ks), rows
 
 
@@ -637,20 +736,9 @@ async def run() -> dict[str, Any]:
     max_k = args.top_k
     ks = retrieval_cutoffs(max_k)
     args.batch_size = validate_batch_size(args.batch_size)
+    args.search_concurrency = validate_search_concurrency(args.search_concurrency)
 
     os.environ.setdefault("NO_COLOR", "1")
-    transport = StdioTransport(
-        command="docker.exe",
-        args=[
-            "exec",
-            "-i",
-            args.container,
-            "turing-agentmemory-mcp",
-            "serve",
-            "--transport",
-            "stdio",
-        ],
-    )
     resumed = ResumeState(frozenset(), [], [])
     if args.resume and output_path.exists():
         resumed = resume_state(json.loads(output_path.read_text(encoding="utf-8")))
@@ -666,7 +754,12 @@ async def run() -> dict[str, Any]:
     started = time.perf_counter()
     runtime_status: dict[str, Any] = {}
 
-    async with Client(transport) as client:
+    async with AsyncExitStack() as stack:
+        clients = [
+            await stack.enter_async_context(Client(mcp_transport(args.container)))
+            for _ in range(args.search_concurrency)
+        ]
+        client = clients[0]
         tools = await client.list_tools()
         tool_names = {tool.name for tool in tools}
         required = {
@@ -717,7 +810,7 @@ async def run() -> dict[str, Any]:
                     flush=True,
                 )
             conv_metrics, rows = await evaluate_conversation(
-                client,
+                clients,
                 item=item,
                 user_identifier=user_identifier,
                 top_k=max_k,
@@ -741,7 +834,11 @@ async def run() -> dict[str, Any]:
                 "benchmark": "backboard-locomo-direct-mcp",
                 "status": "running",
                 "ablation_id": args.ablation_id,
-                "parameters": {"top_k": max_k, "ks": ks},
+                "parameters": {
+                    "top_k": max_k,
+                    "ks": ks,
+                    "search_concurrency": args.search_concurrency,
+                },
                 "runtime": runtime_status,
                 "conversations": conversations,
                 "results": all_results,
@@ -795,6 +892,7 @@ async def run() -> dict[str, Any]:
             "top_k": max_k,
             "ks": ks,
             "batch_size": args.batch_size,
+            "search_concurrency": args.search_concurrency,
             "scope_prefix": args.scope_prefix,
             "skip_ingest": args.skip_ingest,
             "ablation_id": args.ablation_id,

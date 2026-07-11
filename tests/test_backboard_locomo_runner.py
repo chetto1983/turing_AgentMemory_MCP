@@ -265,3 +265,63 @@ def test_store_search_limit_supports_mem0_comparable_top_200() -> None:
 
     assert TuringAgentMemory._clean_limit(200) == 200
     assert TuringAgentMemory._clean_limit(500) == 200
+
+
+def test_search_concurrency_validation_accepts_one_through_four() -> None:
+    assert runner.validate_search_concurrency(1) == 1
+    assert runner.validate_search_concurrency(4) == 4
+    with pytest.raises(ValueError, match="between 1 and 4"):
+        runner.validate_search_concurrency(0)
+    with pytest.raises(ValueError, match="between 1 and 4"):
+        runner.validate_search_concurrency(5)
+
+
+def test_concurrent_searches_use_independent_clients_and_restore_question_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clients = [object(), object()]
+    active_clients: set[object] = set()
+    max_active = 0
+
+    async def fake_call(client: object, name: str, arguments: dict[str, object]) -> object:
+        nonlocal max_active
+        assert name == "memory_search"
+        assert client not in active_clients
+        active_clients.add(client)
+        max_active = max(max_active, len(active_clients))
+        question = str(arguments["query"])
+        await asyncio.sleep({"slow": 0.03, "fast": 0.001, "medium": 0.002}[question])
+        active_clients.remove(client)
+        evidence_id = {"slow": "D1:1", "fast": "D1:2", "medium": "D1:3"}[question]
+        return [
+            {
+                "id": evidence_id,
+                "content": f"answer for {question}",
+                "metadata": {"dia_id": evidence_id},
+            }
+        ]
+
+    monkeypatch.setattr(runner, "call_tool", fake_call)
+    item = {
+        "sample_id": "conv-test",
+        "qa": [
+            {"category": 1, "question": "slow", "answer": "answer", "evidence": ["D1:1"]},
+            {"category": 1, "question": "fast", "answer": "answer", "evidence": ["D1:2"]},
+            {"category": 1, "question": "medium", "answer": "answer", "evidence": ["D1:3"]},
+        ],
+    }
+
+    metrics, rows = asyncio.run(
+        runner.evaluate_conversation(
+            clients,
+            item=item,
+            user_identifier="alice",
+            top_k=20,
+            ks=[1, 3, 5, 10, 20],
+            save_results=True,
+        )
+    )
+
+    assert max_active == 2
+    assert metrics["search_errors"] == 0
+    assert [row["question_index"] for row in rows] == [1, 2, 3]
