@@ -217,6 +217,11 @@ with reciprocal-rank fusion. Set `RERANK_BLEND=0` for guarded pure rerank
 ordering; `RERANK_PRESERVE_SEED_MARGIN` (`0.05` by default) then keeps the top
 hybrid seed when the rerank winner trails it by at least that margin.
 
+Weighted RRF prioritizes direct evidence with `bm25=2.0`,
+`episode_dense=1.5`, `fact_dense=0.75`, `entity_dense=0.5`, `graph=0.5`, and
+`community=0.25`. Override the complete mapping with
+`AGENTMEMORY_FUSION_WEIGHTS` as a JSON object when running a measured ablation.
+
 `RERANK_PROVIDER_MIN_SCORE` defaults to `0` because GGUF ranking logits may be
 valid at very small scales. It can be overridden when a
 local GGUF reranker returns

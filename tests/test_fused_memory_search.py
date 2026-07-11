@@ -28,6 +28,28 @@ class NullEmbedder:
         return [1.0, 0.0, 0.0]
 
 
+def test_default_fusion_weights_prioritize_direct_evidence(tmp_path: Path) -> None:
+    store = TuringAgentMemory(
+        client=object(),  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        embedder=NullEmbedder(),
+        fusion_enabled=True,
+    )
+
+    assert store.fusion_weights == {
+        "episode_dense": 1.5,
+        "fact_dense": 0.75,
+        "entity_dense": 0.5,
+        "bm25": 2.0,
+        "graph": 0.5,
+        "community": 0.25,
+    }
+    identity = store.runtime_status()["stages"]["fusion"]["identity"]
+    assert identity["bm25_weight"] == 2.0
+    assert identity["episode_dense_weight"] == 1.5
+    assert identity["community_weight"] == 0.25
+
+
 def memory_row(
     memory_id: str,
     *,

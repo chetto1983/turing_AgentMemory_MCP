@@ -142,12 +142,12 @@ class TuringAgentMemory:
         self.fusion_weights = validate_fusion_weights(
             fusion_weights
             or {
-                "episode_dense": 1.0,
-                "fact_dense": 1.1,
-                "entity_dense": 0.9,
-                "bm25": 1.0,
-                "graph": 0.8,
-                "community": 0.7,
+                "episode_dense": 1.5,
+                "fact_dense": 0.75,
+                "entity_dense": 0.5,
+                "bm25": 2.0,
+                "graph": 0.5,
+                "community": 0.25,
             }
         )
         self.community_detector = community_detector or NativeLeidenDetector()
@@ -170,7 +170,15 @@ class TuringAgentMemory:
             "sparse", ready=sparse_index is not None, identity={"backend": "sqlite-fts5"}
         )
         self.runtime_signals.configure_stage(
-            "fusion", ready=self.fusion_enabled, identity={"algorithm": "weighted-rrf"}
+            "fusion",
+            ready=self.fusion_enabled,
+            identity={
+                "algorithm": "weighted-rrf",
+                **{
+                    f"{channel}_weight": weight
+                    for channel, weight in self.fusion_weights.items()
+                },
+            },
         )
         self.runtime_signals.configure_stage(
             "embedding",
