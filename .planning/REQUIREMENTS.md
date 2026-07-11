@@ -78,7 +78,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 
 ### CI & Git Hooks (CI) — Thrust 3
 
-- [ ] **CI-01**: lefthook `pre-commit` (ruff format --check, ruff check, file-size cap with a documented allowlist — `store.py` @ ~3900 LOC is the CLAUDE.md-sanctioned exception)
+- [ ] **CI-01**: lefthook `pre-commit` (ruff format --check, ruff check, file-size cap enforcing ≤600 LOC across all tracked `*.py` with NO allowlist — `store.py` is decomposed into ≤600-LOC modules to comply, not exempted; CLAUDE.md's store.py-exception language is removed)
 - [ ] **CI-02**: lefthook `pre-push` (import/compile smoke, fast pytest subset, `docker compose config --quiet`)
 - [ ] **CI-03**: GitHub Actions lint job (ruff; pin bumped from stale `>=0.9` to `0.15.x`)
 - [ ] **CI-04**: GitHub Actions unit-test job (pytest, `pythonpath=src`)

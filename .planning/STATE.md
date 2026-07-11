@@ -6,7 +6,7 @@ current_phase: 1
 current_phase_name: CI + Git-Hook Discipline
 status: planning
 stopped_at: Phase 1 context gathered
-last_updated: "2026-07-11T18:12:09.476Z"
+last_updated: "2026-07-11T18:24:57.362Z"
 last_activity: 2026-07-11
 last_activity_desc: Roadmap created; 55/55 v1 requirements mapped to 12 phases
 progress:
@@ -82,6 +82,10 @@ None yet.
 - **Hard ordering (non-negotiable):** ARC-01 baseline (Phase 3) MUST be captured before any ArcadeDB code touches the stack; the ARC-09 migration-correctness gate (Phase 6) MUST pass before TuringDB is removed (Phase 7).
 - **Load-bearing MEDIUM-confidence assumption:** ArcadeDB adequacy as sole backend. Treat the filtered-ANN + Lucene-analyzer validation spike in Phase 4 as mandatory, not optional — there is no coexisting fallback backend.
 - Phases 8–11 parallelize off the port (each depends only on Phase 7); Phase 12 (Docker closing) needs the ArcadeDB, Garage, and Keycloak compose services all present.
+
+### Roadmap Evolution
+
+- Phase 1 edited: SC#1 dropped file-size allowlist (no exemptions); added SC#5 store.py decomposition; REQUIREMENTS CI-01 updated to match
 
 ## Deferred Items
 

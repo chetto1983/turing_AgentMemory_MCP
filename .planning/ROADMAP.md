@@ -34,10 +34,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Depends on**: Nothing (first phase; independent of the Docker and backend work — sequenced first so it protects everything downstream)
 **Requirements**: CI-01, CI-02, CI-03, CI-04, CI-05, CI-06, CI-07, CI-08, CI-09
 **Success Criteria** (what must be TRUE):
-  1. `lefthook` wires a pre-commit (ruff format --check, ruff check, file-size cap with a documented allowlist that includes `store.py` at ~3900 LOC) and a pre-push (import/compile smoke, fast pytest subset, `docker compose config --quiet`) that run on real commits/pushes.
+  1. `lefthook` wires a pre-commit (ruff format --check, ruff check, and a file-size cap enforcing ≤600 LOC across all tracked `*.py` files with NO allowlist — no file is exempt) and a pre-push (import/compile smoke, fast pytest subset, `docker compose config --quiet`) that run on real commits/pushes.
   2. GitHub Actions runs lint (ruff pinned `0.15.x`), unit tests (pytest, `pythonpath=src`), compose-validation, and pip-audit (`2.10.1`) jobs on every push/PR, plus a dockerized-integration job that runs the E2E score gate + real-document E2E.
   3. A skipped GPU/integration tier fails the CI gate (no-skip-as-green); GPU-less runners degrade GPU tiers to a visible compile/stub floor, never silent green.
   4. A coverage gate enforces a floor measured against the actual current suite (not guessed).
+  5. `store.py` (~3900 LOC) is decomposed into cohesive ≤600-LOC modules so the file-size cap passes with no allowlist, with behavior preserved (the E2E score gate and full pytest suite stay green across the split).
 **Plans**: TBD
 
 ### Phase 2: UTCP Spike
