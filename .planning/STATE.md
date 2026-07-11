@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 1
-current_phase_name: CI + Git-Hook Discipline
+current_phase: 01
+current_phase_name: ci-git-hook-discipline
 status: executing
 stopped_at: Phase 1 context gathered
-last_updated: "2026-07-11T19:38:36.896Z"
+last_updated: "2026-07-11T20:29:08.701Z"
 last_activity: 2026-07-11
-last_activity_desc: Roadmap created; 55/55 v1 requirements mapped to 12 phases
+last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 12
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 9
+  completed_plans: 1
   percent: 0
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 1 — CI + Git-Hook Discipline
+**Current focus:** Phase 01 — ci-git-hook-discipline
 
 ## Current Position
 
-Phase: 1 of 12 (CI + Git-Hook Discipline)
-Plan: 0 of TBD in current phase
+Phase: 01 (ci-git-hook-discipline) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-07-11 — Roadmap created; 55/55 v1 requirements mapped to 12 phases
+Last activity: 2026-07-11 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01 P01 | 30min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Recent decisions affecting current work:
 - Fresh start — no TuringDB→ArcadeDB data migration.
 - ArcadeDB native `LSM_VECTOR` HNSW + native Lucene full-text; no external search/vector service.
 - Done = green gate (pytest + ruff + E2E score) + healthy compose + real-document E2E.
+- [Phase ?]: store.py decomposed into 9 store_<concern>.py mixin modules + slim facade (mixin-composed-facade pattern), all <=600 LOC, preserving public API and tenant scoping verbatim
 
 ### Pending Todos
 
@@ -99,6 +101,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T18:12:09.469Z
+Last session: 2026-07-11T20:27:30.532Z
 Stopped at: Phase 1 context gathered
 Resume file: .planning/phases/01-ci-git-hook-discipline/01-CONTEXT.md

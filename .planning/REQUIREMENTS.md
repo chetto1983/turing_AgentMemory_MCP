@@ -78,7 +78,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 
 ### CI & Git Hooks (CI) — Thrust 3
 
-- [ ] **CI-01**: lefthook `pre-commit` (ruff format --check, ruff check, file-size cap enforcing ≤600 LOC across all tracked `*.py` with NO allowlist — `store.py` is decomposed into ≤600-LOC modules to comply, not exempted; CLAUDE.md's store.py-exception language is removed)
+- [x] **CI-01**: lefthook `pre-commit` (ruff format --check, ruff check, file-size cap enforcing ≤600 LOC across all tracked `*.py` with NO allowlist — `store.py` is decomposed into ≤600-LOC modules to comply, not exempted; CLAUDE.md's store.py-exception language is removed)
 - [ ] **CI-02**: lefthook `pre-push` (import/compile smoke, fast pytest subset, `docker compose config --quiet`)
 - [ ] **CI-03**: GitHub Actions lint job (ruff; pin bumped from stale `>=0.9` to `0.15.x`)
 - [ ] **CI-04**: GitHub Actions unit-test job (pytest, `pythonpath=src`)
@@ -168,7 +168,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | TEST-08 | Phase 9 | Pending |
 | DEP-01 | Phase 7 | Pending |
 | DEP-02 | Phase 7 | Pending |
-| CI-01 | Phase 1 | Pending |
+| CI-01 | Phase 1 | Complete |
 | CI-02 | Phase 1 | Pending |
 | CI-03 | Phase 1 | Pending |
 | CI-04 | Phase 1 | Pending |
@@ -180,11 +180,13 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | UTCP-01 | Phase 2 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 55 total (DOCK 7, ARC 10, FIX 7, SEC 4, PERF 3, INFRA 4, TEST 8, DEP 2, CI 9, UTCP 1)
 - Mapped to phases: 55 ✓ (all v1 requirements mapped to exactly one phase)
 - Unmapped: 0 ✓ (no orphans, no duplicates)
 
 **By phase:**
+
 - Phase 1 (CI + Git-Hook Discipline): CI-01..09 — 9
 - Phase 2 (UTCP Spike): UTCP-01 — 1
 - Phase 3 (TuringDB Retrieval Baseline): ARC-01 — 1
