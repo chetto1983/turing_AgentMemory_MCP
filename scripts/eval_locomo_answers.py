@@ -205,7 +205,11 @@ class OpenAIAnswerer:
         return self.client.complete(
             system=(
                 "Answer the question using only the retrieved conversation context. "
-                "Be concise. If the context is insufficient, answer that it is unknown."
+                "Return the shortest supported answer, usually one phrase or sentence. "
+                "Do not explain, cite evidence ranks, list alternatives, or add plausible details. "
+                "For a relative date, resolve it from the dated session when possible; otherwise "
+                "preserve the exact relative-time phrase from the context. "
+                "If the context is insufficient, answer only: unknown."
             ),
             user=f"Question:\n{question}\n\nRetrieved context:\n{context}",
         )

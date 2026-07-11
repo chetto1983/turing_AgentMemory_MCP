@@ -50,6 +50,23 @@ class RecordingJudge:
         return answers.JudgeResponse(True, "The location matches.", 20, 3)
 
 
+class RecordingChatClient:
+    model = "chat-model"
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def complete(
+        self,
+        *,
+        system: str,
+        user: str,
+        json_mode: bool = False,
+    ) -> answers.ModelResponse:
+        self.calls.append({"system": system, "user": user, "json_mode": json_mode})
+        return answers.ModelResponse("Rome", 10, 1)
+
+
 def retrieval_row() -> dict[str, object]:
     return {
         "sample_id": "conv-1",
@@ -87,6 +104,21 @@ def test_answerer_receives_only_question_and_retrieved_context() -> None:
     assert result["answer_model"] == "answer-model"
     assert result["judge_model"] == "judge-model"
     assert result["usage"]["context_estimated_tokens"] > 0
+
+
+def test_openai_answerer_requires_short_grounded_temporal_answers() -> None:
+    client = RecordingChatClient()
+    answerer = answers.OpenAIAnswerer(client)  # type: ignore[arg-type]
+
+    answerer.answer(
+        question="When did Alice move?",
+        context="[rank=1 evidence=D1:1] Yesterday Alice moved to Rome.",
+    )
+
+    system = str(client.calls[0]["system"])
+    assert "shortest supported answer" in system
+    assert "Do not explain" in system
+    assert "relative date" in system
 
 
 def test_context_budget_keeps_whole_ranked_documents() -> None:
