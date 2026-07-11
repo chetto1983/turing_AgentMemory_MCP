@@ -1,0 +1,182 @@
+# Roadmap: Turing AgentMemory MCP — Stabilization Milestone
+
+## Overview
+
+This milestone hardens an already-built TuringDB-backed Agent Memory MCP server and cuts it over to ArcadeDB as its sole backend. The journey starts by installing CI + git-hook discipline (protecting every later change), then de-risks UTCP with an early findings-only spike. It snapshots the current TuringDB retrieval baseline as the yardstick, direct-ports `store.py` to ArcadeDB (graph + native vector + native full-text), isolates tenants at the database level, and only removes TuringDB once a hard migration-correctness gate proves the port meets-or-exceeds the baseline. With ArcadeDB as the sole backend, the remaining CONCERNS.md work (ingestion/storage reliability, retrieval performance and vector lifecycle, security/governance, graph-projection robustness) proceeds in parallel off the port — none of it depends on any interface-extraction step, because there is none. The final phase stands the whole stack up as a reliable one-command `docker compose up` and verifies a real document end-to-end.
+
+**Parallelism:** Phases 8–11 each depend only on Phase 7 (ArcadeDB is the sole backend); they parallelize off the port and may run in any order. Phase 12 is the closing integration pass and depends on all of them landing.
+
+## Phases
+
+**Phase Numbering:**
+- Integer phases (1, 2, 3): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+
+Decimal phases appear between their surrounding integers in numeric order.
+
+- [ ] **Phase 1: CI + Git-Hook Discipline** - lefthook hooks + GitHub Actions with no-skip-as-green, guarding every downstream change
+- [ ] **Phase 2: UTCP Spike** - Early findings-gated verdict on deeper UTCP support; no build commitment
+- [ ] **Phase 3: TuringDB Retrieval Baseline** - Recorded, versioned baseline snapshot before any ArcadeDB work
+- [ ] **Phase 4: ArcadeDB Direct Port** - `store.py` on ArcadeDB graph + native vector + native full-text, stable IDs preserved
+- [ ] **Phase 5: Per-Tenant ArcadeDB Isolation** - One database per tenant with mandatory `user_identifier` scoping still enforced
+- [ ] **Phase 6: Migration-Correctness Gate** - Ported stack provably meets-or-exceeds the baseline (hard exit criterion)
+- [ ] **Phase 7: Remove TuringDB + Dependency Hardening** - TuringDB cut, invariants rewritten, at-risk deps version-gated
+- [ ] **Phase 8: Document Ingestion & Storage Reliability** - Durable upload sessions, Garage S3 staging, multi-worker + cancellation
+- [ ] **Phase 9: Retrieval Performance & Vector Lifecycle** - Batched embedding/extraction, fetch tuning, versioned vector indexes
+- [ ] **Phase 10: Security & Governance Hardening** - OIDC identity, hard-delete + purge, redaction/audit durability, metrics hooks
+- [ ] **Phase 11: Graph Projection Robustness** - Crash-recovery + adversarial tests for full-text, temporal, and query-graph projections
+- [ ] **Phase 12: Docker One-Command Stack + Real-Doc E2E** - Healthy `docker compose up` from clean checkout, real document verified end-to-end
+
+## Phase Details
+
+### Phase 1: CI + Git-Hook Discipline
+**Goal**: Every commit and push is guarded by fast local hooks, and CI enforces the full gate without ever passing a skipped tier green.
+**Depends on**: Nothing (first phase; independent of the Docker and backend work — sequenced first so it protects everything downstream)
+**Requirements**: CI-01, CI-02, CI-03, CI-04, CI-05, CI-06, CI-07, CI-08, CI-09
+**Success Criteria** (what must be TRUE):
+  1. `lefthook` wires a pre-commit (ruff format --check, ruff check, file-size cap with a documented allowlist that includes `store.py` at ~3900 LOC) and a pre-push (import/compile smoke, fast pytest subset, `docker compose config --quiet`) that run on real commits/pushes.
+  2. GitHub Actions runs lint (ruff pinned `0.15.x`), unit tests (pytest, `pythonpath=src`), compose-validation, and pip-audit (`2.10.1`) jobs on every push/PR, plus a dockerized-integration job that runs the E2E score gate + real-document E2E.
+  3. A skipped GPU/integration tier fails the CI gate (no-skip-as-green); GPU-less runners degrade GPU tiers to a visible compile/stub floor, never silent green.
+  4. A coverage gate enforces a floor measured against the actual current suite (not guessed).
+**Plans**: TBD
+
+### Phase 2: UTCP Spike
+**Goal**: A findings verdict on whether to natively serve tools over UTCP (vs. the current manual export) exists and gates any future UTCP build work.
+**Depends on**: Nothing (independent early spike; no dependency on the backend port — runs early to de-risk)
+**Requirements**: UTCP-01
+**Success Criteria** (what must be TRUE):
+  1. The current `utcp.py` / `utcp-manual` export is exercised against a real UTCP client/spec (https://github.com/universal-tool-calling-protocol) and its gaps are documented.
+  2. A written verdict recommends native UTCP serving, staying on manual export, or deferring — with rationale.
+  3. No UTCP build work is committed by this phase; any follow-on work is explicitly gated on the verdict.
+**Plans**: TBD
+
+### Phase 3: TuringDB Retrieval Baseline
+**Goal**: A recorded, versioned retrieval-quality baseline of the current TuringDB stack exists as the yardstick for the migration-correctness gate.
+**Depends on**: Nothing (captures the current TuringDB stack before any ArcadeDB code touches it — worthless if captured after the port drifts behavior)
+**Requirements**: ARC-01
+**Success Criteria** (what must be TRUE):
+  1. `scripts/e2e_score.py` and `scripts/real_document_benchmark.py` run against the current TuringDB-backed stack and their numeric results are captured to a versioned artifact.
+  2. The baseline artifact records provider config, corpus, and run parameters so it is reproducible and directly comparable later.
+  3. The baseline is committed before any ArcadeDB code touches the stack.
+**Plans**: TBD
+
+### Phase 4: ArcadeDB Direct Port
+**Goal**: `store.py` runs entirely on ArcadeDB — graph, vector, and full-text — with stable IDs preserved, replacing every TuringDB query in place with no abstraction layer.
+**Depends on**: Phase 3 (baseline must be captured before ArcadeDB code touches the stack)
+**Requirements**: ARC-02, ARC-03, ARC-04, ARC-05, ARC-06, ARC-08
+**Success Criteria** (what must be TRUE):
+  1. An `arcadedb` Compose service (`arcadedata/arcadedb:26.7.1`) with a persistent data volume starts healthy, and a thin `arcadedb_client.py` (stdlib `urllib` over the HTTP/JSON API) performs graph, vector, and full-text ops in a smoke test — with filtered-ANN and Lucene-analyzer behavior validated empirically first.
+  2. All graph CRUD (memories, documents, chunks, entities, facts, communities, and all edges) is served by ArcadeDB SQL — no `turingdb` calls remain in `store.py` read/write paths.
+  3. Vector search runs on ArcadeDB native `LSM_VECTOR` (HNSW) with the TuringDB `vector_id` int-join deleted (not ported), built on a versioned/namespaced index foundation; full-text runs on native Lucene with the analyzer validated against golden queries and the SQLite-FTS5 outbox retired.
+  4. `stable_id()` remains the sole cross-record identifier, stored as an indexed ArcadeDB property (never ArcadeDB's native RID); no vector-ID drift across the port.
+**Plans**: TBD
+
+### Phase 5: Per-Tenant ArcadeDB Isolation
+**Goal**: Each tenant gets a physically isolated ArcadeDB database while app-layer `user_identifier` scoping remains mandatory on every query as defense-in-depth.
+**Depends on**: Phase 4 (sequenced after the core port so isolation-topology bugs aren't tangled with query-porting bugs)
+**Requirements**: ARC-07, TEST-05
+**Success Criteria** (what must be TRUE):
+  1. Each tenant is provisioned its own ArcadeDB database (physical isolation), created/opened via the client on first use.
+  2. Every query still carries explicit `user_identifier` scoping and fails closed on an empty identifier — DB-level isolation never replaces the invariant-#1 contract.
+  3. Concurrent multi-tenant isolation tests pass with no cross-tenant leakage under concurrency.
+**Plans**: TBD
+
+### Phase 6: Migration-Correctness Gate
+**Goal**: The ported ArcadeDB stack provably meets-or-exceeds the TuringDB baseline — the hard exit criterion that authorizes cutover.
+**Depends on**: Phases 4, 5 (measures the fully-ported, tenant-isolated system against the Phase 3 baseline)
+**Requirements**: ARC-09
+**Success Criteria** (what must be TRUE):
+  1. `scripts/e2e_score.py` and `scripts/real_document_benchmark.py` run against the ArcadeDB-backed stack and are compared against the Phase 3 baseline within a documented tolerance.
+  2. Retrieval quality meets or exceeds the baseline (not merely "runs without crashing"); a shortfall blocks removal of TuringDB and everything downstream.
+  3. The comparison result is recorded as the gate artifact that authorizes (or blocks) cutover.
+**Plans**: TBD
+
+### Phase 7: Remove TuringDB + Dependency Hardening
+**Goal**: TuringDB is gone from the codebase and stack, CLAUDE.md invariants are rewritten for ArcadeDB, and remaining at-risk dependencies are version-gated.
+**Depends on**: Phase 6 (removal is irreversible — gated strictly after the meet-or-exceed check passes)
+**Requirements**: ARC-10, DEP-01, DEP-02
+**Success Criteria** (what must be TRUE):
+  1. TuringDB is removed from `compose.yaml`, `pyproject.toml`, and docs; the stack runs on ArcadeDB alone.
+  2. CLAUDE.md invariants are updated — #2 (TuringDB canonical) superseded, #4/#6 (submit-before-match, `load_graph`) retired or replaced with the ArcadeDB equivalent — while #1 (tenant scope) and #3 (stable IDs) are reconfirmed as still enforced.
+  3. `graspologic-native` and `fastmcp` have automated compatibility/version-gate checks so upgrades are tested before adoption.
+**Plans**: TBD
+
+### Phase 8: Document Ingestion & Storage Reliability
+**Goal**: Document upload and ingestion survive restarts, concurrency, and cancellation, with staged bytes on durable S3-compatible storage.
+**Depends on**: Phase 7 (parallelizable off the port; operates on the ArcadeDB-only stack — may run alongside Phases 9–11)
+**Requirements**: FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, INFRA-01, TEST-01, TEST-06
+**Success Criteria** (what must be TRUE):
+  1. Upload sessions persist durably with TTL expiry and thread-safe access; an interrupted upload is recoverable across restart and abandoned sessions are reclaimed (closing the memory leak, the lost-on-restart bug, and the expiry gap).
+  2. Staged files live in Garage (`dxflrs/garage:v2.2.0`, S3-compatible) via boto3 with an `AbortIncompleteMultipartUpload` bucket lifecycle rule + checksum verification, shipped together with the TTL'd session persistence (not one half without the other).
+  3. Document ingestion runs multiple concurrent workers with per-worker leasing, and canceled jobs actually stop via cooperative-cancellation timeouts wrapping provider/DB calls.
+  4. Job state-machine crash-recovery tests (lease timeout mid-op, cancellation during indexing, orphan detection on startup) and large-document ingestion tests (>1GB / thousands of docs) pass.
+**Plans**: TBD
+
+### Phase 9: Retrieval Performance & Vector Lifecycle
+**Goal**: Embedding, extraction, and vector retrieval are batched and tuned, and vector indexes are versioned with stale entries cleaned up.
+**Depends on**: Phase 7 (parallelizable off the port; touches the ArcadeDB vector index — may run alongside Phases 8, 10, 11)
+**Requirements**: PERF-01, PERF-02, PERF-03, FIX-06, INFRA-03, TEST-07, TEST-08
+**Success Criteria** (what must be TRUE):
+  1. Embedding and memory-extraction calls are batched (single round-trip per batch), eliminating per-item HTTP calls for memories and document chunks.
+  2. Vector search fetches adaptively (predicate pushdown / adaptive fetch) instead of a fixed 4× over-fetch.
+  3. Vector indexes are versioned/namespaced with atomic swap on rebuild, and rebuilds remove stale vectors (no unbounded accumulation or duplicates), enabling A/B embedding-model swap, canary, and rollback.
+  4. Vector-rebuild-under-active-queries tests and extraction failure-mode tests (timeouts, malformed responses, rate limiting) pass.
+**Plans**: TBD
+
+### Phase 10: Security & Governance Hardening
+**Goal**: Identity is verified via OIDC, deletions and redaction are auditable and durable, expired data is actively purged, and custom KPIs are observable.
+**Depends on**: Phase 7 (parallelizable off the port; SEC-04 OIDC is backend-independent — may run alongside Phases 8, 9, 11)
+**Requirements**: SEC-01, SEC-02, SEC-03, SEC-04, FIX-07, INFRA-02, INFRA-04
+**Success Criteria** (what must be TRUE):
+  1. OAuth/OIDC via FastMCP `OIDCProxy`/`OAuthProxy` against Keycloak (26.7.0) derives `user_identifier` from verified token claims only; a valid token for tenant A with a client-supplied `user_identifier="tenant-b"` is rejected/overridden.
+  2. Hard-delete with audit logging exists alongside soft delete, backup/retention purge is documented, and a background purge enforces `expires_at` (not just read-time filtering).
+  3. Redaction pattern coverage is audited, custom patterns are configurable, redaction events are logged, and `Authorization`/bearer tokens are masked in logs.
+  4. The audit sink flushes durably (no lost events on crash), and extensible observability/metrics hooks expose custom KPIs (ingestion latency, recall, cost).
+**Plans**: TBD
+
+### Phase 11: Graph Projection Robustness
+**Goal**: Derived graph projections (full-text/outbox, temporal graph, query-graph evidence) are covered by crash-recovery and adversarial tests.
+**Depends on**: Phase 7 (parallelizable off the port; tests ArcadeDB-backed projections — may run alongside Phases 8, 9, 10)
+**Requirements**: TEST-02, TEST-03, TEST-04
+**Success Criteria** (what must be TRUE):
+  1. Full-text/outbox crash-recovery + idempotency is tested — or demonstrably retired by ArcadeDB ACID (via the Phase 4 Lucene port), with a test asserting the retirement.
+  2. Temporal-graph projection tests plus entity-canonicalization schema versioning/migration pass, verifying entity-link continuity across canonicalization-rule changes.
+  3. Query-graph evidence tests with adversarial entity names (special characters, long names, duplicates) and empty-result fallback pass.
+**Plans**: TBD
+
+### Phase 12: Docker One-Command Stack + Real-Doc E2E
+**Goal**: `docker compose up` brings the whole ArcadeDB + Garage + Keycloak stack up healthy from a clean checkout, and a real document verifies end-to-end through the dockerized MCP.
+**Depends on**: Phases 8, 9, 10, 11 (final integration/verification pass — needs the ArcadeDB, Garage, and Keycloak compose services and all concern work landed)
+**Requirements**: DOCK-01, DOCK-02, DOCK-03, DOCK-04, DOCK-05, DOCK-06, DOCK-07
+**Success Criteria** (what must be TRUE):
+  1. `docker compose up` brings the whole stack (ArcadeDB, embed, rerank, GLiNER, MCP, lab, Garage, Keycloak) up healthy from a clean checkout, with healthchecks + `depends_on: condition: service_healthy` gating startup order and readiness.
+  2. `docker compose config --quiet` validates, and the deterministic E2E score gate runs green against the dockerized stack (not just in-process stubs).
+  3. A real document verifies end-to-end through the dockerized MCP (async job → truthful terminal state → canonical chunks → scoped cited search → staged bytes removed on success).
+  4. GPU embed/rerank/GLiNER sidecars are reproducibly buildable with GPU visibility verified from inside a compose-started container; CI degrades these tiers to a compile/stub floor on GPU-less runners.
+  5. Non-root / read-only container hardening is preserved across all services, including the new ArcadeDB and Garage.
+**Plans**: TBD
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12.
+Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordered among themselves.
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. CI + Git-Hook Discipline | 0/TBD | Not started | - |
+| 2. UTCP Spike | 0/TBD | Not started | - |
+| 3. TuringDB Retrieval Baseline | 0/TBD | Not started | - |
+| 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
+| 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
+| 6. Migration-Correctness Gate | 0/TBD | Not started | - |
+| 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
+| 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
+| 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
+| 10. Security & Governance Hardening | 0/TBD | Not started | - |
+| 11. Graph Projection Robustness | 0/TBD | Not started | - |
+| 12. Docker One-Command Stack + Real-Doc E2E | 0/TBD | Not started | - |
+
+---
+*Roadmap created: 2026-07-11*
+*Coverage: 55/55 v1 requirements mapped to phases (no orphans, no duplicates)*

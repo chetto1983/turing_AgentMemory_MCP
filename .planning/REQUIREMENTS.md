@@ -119,17 +119,85 @@ Explicitly excluded. Documented to prevent scope creep.
 
 ## Traceability
 
-Empty initially — populated during roadmap creation (each v1 requirement maps to exactly one phase).
+Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by gsd-roadmapper) | — | Pending |
+| DOCK-01 | Phase 12 | Pending |
+| DOCK-02 | Phase 12 | Pending |
+| DOCK-03 | Phase 12 | Pending |
+| DOCK-04 | Phase 12 | Pending |
+| DOCK-05 | Phase 12 | Pending |
+| DOCK-06 | Phase 12 | Pending |
+| DOCK-07 | Phase 12 | Pending |
+| ARC-01 | Phase 3 | Pending |
+| ARC-02 | Phase 4 | Pending |
+| ARC-03 | Phase 4 | Pending |
+| ARC-04 | Phase 4 | Pending |
+| ARC-05 | Phase 4 | Pending |
+| ARC-06 | Phase 4 | Pending |
+| ARC-07 | Phase 5 | Pending |
+| ARC-08 | Phase 4 | Pending |
+| ARC-09 | Phase 6 | Pending |
+| ARC-10 | Phase 7 | Pending |
+| FIX-01 | Phase 8 | Pending |
+| FIX-02 | Phase 8 | Pending |
+| FIX-03 | Phase 8 | Pending |
+| FIX-04 | Phase 8 | Pending |
+| FIX-05 | Phase 8 | Pending |
+| FIX-06 | Phase 9 | Pending |
+| FIX-07 | Phase 10 | Pending |
+| SEC-01 | Phase 10 | Pending |
+| SEC-02 | Phase 10 | Pending |
+| SEC-03 | Phase 10 | Pending |
+| SEC-04 | Phase 10 | Pending |
+| PERF-01 | Phase 9 | Pending |
+| PERF-02 | Phase 9 | Pending |
+| PERF-03 | Phase 9 | Pending |
+| INFRA-01 | Phase 8 | Pending |
+| INFRA-02 | Phase 10 | Pending |
+| INFRA-03 | Phase 9 | Pending |
+| INFRA-04 | Phase 10 | Pending |
+| TEST-01 | Phase 8 | Pending |
+| TEST-02 | Phase 11 | Pending |
+| TEST-03 | Phase 11 | Pending |
+| TEST-04 | Phase 11 | Pending |
+| TEST-05 | Phase 5 | Pending |
+| TEST-06 | Phase 8 | Pending |
+| TEST-07 | Phase 9 | Pending |
+| TEST-08 | Phase 9 | Pending |
+| DEP-01 | Phase 7 | Pending |
+| DEP-02 | Phase 7 | Pending |
+| CI-01 | Phase 1 | Pending |
+| CI-02 | Phase 1 | Pending |
+| CI-03 | Phase 1 | Pending |
+| CI-04 | Phase 1 | Pending |
+| CI-05 | Phase 1 | Pending |
+| CI-06 | Phase 1 | Pending |
+| CI-07 | Phase 1 | Pending |
+| CI-08 | Phase 1 | Pending |
+| CI-09 | Phase 1 | Pending |
+| UTCP-01 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 55 total (DOCK 7, ARC 10, FIX 7, SEC 4, PERF 3, INFRA 4, TEST 8, DEP 2, CI 9, UTCP 1)
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 55 ⚠️ (roadmapper maps all to phases)
+- Mapped to phases: 55 ✓ (all v1 requirements mapped to exactly one phase)
+- Unmapped: 0 ✓ (no orphans, no duplicates)
+
+**By phase:**
+- Phase 1 (CI + Git-Hook Discipline): CI-01..09 — 9
+- Phase 2 (UTCP Spike): UTCP-01 — 1
+- Phase 3 (TuringDB Retrieval Baseline): ARC-01 — 1
+- Phase 4 (ArcadeDB Direct Port): ARC-02, ARC-03, ARC-04, ARC-05, ARC-06, ARC-08 — 6
+- Phase 5 (Per-Tenant ArcadeDB Isolation): ARC-07, TEST-05 — 2
+- Phase 6 (Migration-Correctness Gate): ARC-09 — 1
+- Phase 7 (Remove TuringDB + Dependency Hardening): ARC-10, DEP-01, DEP-02 — 3
+- Phase 8 (Document Ingestion & Storage Reliability): FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, INFRA-01, TEST-01, TEST-06 — 8
+- Phase 9 (Retrieval Performance & Vector Lifecycle): PERF-01, PERF-02, PERF-03, FIX-06, INFRA-03, TEST-07, TEST-08 — 7
+- Phase 10 (Security & Governance Hardening): SEC-01, SEC-02, SEC-03, SEC-04, FIX-07, INFRA-02, INFRA-04 — 7
+- Phase 11 (Graph Projection Robustness): TEST-02, TEST-03, TEST-04 — 3
+- Phase 12 (Docker One-Command Stack + Real-Doc E2E): DOCK-01..07 — 7
 
 ---
 *Requirements defined: 2026-07-11*
-*Last updated: 2026-07-11 after initial definition*
+*Last updated: 2026-07-11 after roadmap traceability mapping*
