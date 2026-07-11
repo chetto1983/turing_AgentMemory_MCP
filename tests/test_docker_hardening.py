@@ -71,6 +71,17 @@ def test_dockerfiles_use_pip_cache_mounts() -> None:
     assert "--no-cache-dir" not in turingdb
 
 
+def test_app_dependency_layer_is_not_invalidated_by_documentation_changes() -> None:
+    app = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    project_copy = app.index("COPY pyproject.toml ./")
+    dependency_install = app.index("python - <<'PY'")
+    documentation_copy = app.index("COPY README.md LICENSE ./")
+    source_copy = app.index("COPY src/ ./src/")
+
+    assert project_copy < dependency_install < documentation_copy < source_copy
+
+
 def test_compose_declares_runtime_hardening_controls() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
@@ -117,17 +128,27 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert "--hf-file" not in rerank["command"]
     assert "--embedding" in rerank["command"]
     assert "--parallel" in rerank["command"]
+    parallel_index = rerank["command"].index("--parallel")
+    assert rerank["command"][parallel_index + 1] == "${RERANK_PARALLEL:-2}"
     assert "--no-cache-prompt" in rerank["command"]
 
     app = services["turing-agentmemory-mcp"]
     app_env = set(app["environment"])
     assert app["depends_on"]["agentmemory-embed"]["condition"] == "service_healthy"
     assert app["depends_on"]["agentmemory-rerank"]["condition"] == "service_healthy"
-    assert "EMBED_BASE_URL=http://agentmemory-embed:8080" in app_env
-    assert "EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M" in app_env
-    assert "RERANK_BASE_URL=http://agentmemory-rerank:8080" in app_env
-    assert "RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf" in app_env
-    assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0.00001}" in app_env
+    assert "EMBED_BASE_URL=${EMBED_BASE_URL:-http://agentmemory-embed:8080}" in app_env
+    assert (
+        "EMBED_MODEL=${EMBED_MODEL:-mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M}"
+        in app_env
+    )
+    assert "EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-768}" in app_env
+    assert "EMBED_BATCH_SIZE=${EMBED_BATCH_SIZE:-128}" in app_env
+    assert "EMBED_REQUEST_DIMENSIONS" in app_env
+    assert "RERANK_BASE_URL=${RERANK_BASE_URL:-http://agentmemory-rerank:8080}" in app_env
+    assert "RERANK_MODEL=${RERANK_MODEL:-Qwen3-Reranker-0.6B-q8_0.gguf}" in app_env
+    assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}" in app_env
+    assert "RERANK_CANDIDATE_LIMIT=${RERANK_CANDIDATE_LIMIT:-50}" in app_env
+    assert "RERANK_BLEND=${RERANK_BLEND:-1}" in app_env
     assert not any("host.docker.internal" in value for value in app_env)
 
 
@@ -186,7 +207,7 @@ def test_compose_routes_mcp_to_cached_fast_gliner_sidecar() -> None:
     assert "GLINER_BACKEND=gliner2_http" in app_env
     assert "GLINER_MODEL=lion-ai/gliner2-base-v1-onnx" in app_env
     assert "GLINER_BASE_URL=http://agentmemory-gliner:8080" in app_env
-    assert "GLINER_TIMEOUT_SECONDS=120" in app_env
+    assert "GLINER_TIMEOUT_SECONDS=900" in app_env
     assert services["agentmemory-lab"]["ports"] == ["127.0.0.1:8096:8096"]
 
 
@@ -314,7 +335,7 @@ def test_compose_allows_overrideable_rerank_provider_min_score() -> None:
             if item.startswith("RERANK_PROVIDER_MIN_SCORE=")
         )
 
-    assert value(default) == "0.00001"
+    assert value(default) == "0"
     assert value(overridden) == "0.25"
 
 
@@ -370,12 +391,18 @@ def test_turingdb_startup_cleans_runtime_socket_and_allows_slow_vector_load() ->
     assert "turingdb stop -turing-dir /turing" in command
     assert "trap shutdown TERM INT" in command
     assert "while :; do" in command
-    assert "TuringDB(type='json', host='http://127.0.0.1:6666').try_reach(timeout=2)" in command
+    assert "sleep 3600 &" in command
+    assert "wait $!" in command
+    assert "try_reach" not in command
     assert "stdin_open" not in service
     assert "exec turingdb start" not in command
     assert "-start-timeout" not in command
     assert "healthcheck" in service
     assert service["healthcheck"]["retries"] >= 80
+    assert service["deploy"]["resources"]["limits"] == {
+        "cpus": "4.0",
+        "memory": "8g",
+    }
 
 
 def test_compose_serves_agentmemory_lab_frontend_on_local_port() -> None:

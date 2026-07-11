@@ -5,6 +5,7 @@ import os
 import sys
 import threading
 import time
+from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 from dataclasses import asdict, dataclass, field
@@ -40,6 +41,61 @@ class SpanRecorder(Protocol):
 class NoopSpanRecorder:
     def span(self, name: str, attributes: dict[str, object] | None = None) -> Any:
         return nullcontext()
+
+
+class RuntimeSignals:
+    """Content-free readiness and degradation state for health cadence."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._stages: dict[str, dict[str, object]] = {}
+        self._projections: dict[str, dict[str, object]] = {}
+        self._degraded_channels: Counter[str] = Counter()
+
+    def configure_stage(
+        self,
+        name: str,
+        *,
+        ready: bool,
+        identity: dict[str, object] | None = None,
+    ) -> None:
+        stage: dict[str, object] = {"ready": bool(ready)}
+        if identity:
+            stage["identity"] = _clean_attributes(identity)
+        with self._lock:
+            self._stages[name] = stage
+
+    def record_degraded_channels(self, channels: list[str] | tuple[str, ...]) -> None:
+        with self._lock:
+            self._degraded_channels.update(str(channel) for channel in channels if channel)
+
+    def record_projection(
+        self,
+        name: str,
+        *,
+        success: bool,
+        item_count: int = 0,
+        error_type: str = "",
+    ) -> None:
+        value: dict[str, object] = {
+            "status": "ready" if success else "degraded",
+            "item_count": max(0, int(item_count)),
+            "updated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        }
+        if error_type:
+            value["error_type"] = error_type
+        with self._lock:
+            self._projections[name] = value
+
+    def snapshot(self) -> dict[str, object]:
+        with self._lock:
+            return {
+                "stages": {name: dict(value) for name, value in sorted(self._stages.items())},
+                "projections": {
+                    name: dict(value) for name, value in sorted(self._projections.items())
+                },
+                "degraded_channel_counts": dict(sorted(self._degraded_channels.items())),
+            }
 
 
 class InMemorySpanRecorder:
@@ -244,6 +300,9 @@ def _percentile(values: list[float], percentile: float) -> float:
 def _clean_attributes(attributes: dict[str, object] | None) -> dict[str, object]:
     clean: dict[str, object] = {}
     for key, value in (attributes or {}).items():
+        normalized_key = str(key).strip().lower()
+        if normalized_key in {"content", "query", "text", "document", "documents"}:
+            continue
         if isinstance(value, (str, int, float, bool)) or value is None:
             clean[str(key)] = value
         elif isinstance(value, (list, tuple)):

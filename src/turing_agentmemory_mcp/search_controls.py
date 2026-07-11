@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import math
+from collections.abc import Mapping
+
 
 def validate_search_query(query: str) -> str:
     if not isinstance(query, str):
@@ -21,6 +24,23 @@ def validate_threshold(threshold: float | int) -> float:
 
 def passes_threshold(score: float, threshold: float) -> bool:
     return float(score) >= threshold
+
+
+def validate_fusion_weights(weights: Mapping[str, object]) -> dict[str, float]:
+    if not isinstance(weights, Mapping) or not weights:
+        raise ValueError("fusion weights must be a non-empty mapping")
+    if any(not isinstance(channel, str) or not channel.strip() for channel in weights):
+        raise ValueError("fusion weight channel must be non-empty")
+    validated: dict[str, float] = {}
+    for channel in sorted(weights):
+        raw_weight = weights[channel]
+        if isinstance(raw_weight, bool) or not isinstance(raw_weight, (int, float)):
+            raise ValueError(f"fusion weight for {channel} must be a positive finite number")
+        weight = float(raw_weight)
+        if not math.isfinite(weight) or weight <= 0:
+            raise ValueError(f"fusion weight for {channel} must be a positive finite number")
+        validated[channel] = weight
+    return validated
 
 
 def build_score_details(

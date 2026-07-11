@@ -4,6 +4,39 @@ TuringDB-backed Agent Memory MCP server with provider-agnostic embedding and
 rerank integrations, memory lifecycle tools, document ingest, and cited
 retrieval.
 
+> **Status:** pre-1.0. The core pipeline is tested end to end, but production
+> deployments must provide TLS and bind authenticated principals to allowed
+> `user_identifier` values. Review [known limitations](docs/limitations.md)
+> before deployment.
+
+## Quick Start
+
+The reference Compose stack uses local CUDA embedding and rerank sidecars. It
+requires an NVIDIA GPU visible to Docker.
+
+```powershell
+git clone https://github.com/chetto1983/turing_AgentMemory_MCP.git
+Set-Location turing_AgentMemory_MCP
+Copy-Item .env.example .env
+docker compose up -d turing-agentmemory-mcp
+docker compose ps
+Invoke-RestMethod http://127.0.0.1:8095/health
+```
+
+The MCP endpoint is `http://127.0.0.1:8095/mcp/`. The first start downloads
+revision-pinned model files; later starts reuse Docker model-cache volumes.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Deployment](docs/deployment.md)
+- [Configuration](docs/configuration.md)
+- [MCP API](docs/mcp-api.md)
+- [Operations](docs/operations.md)
+- [Security](docs/security.md)
+- [Performance](docs/performance.md)
+- [Documentation index](docs/README.md)
+
 - Agent memory tools:
   `memory_search`, `memory_get_context`, `memory_store_message`,
   `memory_store_messages`,
@@ -11,6 +44,7 @@ retrieval.
   `memory_add_entity`, `memory_add_preference`, `memory_add_fact`.
 - Document tools for ingestion, repair, deletion, and retrieval:
   `document_ingest_text`, `document_ingest_file`, `document_reindex_text`,
+  `document_ingest_status`, `document_ingest_cancel`, `document_ingest_retry`,
   `document_delete`, `document_search`.
 - TuringDB graph edges for ownership and context:
   `(:User)-[:HAS_MEMORY]->(:Memory)`,
@@ -31,8 +65,9 @@ retrieval.
   `AGENTMEMORY_AUTH_TOKEN` or `AGENTMEMORY_AUTH_TOKENS` is set.
 - Hybrid retrieval combines vector similarity with lexical exact token, phrase,
   ID, error-code, and file-path matching.
-- Microsoft MarkItDown converts local PDF, Office, spreadsheet, HTML, and other
-  supported files to Markdown before the existing chunking/citation pipeline.
+- PDFium extracts page-aware text from PDFs. Microsoft MarkItDown converts
+  Office, spreadsheet, HTML, and other supported files before the existing
+  chunking/citation pipeline.
 
 ## Why It Is A Separate Repo
 
@@ -40,12 +75,11 @@ Neo4j-style memory packages and TuringDB expose different graph/vector behavior.
 This repo is a clean TuringDB-native MCP instead of a compatibility shim for one
 upstream memory implementation or one model provider.
 
-## Run With Docker
+## Verify With Docker
 
 ```powershell
 docker compose build
 docker compose run --rm e2e
-docker compose up turing-agentmemory-mcp
 ```
 
 The MCP service expects a TuringDB daemon reachable at `TURINGDB_URL` and a
@@ -56,8 +90,8 @@ same `/turing` volume.
 ## Document Processing
 
 Use `document_ingest_text` when your caller already has clean text. Use
-`document_ingest_file` for local files that should be normalized to Markdown
-first:
+`document_ingest_file` for files that should be staged durably, normalized, and
+indexed in the background:
 
 ```json
 {
@@ -69,9 +103,31 @@ first:
 }
 ```
 
-The file path is resolved locally inside the MCP runtime. The converter uses
-MarkItDown's local-file conversion path, stores extracted Markdown as document
-chunks, and adds provenance under `metadata.document_processing`.
+The tool returns after durable staging, not after conversion and embedding. Its
+response contains a `job_id`, `status=queued`, stage, attempt count, and
+progress fields. Poll `document_ingest_status` with the same
+`user_identifier`; terminal states are `succeeded`, `failed`, and `canceled`.
+On success, `result` contains the normal document result including
+`document_id`, `chunk_count`, and processing metadata.
+
+Use `document_ingest_cancel` for queued or running work and
+`document_ingest_retry` for a failed job whose staged file remains available.
+Cancellation of running work is cooperative at conversion/indexing boundaries.
+Jobs, leases, attempts, and staged files survive MCP process restarts under
+`/turing/data`; workers renew their leases on a health cadence while provider or
+TuringDB calls are in progress.
+
+For a remote/container MCP, the local `turing_agentmemory_mcp.file_pipe` proxy
+keeps the same `document_ingest_file` tool name. It allowlists host roots,
+streams verified chunks through `document_upload_begin`,
+`document_upload_chunk`, and `document_upload_commit`, and never requires a
+host filesystem mount in the MCP container. A path passed directly to the
+remote MCP must already be local to that server.
+
+PDF processing preserves `<!-- page N -->` markers and uses 4096-character
+page-aware chunks. Other supported formats use MarkItDown. Provenance is stored
+under `metadata.document_processing`, including converter, original filename,
+SHA-256, byte size, transport, and page counts when available.
 
 ## AgentMemory Lab
 
@@ -110,7 +166,9 @@ docker compose up -d
 ```
 
 Keep audit/span JSONL under `/turing` if you want those files captured by the
-same backup procedure.
+same backup procedure. The same volume also contains the durable document job
+SQLite database and staged files, so queued and retryable work is captured by
+the backup.
 
 ## Vector Index Repair
 
@@ -195,6 +253,13 @@ Primary provider environment variables:
   `AGENTMEMORY_OBSERVABILITY_JSONL=/turing/audit/spans.jsonl` writes timing
   spans for embed, TuringDB query, vector load, rerank, chunking, and MCP tool
   latency.
+- Asynchronous document ingestion:
+  `AGENTMEMORY_DOCUMENT_JOB_PATH`, `AGENTMEMORY_DOCUMENT_STAGING_ROOT`,
+  `AGENTMEMORY_DOCUMENT_JOB_LEASE_SECONDS`,
+  `AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS`,
+  `AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS`, and
+  `AGENTMEMORY_DOCUMENT_JOB_MAX_ATTEMPTS`. Compose defaults keep the database
+  and staging root on the shared `turing-data` volume.
 - MCP auth:
   set `AGENTMEMORY_AUTH_TOKEN` for one static bearer token, or
   `AGENTMEMORY_AUTH_TOKENS=token-a,token-b` for token rotation. Optional
@@ -212,12 +277,18 @@ The HTTP contracts remain OpenAI-compatible: `/v1/embeddings` for embedding and
 URLs at the compatible gateway/proxy and configure the API key/header variables
 above.
 
-By default, rerank will not displace the top hybrid lexical/vector seed when the
-rerank winner trails it by at least `RERANK_PRESERVE_SEED_MARGIN` (`0.05` by
-default). Set the margin to `0` for pure rerank ordering or use
-`RERANK_BLEND=1` for reciprocal-rank blending.
+By default, `RERANK_BLEND=1` combines the fused retrieval and provider orders
+with reciprocal-rank fusion. Set `RERANK_BLEND=0` for guarded pure rerank
+ordering; `RERANK_PRESERVE_SEED_MARGIN` (`0.05` by default) then keeps the top
+hybrid seed when the rerank winner trails it by at least that margin.
 
-`RERANK_PROVIDER_MIN_SCORE` defaults to `0.00001` and can be overridden when a
+Weighted RRF prioritizes direct evidence with `bm25=2.0`,
+`episode_dense=1.5`, `fact_dense=0.75`, `entity_dense=0.5`, `graph=0.5`, and
+`community=0.25`. Override the complete mapping with
+`AGENTMEMORY_FUSION_WEIGHTS` as a JSON object when running a measured ablation.
+
+`RERANK_PROVIDER_MIN_SCORE` defaults to `0` because GGUF ranking logits may be
+valid at very small scales. It can be overridden when a
 local GGUF reranker returns
 provider-specific near-zero scores that should not be trusted as calibrated
 relevance. If the provider's top score is below that value, AgentMemory still

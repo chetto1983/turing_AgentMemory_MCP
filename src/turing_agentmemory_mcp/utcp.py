@@ -124,6 +124,31 @@ DOCUMENT_OUTPUT: JsonDict = {
     "additionalProperties": True,
 }
 
+DOCUMENT_JOB_OUTPUT: JsonDict = {
+    "type": "object",
+    "properties": {
+        "job_id": _string(),
+        "user_identifier": _string(),
+        "document_id": _string(),
+        "title": _string(),
+        "filename": _string(),
+        "status": _string(),
+        "stage": _string(),
+        "progress_current": _integer(),
+        "progress_total": _integer(),
+        "attempt": _integer(),
+        "max_attempts": _integer(),
+        "error_code": _string(),
+        "error_message": _string(),
+        "result": _object(),
+        "created_at": _string(),
+        "updated_at": _string(),
+        "started_at": _string(),
+        "completed_at": _string(),
+    },
+    "additionalProperties": True,
+}
+
 DOCUMENT_HIT_OUTPUT: JsonDict = {
     "type": "object",
     "properties": {
@@ -240,7 +265,7 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
     },
     {
         "name": "memory_search",
-        "description": "Search scoped memory by semantic similarity, hybrid lexical signals, and optional rerank.",
+        "description": "Search scoped memory with fused dense, BM25, entity, graph, and rerank signals.",
         "tags": ["memory", "search", "retrieval"],
         "inputs": _schema(
             {
@@ -346,8 +371,8 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
     },
     {
         "name": "document_ingest_file",
-        "description": "Convert a local file to Markdown with MarkItDown, then ingest it with citations.",
-        "tags": ["document", "write", "ingest", "citations", "markitdown"],
+        "description": "Durably enqueue a local file for background conversion and cited ingestion.",
+        "tags": ["document", "write", "ingest", "citations", "async"],
         "inputs": _schema(
             {
                 "title": _string(),
@@ -361,7 +386,37 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
             },
             ["title", "path"],
         ),
-        "outputs": DOCUMENT_OUTPUT,
+        "outputs": DOCUMENT_JOB_OUTPUT,
+    },
+    {
+        "name": "document_ingest_status",
+        "description": "Return tenant-scoped state and progress for a document ingestion job.",
+        "tags": ["document", "ingest", "async", "status"],
+        "inputs": _schema(
+            {"job_id": _string(), "user_identifier": _string("default")},
+            ["job_id"],
+        ),
+        "outputs": DOCUMENT_JOB_OUTPUT,
+    },
+    {
+        "name": "document_ingest_cancel",
+        "description": "Cancel a queued job or request cancellation of a running ingestion job.",
+        "tags": ["document", "ingest", "async", "cancel"],
+        "inputs": _schema(
+            {"job_id": _string(), "user_identifier": _string("default")},
+            ["job_id"],
+        ),
+        "outputs": DOCUMENT_JOB_OUTPUT,
+    },
+    {
+        "name": "document_ingest_retry",
+        "description": "Requeue a failed document ingestion job from durable staging.",
+        "tags": ["document", "ingest", "async", "retry"],
+        "inputs": _schema(
+            {"job_id": _string(), "user_identifier": _string("default")},
+            ["job_id"],
+        ),
+        "outputs": DOCUMENT_JOB_OUTPUT,
     },
     {
         "name": "document_reindex_text",

@@ -16,6 +16,11 @@ def main() -> int:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8080)
 
+    sub.add_parser(
+        "file-pipe",
+        help="Proxy AgentMemory while streaming allowlisted local files to its MCP server",
+    )
+
     score = sub.add_parser("e2e-score", help="Run deterministic 10/10 E2E score")
     score.add_argument("--out", default="e2e-results.json")
 
@@ -52,6 +57,11 @@ def main() -> int:
         if args.transport in {"http", "sse"}:
             kwargs = {"host": args.host, "port": args.port}
         app.run(transport=args.transport, **kwargs)
+        return 0
+    if args.command == "file-pipe":
+        from turing_agentmemory_mcp.file_pipe import main as run_file_pipe
+
+        run_file_pipe()
         return 0
     if args.command == "e2e-score":
         from turing_agentmemory_mcp.e2e_score import run_e2e

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 
+RETRYABLE_PROVIDER_CODES = frozenset({429, 500, 502, 503, 504, 529})
+
 
 def provider_env(name: str, *, default: str = "") -> str:
     return os.environ.get(name, default)
@@ -55,3 +57,23 @@ def store_embedding_dimensions(default: str = "768") -> str:
     if value is not None:
         return value
     return default
+
+
+def provider_error_code(payload: object) -> int:
+    if not isinstance(payload, dict):
+        return 0
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return 0
+    code = error.get("code")
+    if isinstance(code, bool):
+        return 0
+    if isinstance(code, int):
+        return code
+    if isinstance(code, str) and code.strip().isdigit():
+        return int(code.strip())
+    return 0
+
+
+def retryable_provider_code(code: int) -> bool:
+    return code in RETRYABLE_PROVIDER_CODES

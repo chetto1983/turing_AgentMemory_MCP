@@ -7,7 +7,7 @@ RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app \
     && mkdir -p /app /turing /tmp /run
 
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml ./
 
 ARG PYPROJECT_EXTRAS=dev
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -32,6 +32,7 @@ subprocess.check_call(
 )
 PY
 
+COPY README.md LICENSE ./
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY tests/ ./tests/

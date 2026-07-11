@@ -4,8 +4,13 @@ import json
 import sys
 from pathlib import Path
 
-from turing_agentmemory_mcp.admin_repair import repair_vector_index
+from turing_agentmemory_mcp.admin_repair import (
+    repair_community_projection,
+    repair_sparse_projection,
+    repair_vector_index,
+)
 from turing_agentmemory_mcp.cli import main
+from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseIndex
 
 
 def _corrupt_vector_home(tmp_path: Path) -> Path:
@@ -96,3 +101,64 @@ def test_readme_documents_vector_index_repair() -> None:
     assert "## Vector Index Repair" in readme
     assert "repair-vector-index --turing-home /turing" in readme
     assert "repair-vector-index --turing-home /turing --apply" in readme
+
+
+def test_repair_sparse_projection_dry_run_does_not_mutate(tmp_path: Path) -> None:
+    path = tmp_path / "data" / "agent-memory-fts.sqlite3"
+    index = SparseIndex(path)
+    index.initialize()
+    existing = SparseDocument("alice:episode:old", "alice", "old", "episode", "old memory")
+    index.upsert_many([existing])
+    replacement = SparseDocument("alice:episode:new", "alice", "new", "episode", "new memory")
+
+    result = repair_sparse_projection(path, [replacement], apply=False)
+
+    assert result["status"] == "would_rebuild"
+    assert result["canonical_document_count"] == 1
+    assert [hit.source_id for hit in index.search(user_identifier="alice", query="old", limit=10)] == [
+        "old"
+    ]
+
+
+def test_repair_sparse_projection_rebuilds_from_canonical_documents(tmp_path: Path) -> None:
+    path = tmp_path / "data" / "agent-memory-fts.sqlite3"
+    replacement = SparseDocument("alice:episode:new", "alice", "new", "episode", "new memory")
+
+    result = repair_sparse_projection(path, [replacement], apply=True)
+
+    index = SparseIndex(path)
+    assert result["status"] == "rebuilt"
+    assert result["applied"] is True
+    assert [hit.source_id for hit in index.search(user_identifier="alice", query="new", limit=10)] == [
+        "new"
+    ]
+
+
+class CommunityRepairStore:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def rebuild_communities(self, *, user_identifier: str) -> dict[str, object]:
+        self.calls.append(user_identifier)
+        return {"community_count": 4, "backend": "graspologic-native"}
+
+
+def test_repair_community_projection_is_dry_run_by_default() -> None:
+    store = CommunityRepairStore()
+
+    result = repair_community_projection(store, user_identifier="alice")
+
+    assert result["status"] == "would_rebuild"
+    assert result["applied"] is False
+    assert store.calls == []
+
+
+def test_repair_community_projection_rebuilds_derived_state() -> None:
+    store = CommunityRepairStore()
+
+    result = repair_community_projection(store, user_identifier="alice", apply=True)
+
+    assert result["status"] == "rebuilt"
+    assert result["applied"] is True
+    assert result["projection"]["community_count"] == 4
+    assert store.calls == ["alice"]

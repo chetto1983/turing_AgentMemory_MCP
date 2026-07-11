@@ -16,9 +16,12 @@ import statistics
 import subprocess
 import time
 from collections import Counter, defaultdict
+from collections.abc import Sequence
+from contextlib import AsyncExitStack
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
+from urllib.parse import urlsplit
 
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
@@ -30,6 +33,25 @@ CATEGORY_NAMES = {
     4: "open_domain",
     5: "adversarial",
 }
+COMPARABLE_CUTOFFS = (20, 50, 200)
+MAX_INGEST_BATCH = 1024
+MAX_SEARCH_CONCURRENCY = 4
+
+
+class ResumeState(NamedTuple):
+    completed_samples: frozenset[str]
+    conversations: list[dict[str, Any]]
+    results: list[dict[str, Any]]
+
+
+class QuestionEvaluation(NamedTuple):
+    question_index: int
+    evidence: list[str]
+    retrieved_refs: list[str]
+    answer_hit_by_k: dict[int, bool]
+    latency_ms: float
+    error: str
+    row: dict[str, Any] | None
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,11 +73,16 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Output JSON path. Defaults to .benchmarks/backboard-locomo-direct-mcp-<timestamp>.json.",
     )
-    parser.add_argument("--top-k", type=int, default=10, help="memory_search limit.")
-    parser.add_argument("--batch-size", type=int, default=50, help="MCP ingest batch size.")
+    parser.add_argument("--top-k", type=int, default=200, help="memory_search limit (max 200).")
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=MAX_INGEST_BATCH,
+        help=f"MCP ingest batch size (max {MAX_INGEST_BATCH}).",
+    )
     parser.add_argument(
         "--scope-prefix",
-        default="bench-backboard-locomo-direct-mcp-v1",
+        default="bench-backboard-locomo-fused-v2",
         help="Stable user_identifier prefix. Stable values make ingestion idempotent across reruns.",
     )
     parser.add_argument(
@@ -84,6 +111,22 @@ def parse_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Include per-question retrieval details in the JSON output.",
+    )
+    parser.add_argument(
+        "--ablation-id",
+        default="fused-full",
+        help="Stable identity for the retrieval configuration under test.",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume completed conversations from the output checkpoint.",
+    )
+    parser.add_argument(
+        "--search-concurrency",
+        type=int,
+        default=1,
+        help=f"Independent direct-MCP search workers (1-{MAX_SEARCH_CONCURRENCY}).",
     )
     return parser.parse_args()
 
@@ -142,7 +185,22 @@ def turn_content(sample_id: str, session_key: str, session_dt: str, turn: dict[s
         parts.append(f"Image caption: {caption}.")
     img_urls = turn.get("img_url")
     if isinstance(img_urls, list) and img_urls:
-        parts.append(f"Image URLs: {' '.join(str(url) for url in img_urls)}")
+        references: list[str] = []
+        for value in img_urls:
+            url = str(value)
+            if url.casefold().startswith("data:"):
+                media_type = url[5:].split(";", 1)[0] or "media"
+                references.append(f"[embedded {media_type} omitted]")
+            else:
+                parsed = urlsplit(url)
+                if parsed.scheme in {"http", "https"} and parsed.hostname:
+                    filename = parsed.path.rstrip("/").rsplit("/", 1)[-1]
+                    references.append(
+                        f"{parsed.hostname}/{filename}" if filename else parsed.hostname
+                    )
+                else:
+                    references.append(url.split("?", 1)[0][:256])
+        parts.append(f"Image URLs: {' '.join(dict.fromkeys(references))}")
     return " ".join(part for part in parts if part)
 
 
@@ -189,6 +247,47 @@ def normalize_text(value: Any) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def estimate_tokens(value: str) -> int:
+    return max(1, (len(value.encode("utf-8")) + 3) // 4)
+
+
+def retrieval_cutoffs(top_k: int) -> list[int]:
+    if top_k <= 0 or top_k > 200:
+        raise ValueError("top_k must be between 1 and 200")
+    return sorted({k for k in (1, 3, 5, 10, *COMPARABLE_CUTOFFS, top_k) if k <= top_k})
+
+
+def validate_batch_size(value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_INGEST_BATCH:
+        raise ValueError(f"batch_size must be between 1 and {MAX_INGEST_BATCH}")
+    return value
+
+
+def validate_search_concurrency(value: int) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 1 <= value <= MAX_SEARCH_CONCURRENCY
+    ):
+        raise ValueError(f"search_concurrency must be between 1 and {MAX_SEARCH_CONCURRENCY}")
+    return value
+
+
+def mcp_transport(container: str) -> StdioTransport:
+    return StdioTransport(
+        command="docker.exe",
+        args=[
+            "exec",
+            "-i",
+            container,
+            "turing-agentmemory-mcp",
+            "serve",
+            "--transport",
+            "stdio",
+        ],
+    )
+
+
 def answer_in_hits(answer: Any, hits: list[dict[str, Any]], k: int) -> bool:
     answer_text = normalize_text(answer)
     if len(answer_text) < 2:
@@ -209,6 +308,7 @@ def result_ref(hit: dict[str, Any]) -> str:
 
 def compact_hit(hit: dict[str, Any], rank: int) -> dict[str, Any]:
     metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+    content = str(hit.get("content") or "")
     return {
         "rank": rank,
         "id": hit.get("id"),
@@ -217,6 +317,39 @@ def compact_hit(hit: dict[str, Any], rank: int) -> dict[str, Any]:
         "sample_id": metadata.get("sample_id"),
         "session_id": hit.get("session_id"),
         "speaker": metadata.get("speaker") or hit.get("role"),
+        "content": content,
+        "estimated_tokens": estimate_tokens(content),
+    }
+
+
+def retrieval_diagnostics(hits: list[dict[str, Any]]) -> dict[str, Any]:
+    statuses: set[str] = set()
+    models: set[str] = set()
+    channels: set[str] = set()
+    for hit in hits:
+        details = hit.get("score_details")
+        if not isinstance(details, dict):
+            continue
+        status = details.get("rerank_status")
+        if isinstance(status, str) and status:
+            statuses.add(status)
+        model = details.get("rerank_model")
+        if isinstance(model, str) and model:
+            models.add(model)
+        hit_channels = details.get("channels")
+        if isinstance(hit_channels, dict):
+            channels.update(str(name) for name in hit_channels)
+    candidate_limited = "candidate_limit" in statuses
+    primary_statuses = statuses - {"candidate_limit"}
+    return {
+        "rerank_status": (
+            next(iter(primary_statuses))
+            if len(primary_statuses) == 1
+            else "mixed" if primary_statuses else "candidate_limit" if candidate_limited else ""
+        ),
+        "rerank_model": next(iter(models)) if len(models) == 1 else "mixed" if models else "",
+        "rerank_candidate_limited": candidate_limited,
+        "retrieval_channels": sorted(channels),
     }
 
 
@@ -253,6 +386,33 @@ def require_entity_model(summary: dict[str, Any], required_model: str) -> None:
         raise RuntimeError(f"benchmark ingest did not report required entity model: {required_model}")
 
 
+def extraction_summary_from_runtime(runtime: object) -> dict[str, Any]:
+    if not isinstance(runtime, dict):
+        return {"annotated_memories": 0, "entities": 0, "models": [], "schema_version": ""}
+    stages = runtime.get("stages")
+    extraction = stages.get("extraction") if isinstance(stages, dict) else None
+    identity = extraction.get("identity") if isinstance(extraction, dict) else None
+    model = identity.get("model") if isinstance(identity, dict) else None
+    schema = identity.get("schema_version") if isinstance(identity, dict) else None
+    return {
+        "annotated_memories": 0,
+        "entities": 0,
+        "models": [model] if isinstance(model, str) and model else [],
+        "schema_version": schema if isinstance(schema, str) else "",
+    }
+
+
+def resume_state(payload: object) -> ResumeState:
+    if not isinstance(payload, dict):
+        return ResumeState(frozenset(), [], [])
+    conversations = [row for row in payload.get("conversations", []) if isinstance(row, dict)]
+    results = [row for row in payload.get("results", []) if isinstance(row, dict)]
+    completed = frozenset(
+        str(row.get("sample_id")) for row in conversations if row.get("sample_id")
+    )
+    return ResumeState(completed, conversations, results)
+
+
 async def call_tool(client: Client, name: str, arguments: dict[str, Any]) -> Any:
     result = await client.call_tool(name, arguments)
     if result.is_error:
@@ -274,11 +434,34 @@ async def ingest_conversation(
     user_identifier: str,
     messages: list[dict[str, Any]],
     batch_size: int,
+    skip_existing: bool = False,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     stored = 0
     stored_rows: list[dict[str, Any]] = []
     started = time.perf_counter()
-    for batch in chunks(messages, batch_size):
+    pending_messages = messages
+    existing = 0
+    if skip_existing:
+        pending_messages = []
+        for index, message in enumerate(messages, 1):
+            current = await call_tool(
+                client,
+                "memory_get",
+                {
+                    "memory_id": str(message["memory_id"]),
+                    "user_identifier": user_identifier,
+                },
+            )
+            if current is None:
+                pending_messages.append(message)
+            else:
+                existing += 1
+            if index % 100 == 0 or index == len(messages):
+                print(
+                    f"  resume scan: {index}/{len(messages)} existing={existing}",
+                    flush=True,
+                )
+    for batch in chunks(pending_messages, batch_size):
         result = await call_tool(
             client,
             "memory_store_messages",
@@ -287,18 +470,26 @@ async def ingest_conversation(
                 "user_identifier": user_identifier,
                 "source": "backboard-locomo",
                 "tags": ["benchmark", "backboard", "locomo", "turns-only"],
+                "refresh_communities": False,
             },
         )
         if not isinstance(result, list):
             raise RuntimeError("memory_store_messages returned a non-list result")
         stored += len(result)
         stored_rows.extend(row for row in result if isinstance(row, dict))
+    community = await call_tool(
+        client,
+        "memory_rebuild_communities",
+        {"user_identifier": user_identifier},
+    )
     return (
         {
             "messages": len(messages),
+            "existing_results": existing,
             "stored_results": stored,
             "duration_ms": round((time.perf_counter() - started) * 1000, 3),
             "entity_extraction": summarize_entity_extraction(stored_rows),
+            "community": community,
         },
         stored_rows,
     )
@@ -318,6 +509,7 @@ def init_metric_counts() -> dict[str, Any]:
         "evidence_all_hits": Counter(),
         "answer_in_content_hits": Counter(),
         "evidence_or_answer_hits": Counter(),
+        "reciprocal_rank_sum": 0.0,
     }
 
 
@@ -340,6 +532,12 @@ def update_metrics(
     has_evidence = bool(evidence_set)
     if has_evidence:
         bucket["evidence_total"] += 1
+        first_rank = next(
+            (rank for rank, ref in enumerate(retrieved_refs, 1) if ref in evidence_set),
+            None,
+        )
+        if first_rank is not None:
+            bucket["reciprocal_rank_sum"] += 1.0 / first_rank
     for k in ks:
         top_refs = set(ref for ref in retrieved_refs[:k] if ref)
         any_hit = has_evidence and bool(evidence_set & top_refs)
@@ -369,6 +567,9 @@ def finalize_metrics(bucket: dict[str, Any], ks: list[int]) -> dict[str, Any]:
             "p50": round(statistics.median(latencies), 3) if latencies else 0.0,
             "max": round(max(latencies), 3) if latencies else 0.0,
         },
+        "mrr": round(bucket["reciprocal_rank_sum"] / evidence_total, 6)
+        if evidence_total
+        else 0.0,
     }
     for k in ks:
         out[f"evidence_any_at_{k}"] = (
@@ -386,8 +587,78 @@ def finalize_metrics(bucket: dict[str, Any], ks: list[int]) -> dict[str, Any]:
     return out
 
 
-async def evaluate_conversation(
+async def evaluate_question(
     client: Client,
+    *,
+    sample_id: str,
+    question_index: int,
+    qa: dict[str, Any],
+    user_identifier: str,
+    top_k: int,
+    ks: list[int],
+    save_result: bool,
+) -> QuestionEvaluation:
+    category = int(qa.get("category") or 0)
+    question = str(qa.get("question") or "")
+    evidence = [str(ref) for ref in qa.get("evidence") or []]
+    started = time.perf_counter()
+    error = ""
+    hits: list[dict[str, Any]] = []
+    try:
+        hits = await call_tool(
+            client,
+            "memory_search",
+            {
+                "query": question,
+                "user_identifier": user_identifier,
+                "limit": top_k,
+                "source": "backboard-locomo",
+                "tags": ["locomo"],
+            },
+        )
+        hits = hits or []
+    except Exception as exc:  # noqa: BLE001 - report per-question MCP failures.
+        error = f"{type(exc).__name__}: {exc}"
+    latency_ms = (time.perf_counter() - started) * 1000
+    retrieved_refs = [result_ref(hit) for hit in hits]
+    answer_hit_by_k = {k: answer_in_hits(qa.get("answer"), hits, k) for k in ks}
+    row = None
+    if save_result:
+        row = {
+            "sample_id": sample_id,
+            "question_index": question_index,
+            "category": category,
+            "question_type": CATEGORY_NAMES.get(category, "unknown"),
+            "question": question,
+            "answer": qa.get("answer"),
+            "evidence": evidence,
+            "retrieved_refs": retrieved_refs,
+            "evidence_any_at_top_k": bool(set(evidence) & set(retrieved_refs))
+            if evidence
+            else False,
+            "evidence_all_at_top_k": set(evidence).issubset(set(retrieved_refs))
+            if evidence
+            else False,
+            "answer_in_content_at_top_k": answer_hit_by_k[top_k],
+            "answer_in_content_by_k": {str(k): answer_hit_by_k[k] for k in ks},
+            "latency_ms": round(latency_ms, 3),
+            "error": error,
+            **retrieval_diagnostics(hits),
+            "retrieved": [compact_hit(hit, rank) for rank, hit in enumerate(hits, 1)],
+        }
+    return QuestionEvaluation(
+        question_index=question_index,
+        evidence=evidence,
+        retrieved_refs=retrieved_refs,
+        answer_hit_by_k=answer_hit_by_k,
+        latency_ms=latency_ms,
+        error=error,
+        row=row,
+    )
+
+
+async def evaluate_conversation(
+    clients: Sequence[Client],
     *,
     item: dict[str, Any],
     user_identifier: str,
@@ -395,71 +666,57 @@ async def evaluate_conversation(
     ks: list[int],
     save_results: bool,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    if not clients:
+        raise ValueError("at least one MCP search client is required")
     sample_id = str(item.get("sample_id") or "sample")
     qa_items = question_rows(item)
     metrics = init_metric_counts()
     rows: list[dict[str, Any]] = []
-    for idx, qa in enumerate(qa_items, 1):
-        category = int(qa.get("category") or 0)
-        question = str(qa.get("question") or "")
-        evidence = [str(ref) for ref in qa.get("evidence") or []]
-        started = time.perf_counter()
-        error = ""
-        hits: list[dict[str, Any]] = []
-        try:
-            hits = await call_tool(
+    queue: asyncio.Queue[tuple[int, dict[str, Any]]] = asyncio.Queue()
+    for question_index, qa in enumerate(qa_items, 1):
+        queue.put_nowait((question_index, qa))
+    completed = 0
+
+    async def search_worker(client: Client) -> None:
+        nonlocal completed
+        while True:
+            try:
+                question_index, qa = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+            evaluation = await evaluate_question(
                 client,
-                "memory_search",
-                {
-                    "query": question,
-                    "user_identifier": user_identifier,
-                    "limit": top_k,
-                    "source": "backboard-locomo",
-                    "tags": ["locomo"],
-                },
+                sample_id=sample_id,
+                question_index=question_index,
+                qa=qa,
+                user_identifier=user_identifier,
+                top_k=top_k,
+                ks=ks,
+                save_result=save_results,
             )
-            hits = hits or []
-        except Exception as exc:  # noqa: BLE001 - report per-question MCP failures.
-            error = f"{type(exc).__name__}: {exc}"
-        latency_ms = (time.perf_counter() - started) * 1000
-        retrieved_refs = [result_ref(hit) for hit in hits]
-        answer_hit_by_k = {k: answer_in_hits(qa.get("answer"), hits, k) for k in ks}
-        update_metrics(
-            metrics,
-            evidence=evidence,
-            retrieved_refs=retrieved_refs,
-            answer_hit_by_k=answer_hit_by_k,
-            ks=ks,
-            latency_ms=latency_ms,
-            search_error=bool(error),
-        )
-        if save_results:
-            rows.append(
-                {
-                    "sample_id": sample_id,
-                    "question_index": idx,
-                    "category": category,
-                    "question_type": CATEGORY_NAMES.get(category, "unknown"),
-                    "question": question,
-                    "answer": qa.get("answer"),
-                    "evidence": evidence,
-                    "retrieved_refs": retrieved_refs,
-                    "evidence_any_at_top_k": bool(set(evidence) & set(retrieved_refs)) if evidence else False,
-                    "evidence_all_at_top_k": set(evidence).issubset(set(retrieved_refs)) if evidence else False,
-                    "answer_in_content_at_top_k": answer_hit_by_k[top_k],
-                    "answer_in_content_by_k": {str(k): answer_hit_by_k[k] for k in ks},
-                    "latency_ms": round(latency_ms, 3),
-                    "error": error,
-                    "retrieved": [compact_hit(hit, rank) for rank, hit in enumerate(hits, 1)],
-                }
+            update_metrics(
+                metrics,
+                evidence=evaluation.evidence,
+                retrieved_refs=evaluation.retrieved_refs,
+                answer_hit_by_k=evaluation.answer_hit_by_k,
+                ks=ks,
+                latency_ms=evaluation.latency_ms,
+                search_error=bool(evaluation.error),
             )
-        if idx % 25 == 0 or idx == len(qa_items):
-            print(
-                f"  searched {sample_id}: {idx}/{len(qa_items)} "
-                f"evidence_any@{top_k}="
-                f"{metrics['evidence_any_hits'][top_k]}/{max(metrics['evidence_total'], 1)}",
-                flush=True,
-            )
+            if evaluation.row is not None:
+                rows.append(evaluation.row)
+            completed += 1
+            if completed % 25 == 0 or completed == len(qa_items):
+                print(
+                    f"  searched {sample_id}: {completed}/{len(qa_items)} "
+                    f"evidence_any@{top_k}="
+                    f"{metrics['evidence_any_hits'][top_k]}/{max(metrics['evidence_total'], 1)}",
+                    flush=True,
+                )
+            queue.task_done()
+
+    await asyncio.gather(*(search_worker(client) for client in clients))
+    rows.sort(key=lambda row: int(row["question_index"]))
     return finalize_metrics(metrics, ks), rows
 
 
@@ -476,50 +733,56 @@ async def run() -> dict[str, Any]:
     if args.conversation:
         wanted = set(args.conversation)
         data = [item for item in data if str(item.get("sample_id")) in wanted]
-    max_k = max(1, args.top_k)
-    ks = [k for k in [1, 3, 5, 10, 20] if k <= max_k]
-    if max_k not in ks:
-        ks.append(max_k)
-    ks = sorted(set(ks))
+    max_k = args.top_k
+    ks = retrieval_cutoffs(max_k)
+    args.batch_size = validate_batch_size(args.batch_size)
+    args.search_concurrency = validate_search_concurrency(args.search_concurrency)
 
     os.environ.setdefault("NO_COLOR", "1")
-    transport = StdioTransport(
-        command="docker.exe",
-        args=[
-            "exec",
-            "-i",
-            args.container,
-            "turing-agentmemory-mcp",
-            "serve",
-            "--transport",
-            "stdio",
-        ],
-    )
-    all_results: list[dict[str, Any]] = []
-    conversations: list[dict[str, Any]] = []
+    resumed = ResumeState(frozenset(), [], [])
+    if args.resume and output_path.exists():
+        resumed = resume_state(json.loads(output_path.read_text(encoding="utf-8")))
+    all_results: list[dict[str, Any]] = list(resumed.results)
+    conversations: list[dict[str, Any]] = list(resumed.conversations)
     overall = init_metric_counts()
     by_category: dict[str, dict[str, Any]] = defaultdict(init_metric_counts)
-    total_turns = 0
-    evaluated_questions = 0
-    excluded_questions = 0
-    ingested_entity_rows: list[dict[str, Any]] = []
+    total_turns = sum(len(build_messages(item)[0]) for item in data)
+    evaluated_questions = sum(len(question_rows(item)) for item in data)
+    excluded_questions = sum(
+        len(item.get("qa", [])) - len(question_rows(item)) for item in data
+    )
     started = time.perf_counter()
+    runtime_status: dict[str, Any] = {}
 
-    async with Client(transport) as client:
+    async with AsyncExitStack() as stack:
+        clients = [
+            await stack.enter_async_context(Client(mcp_transport(args.container)))
+            for _ in range(args.search_concurrency)
+        ]
+        client = clients[0]
         tools = await client.list_tools()
         tool_names = {tool.name for tool in tools}
-        required = {"memory_store_messages", "memory_search"}
+        required = {
+            "memory_store_messages",
+            "memory_rebuild_communities",
+            "memory_get",
+            "memory_search",
+            "memory_runtime_status",
+        }
         missing = sorted(required - tool_names)
         if missing:
             raise RuntimeError(f"MCP server missing required tools: {missing}")
+        runtime_status = await call_tool(client, "memory_runtime_status", {}) or {}
+        runtime_extraction = extraction_summary_from_runtime(runtime_status)
+        require_entity_model(runtime_extraction, args.require_entity_model.strip())
 
         for conv_index, item in enumerate(data, 1):
             sample_id = str(item.get("sample_id") or f"conversation-{conv_index}")
+            if sample_id in resumed.completed_samples:
+                print(f"conversation {conv_index}/{len(data)} {sample_id}: resumed", flush=True)
+                continue
             user_identifier = f"{args.scope_prefix}-{sample_id}"
             messages, _dia_to_content = build_messages(item)
-            total_turns += len(messages)
-            evaluated_questions += len(question_rows(item))
-            excluded_questions += len(item.get("qa", [])) - len(question_rows(item))
             print(
                 f"conversation {conv_index}/{len(data)} {sample_id}: "
                 f"{len(messages)} turns, {len(question_rows(item))} eval questions",
@@ -527,6 +790,7 @@ async def run() -> dict[str, Any]:
             )
             ingest_info = {
                 "messages": len(messages),
+                "existing_results": 0,
                 "stored_results": 0,
                 "duration_ms": 0.0,
                 "entity_extraction": summarize_entity_extraction([]),
@@ -537,19 +801,16 @@ async def run() -> dict[str, Any]:
                     user_identifier=user_identifier,
                     messages=messages,
                     batch_size=args.batch_size,
+                    skip_existing=args.resume,
                 )
-                require_entity_model(
-                    ingest_info["entity_extraction"],
-                    args.require_entity_model.strip(),
-                )
-                ingested_entity_rows.extend(conversation_entity_rows)
+                del conversation_entity_rows
                 print(
                     f"  ingested {sample_id}: {ingest_info['stored_results']} results "
                     f"in {ingest_info['duration_ms']} ms",
                     flush=True,
                 )
             conv_metrics, rows = await evaluate_conversation(
-                client,
+                clients,
                 item=item,
                 user_identifier=user_identifier,
                 top_k=max_k,
@@ -569,22 +830,22 @@ async def run() -> dict[str, Any]:
                     "metrics": conv_metrics,
                 }
             )
-            for row in rows:
-                category_name = row["question_type"]
-                evidence = row["evidence"]
-                retrieved_refs = row["retrieved_refs"]
-                answer_by_k = row.get("answer_in_content_by_k") or {}
-                answer_hit_by_k = {k: bool(answer_by_k.get(str(k))) for k in ks}
-                update_metrics(
-                    by_category[category_name],
-                    evidence=evidence,
-                    retrieved_refs=retrieved_refs,
-                    answer_hit_by_k=answer_hit_by_k,
-                    ks=ks,
-                    latency_ms=row["latency_ms"],
-                    search_error=bool(row["error"]),
-                )
-
+            checkpoint = {
+                "benchmark": "backboard-locomo-direct-mcp",
+                "status": "running",
+                "ablation_id": args.ablation_id,
+                "parameters": {
+                    "top_k": max_k,
+                    "ks": ks,
+                    "search_concurrency": args.search_concurrency,
+                },
+                "runtime": runtime_status,
+                "conversations": conversations,
+                "results": all_results,
+            }
+            output_path.write_text(
+                json.dumps(checkpoint, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
     for row in all_results:
         evidence = row["evidence"]
         retrieved_refs = row["retrieved_refs"]
@@ -592,6 +853,15 @@ async def run() -> dict[str, Any]:
         answer_hit_by_k = {k: bool(answer_by_k.get(str(k))) for k in ks}
         update_metrics(
             overall,
+            evidence=evidence,
+            retrieved_refs=retrieved_refs,
+            answer_hit_by_k=answer_hit_by_k,
+            ks=ks,
+            latency_ms=row["latency_ms"],
+            search_error=bool(row["error"]),
+        )
+        update_metrics(
+            by_category[str(row["question_type"])],
             evidence=evidence,
             retrieved_refs=retrieved_refs,
             answer_hit_by_k=answer_hit_by_k,
@@ -622,8 +892,10 @@ async def run() -> dict[str, Any]:
             "top_k": max_k,
             "ks": ks,
             "batch_size": args.batch_size,
+            "search_concurrency": args.search_concurrency,
             "scope_prefix": args.scope_prefix,
             "skip_ingest": args.skip_ingest,
+            "ablation_id": args.ablation_id,
         },
         "counts": {
             "conversations": len(data),
@@ -634,8 +906,9 @@ async def run() -> dict[str, Any]:
         },
         "entity_extraction": {
             "required_model": args.require_entity_model.strip(),
-            **summarize_entity_extraction(ingested_entity_rows),
+            **extraction_summary_from_runtime(runtime_status),
         },
+        "runtime": runtime_status,
         "metrics": finalize_metrics(overall, ks),
         "by_category": {
             category: finalize_metrics(bucket, ks)

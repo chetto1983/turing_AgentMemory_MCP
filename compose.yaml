@@ -43,11 +43,8 @@ services:
         trap shutdown TERM INT
         turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon
         while :; do
-          python - <<'PY'
-        from turingdb import TuringDB
-        TuringDB(type='json', host='http://127.0.0.1:6666').try_reach(timeout=2)
-        PY
-          sleep 5
+          sleep 3600 &
+          wait $!
         done
     environment:
       - HOME=/tmp
@@ -74,8 +71,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 2g
+          cpus: "4.0"
+          memory: 8g
         reservations:
           cpus: "0.25"
           memory: 256m
@@ -146,19 +143,27 @@ services:
       - TURINGDB_URL=http://turingdb:6666
       - TURINGDB_HOME=/turing
       - TURINGDB_GRAPH=agent_memory
-      - EMBED_BASE_URL=http://agentmemory-embed:8080
-      - EMBED_DIMENSIONS=768
-      - EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M
+      - TURINGDB_MEMORY_INDEX=${TURINGDB_MEMORY_INDEX:-agent_memory_episode_vectors_768}
+      - TURINGDB_DOCUMENT_INDEX=${TURINGDB_DOCUMENT_INDEX:-agent_memory_document_vectors_768}
+      - TURINGDB_ENTITY_INDEX=${TURINGDB_ENTITY_INDEX:-agent_memory_entity_vectors_768}
+      - TURINGDB_FACT_INDEX=${TURINGDB_FACT_INDEX:-agent_memory_fact_vectors_768}
+      - TURINGDB_COMMUNITY_INDEX=${TURINGDB_COMMUNITY_INDEX:-agent_memory_community_vectors_768}
+      - EMBED_BASE_URL=${EMBED_BASE_URL:-http://agentmemory-embed:8080}
+      - EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-768}
+      - EMBED_MODEL=${EMBED_MODEL:-mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M}
+      - EMBED_BATCH_SIZE=${EMBED_BATCH_SIZE:-128}
+      - EMBED_REQUEST_DIMENSIONS
       - EMBED_API_KEY
       - EMBED_API_KEY_HEADER
       - EMBED_API_KEY_SCHEME
-      - RERANK_BASE_URL=http://agentmemory-rerank:8080
-      - RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf
-      - RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0.00001}
+      - RERANK_BASE_URL=${RERANK_BASE_URL:-http://agentmemory-rerank:8080}
+      - RERANK_MODEL=${RERANK_MODEL:-Qwen3-Reranker-0.6B-q8_0.gguf}
+      - RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}
+      - RERANK_CANDIDATE_LIMIT=${RERANK_CANDIDATE_LIMIT:-50}
       - RERANK_DIMENSIONS
       - RERANK_TIMEOUT_SECONDS
       - RERANK_THRESHOLD
-      - RERANK_BLEND
+      - RERANK_BLEND=${RERANK_BLEND:-1}
       - RERANK_PRESERVE_SEED_MARGIN
       - RERANK_API_KEY
       - RERANK_API_KEY_HEADER
@@ -170,12 +175,30 @@ services:
       - GLINER_BACKEND=gliner2_http
       - GLINER_MODEL=lion-ai/gliner2-base-v1-onnx
       - GLINER_BASE_URL=http://agentmemory-gliner:8080
-      - GLINER_TIMEOUT_SECONDS=120
+      - GLINER_TIMEOUT_SECONDS=900
       - GLINER_LABELS
       - GLINER_THRESHOLD
       - GLINER_REDACT
       - GLINER_PRECISION
       - GLINER_PROVIDERS
+      - GLINER_MEMORY_SCHEMA=memory-v1
+      - AGENTMEMORY_FUSION_ENABLED=1
+      - AGENTMEMORY_SPARSE_PATH=/turing/data/agent-memory-fts.sqlite3
+      - AGENTMEMORY_COMMUNITY_REBUILD_ON_BATCH=1
+      - AGENTMEMORY_DOCUMENT_GRAPH_BATCH_CHUNKS=${AGENTMEMORY_DOCUMENT_GRAPH_BATCH_CHUNKS:-250}
+      - AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES=${AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES:-262144}
+      - AGENTMEMORY_DOCUMENT_JOB_PATH=/turing/data/agent-memory-document-jobs.sqlite3
+      - AGENTMEMORY_DOCUMENT_STAGING_ROOT=/turing/data/document-ingest
+      - AGENTMEMORY_DOCUMENT_JOB_LEASE_SECONDS=${AGENTMEMORY_DOCUMENT_JOB_LEASE_SECONDS:-900}
+      - AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS=${AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS:-15}
+      - AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS=${AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS:-1}
+      - AGENTMEMORY_DOCUMENT_JOB_MAX_ATTEMPTS=${AGENTMEMORY_DOCUMENT_JOB_MAX_ATTEMPTS:-3}
+      - AGENTMEMORY_LEIDEN_SEED=42
+      - AGENTMEMORY_LEIDEN_RESOLUTION=1.0
+      - AGENTMEMORY_LEIDEN_RANDOMNESS=0.001
+      - AGENTMEMORY_LEIDEN_ITERATIONS=2
+      - AGENTMEMORY_LEIDEN_MAX_CLUSTER_SIZE=100
+      - AGENTMEMORY_FUSION_WEIGHTS
       - AGENTMEMORY_REDACTION_ENABLED
       - AGENTMEMORY_AUDIT_JSONL
       - AGENTMEMORY_OBSERVABILITY_JSONL
@@ -202,7 +225,7 @@ services:
       - /tmp
       - /run
     healthcheck:
-      test: ["CMD-SHELL", "python - <<'PY'\nimport socket\nsock = socket.create_connection(('127.0.0.1', 8080), timeout=2)\nsock.close()\nPY"]
+      test: ["CMD-SHELL", "python - <<'PY'\nimport json\nfrom urllib.request import urlopen\nwith urlopen('http://127.0.0.1:8080/health', timeout=2) as response:\n    payload = json.load(response)\nassert payload['status'] == 'ok'\nassert payload['runtime']['stages']['graph']['ready'] is True\nPY"]
       interval: 10s
       timeout: 3s
       retries: 12
@@ -455,7 +478,7 @@ services:
       - --gpu-layers
       - all
       - --parallel
-      - "1"
+      - "${RERANK_PARALLEL:-2}"
       - --no-cache-prompt
       - --host
       - 0.0.0.0

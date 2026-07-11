@@ -11,8 +11,11 @@ if "turingdb" not in sys.modules:
 from turing_agentmemory_mcp.models import DocumentHit
 from turing_agentmemory_mcp.rerank import (
     OpenAICompatibleReranker,
+    RerankLimits,
     Scored,
     apply_rerank_guard,
+    assemble_rerank_document,
+    bound_rerank_documents,
     identity,
     lexical_rerank,
     truncate_runes,
@@ -85,6 +88,10 @@ def test_openai_compatible_reranker_reads_provider_agnostic_env(monkeypatch) -> 
     monkeypatch.setenv("RERANK_DIMENSIONS", "1024")
     monkeypatch.setenv("RERANK_TIMEOUT_SECONDS", "9.5")
     monkeypatch.setenv("RERANK_PROVIDER_MIN_SCORE", "0.00001")
+    monkeypatch.setenv("RERANK_MAX_DOCUMENT_CHARS", "3000")
+    monkeypatch.setenv("RERANK_MAX_TOTAL_BYTES", "12000")
+    monkeypatch.setenv("RERANK_MAX_ESTIMATED_TOKENS", "2500")
+    monkeypatch.setenv("RERANK_CHARS_PER_TOKEN", "3.5")
 
     reranker = OpenAICompatibleReranker.from_env()
 
@@ -94,6 +101,172 @@ def test_openai_compatible_reranker_reads_provider_agnostic_env(monkeypatch) -> 
     assert reranker.dimensions == 1024
     assert reranker.timeout_s == 9.5
     assert reranker.provider_min_score == 0.00001
+    assert reranker.limits == RerankLimits(
+        max_document_chars=3000,
+        max_total_bytes=12000,
+        max_estimated_tokens=2500,
+        chars_per_token=3.5,
+    )
+
+
+def test_assemble_rerank_document_contains_grounded_provenance() -> None:
+    value = assemble_rerank_document(
+        content="Alice prefers hiking.",
+        provenance={
+            "memory_id": "m1",
+            "source": "locomo",
+            "session_id": "s1",
+            "created_at": "2026-07-10T10:00:00Z",
+            "path": "conversations/conv-26.json",
+            "evidence_ids": ["f1", "f2"],
+        },
+    )
+
+    assert "memory_id: m1" in value
+    assert "source: locomo" in value
+    assert "created_at: 2026-07-10T10:00:00Z" in value
+    assert "path: conversations/conv-26.json" in value
+    assert "evidence_ids: f1, f2" in value
+    assert value.endswith("Alice prefers hiking.")
+
+
+def test_bound_rerank_documents_enforces_rune_byte_and_token_budgets() -> None:
+    documents = ["é" * 100, "second " * 100]
+    limits = RerankLimits(
+        max_document_chars=50,
+        max_total_bytes=80,
+        max_estimated_tokens=20,
+        chars_per_token=2.0,
+    )
+
+    bounded = bound_rerank_documents(documents, limits)
+
+    assert len(bounded) == 2
+    assert all(len(value) <= 50 for value in bounded)
+    assert sum(len(value.encode("utf-8")) for value in bounded) <= 80
+    assert sum(len(value) for value in bounded) / 2.0 <= 20
+
+
+def test_rerank_with_status_reports_provider_error_without_private_content(monkeypatch) -> None:
+    def unavailable(*args: object, **kwargs: object) -> object:
+        raise OSError("private source text must not leak")
+
+    monkeypatch.setattr("turing_agentmemory_mcp.rerank.urlopen", unavailable)
+    reranker = OpenAICompatibleReranker(base_url="http://provider")
+
+    result = reranker.rerank_with_status("private query", ["private source text", "other"])
+
+    assert result.status == "provider_error"
+    assert result.scores == identity(["a", "b"])
+    assert "private" not in json.dumps(result.to_dict())
+
+
+def test_rerank_with_status_rejects_duplicate_provider_indices(monkeypatch) -> None:
+    class Response:
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "results": [
+                        {"index": 0, "relevance_score": 0.9},
+                        {"index": 0, "relevance_score": 0.8},
+                    ]
+                }
+            ).encode("utf-8")
+
+    monkeypatch.setattr("turing_agentmemory_mcp.rerank.urlopen", lambda *args, **kwargs: Response())
+
+    result = OpenAICompatibleReranker(base_url="http://provider").rerank_with_status(
+        "query", ["one", "two"]
+    )
+
+    assert result.status == "invalid_response"
+    assert result.scores == identity(["one", "two"])
+
+
+def test_reranker_retries_embedded_provider_overload(monkeypatch) -> None:
+    responses = [
+        {"error": {"code": 429, "message": "Model busy, retry later"}},
+        {
+            "results": [
+                {"index": 1, "relevance_score": 0.9},
+                {"index": 0, "relevance_score": 0.1},
+            ]
+        },
+    ]
+    calls = 0
+
+    class Response:
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            nonlocal calls
+            payload = responses[calls]
+            calls += 1
+            return json.dumps(payload).encode("utf-8")
+
+    monkeypatch.setattr("turing_agentmemory_mcp.rerank.urlopen", lambda *args, **kwargs: Response())
+    reranker = OpenAICompatibleReranker(
+        base_url="http://provider",
+        max_attempts=2,
+        retry_base_s=0,
+    )
+
+    result = reranker.rerank_with_status("query", ["one", "two"])
+
+    assert result.status == "applied"
+    assert [item.index for item in result.scores] == [1, 0]
+    assert calls == 2
+
+
+def test_reranker_retries_transient_read_timeout(monkeypatch) -> None:
+    calls = 0
+
+    class Response:
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "results": [
+                        {"index": 1, "relevance_score": 0.9},
+                        {"index": 0, "relevance_score": 0.1},
+                    ]
+                }
+            ).encode("utf-8")
+
+    def flaky_urlopen(*args: object, **kwargs: object) -> Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise TimeoutError("private provider timeout detail")
+        return Response()
+
+    monkeypatch.setattr("turing_agentmemory_mcp.rerank.urlopen", flaky_urlopen)
+    reranker = OpenAICompatibleReranker(
+        base_url="http://provider",
+        max_attempts=2,
+        retry_base_s=0,
+    )
+
+    result = reranker.rerank_with_status("query", ["one", "two"])
+
+    assert result.status == "applied"
+    assert [item.index for item in result.scores] == [1, 0]
+    assert calls == 2
 
 
 def test_lexical_rerank_prioritizes_query_overlap() -> None:

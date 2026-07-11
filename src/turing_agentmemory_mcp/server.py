@@ -1,17 +1,35 @@
 from __future__ import annotations
 
+import atexit
+import json
+import math
 import os
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
+from starlette.responses import JSONResponse
 from turingdb import TuringDB
 
-from turing_agentmemory_mcp.document_processing import convert_document_to_markdown
+from turing_agentmemory_mcp.community_detection import NativeLeidenDetector
+from turing_agentmemory_mcp.document_job_manager import (
+    DocumentIngestManager,
+    document_ingest_manager_from_env,
+)
+from turing_agentmemory_mcp.entity_extraction import NoopEntityProcessor
+from turing_agentmemory_mcp.file_upload import (
+    DocumentUploadStore,
+    document_upload_store_from_env,
+)
+from turing_agentmemory_mcp.memory_extraction import (
+    MEMORY_EXTRACTION_SCHEMA_VERSION,
+    HTTPMemoryExtractor,
+)
 from turing_agentmemory_mcp.provider_config import store_embedding_dimensions
+from turing_agentmemory_mcp.search_controls import validate_fusion_weights
+from turing_agentmemory_mcp.sparse_index import SparseIndex
 from turing_agentmemory_mcp.store import TuringAgentMemory
-from turing_agentmemory_mcp.warning_filters import suppress_fastmcp_authlib_warning
 
 
 def auth_from_env() -> Any | None:
@@ -23,7 +41,6 @@ def auth_from_env() -> Any | None:
     if not tokens:
         return None
 
-    suppress_fastmcp_authlib_warning()
     from fastmcp.server.auth import StaticTokenVerifier
 
     client_id = os.environ.get("AGENTMEMORY_AUTH_CLIENT_ID", "agentmemory-client")
@@ -47,20 +64,158 @@ def _env_list(name: str) -> list[str]:
     return [item.strip() for item in normalized.split() if item.strip()]
 
 
+def _env_bool(name: str, *, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be a boolean")
+
+
+def _env_int(name: str, *, default: int, minimum: int = 0) -> int:
+    raw = os.environ.get(name, str(default)).strip()
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer") from exc
+    if value < minimum:
+        raise ValueError(f"{name} must be at least {minimum}")
+    return value
+
+
+def _env_float(name: str, *, default: float, minimum_exclusive: float = 0.0) -> float:
+    raw = os.environ.get(name, str(default)).strip()
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number") from exc
+    if not math.isfinite(value) or value <= minimum_exclusive:
+        raise ValueError(f"{name} must be a finite number greater than {minimum_exclusive}")
+    return value
+
+
+def _fusion_weights_from_env() -> dict[str, float] | None:
+    raw = os.environ.get("AGENTMEMORY_FUSION_WEIGHTS", "").strip()
+    if not raw:
+        return None
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("AGENTMEMORY_FUSION_WEIGHTS must be valid JSON") from exc
+    if not isinstance(decoded, dict):
+        raise ValueError("AGENTMEMORY_FUSION_WEIGHTS must be a JSON object")
+    return validate_fusion_weights(decoded)
+
+
 def store_from_env() -> TuringAgentMemory:
     url = os.environ.get("TURINGDB_URL", "http://127.0.0.1:6666")
     token = os.environ.get("TURINGDB_AUTH_TOKEN") or None
     graph = os.environ.get("TURINGDB_GRAPH", "agent_memory")
     home = Path(os.environ.get("TURINGDB_HOME", "/turing"))
     dimensions = int(store_embedding_dimensions())
+    index_prefix = graph.replace("-", "_")
+    fusion_enabled = _env_bool("AGENTMEMORY_FUSION_ENABLED", default=False)
+    sparse_path = Path(
+        os.environ.get(
+            "AGENTMEMORY_SPARSE_PATH",
+            str(home / "data" / "agent-memory-fts.sqlite3"),
+        )
+    )
+    memory_extractor = None
+    entity_processor = None
+    if fusion_enabled:
+        schema = os.environ.get(
+            "GLINER_MEMORY_SCHEMA", MEMORY_EXTRACTION_SCHEMA_VERSION
+        ).strip()
+        if schema != MEMORY_EXTRACTION_SCHEMA_VERSION:
+            raise ValueError(
+                f"GLINER_MEMORY_SCHEMA must be {MEMORY_EXTRACTION_SCHEMA_VERSION}"
+            )
+        memory_extractor = HTTPMemoryExtractor(
+            base_url=os.environ.get(
+                "GLINER_BASE_URL", "http://agentmemory-gliner:8080"
+            ),
+            model_name=os.environ.get("GLINER_MODEL", "fastino/gliner2-base-v1"),
+            threshold=float(os.environ.get("GLINER_THRESHOLD", "0.5")),
+            timeout_s=_env_float("GLINER_TIMEOUT_SECONDS", default=30.0),
+        )
+        entity_processor = NoopEntityProcessor()
+    community_detector = NativeLeidenDetector(
+        seed=_env_int("AGENTMEMORY_LEIDEN_SEED", default=42),
+        resolution=_env_float("AGENTMEMORY_LEIDEN_RESOLUTION", default=1.0),
+        randomness=_env_float("AGENTMEMORY_LEIDEN_RANDOMNESS", default=0.001),
+        iterations=_env_int("AGENTMEMORY_LEIDEN_ITERATIONS", default=2, minimum=1),
+        max_cluster_size=_env_int(
+            "AGENTMEMORY_LEIDEN_MAX_CLUSTER_SIZE", default=100, minimum=1
+        ),
+    )
     client = TuringDB(type="json", host=url, token=token)
-    store = TuringAgentMemory(client, turing_home=home, graph=graph, dimensions=dimensions)
+    store = TuringAgentMemory(
+        client,
+        turing_home=home,
+        graph=graph,
+        dimensions=dimensions,
+        memory_index=os.environ.get(
+            "TURINGDB_MEMORY_INDEX", f"{index_prefix}_episode_vectors_{dimensions}"
+        ),
+        document_index=os.environ.get(
+            "TURINGDB_DOCUMENT_INDEX", f"{index_prefix}_document_vectors_{dimensions}"
+        ),
+        entity_index=os.environ.get(
+            "TURINGDB_ENTITY_INDEX", f"{index_prefix}_entity_vectors_{dimensions}"
+        ),
+        fact_index=os.environ.get(
+            "TURINGDB_FACT_INDEX", f"{index_prefix}_fact_vectors_{dimensions}"
+        ),
+        community_index=os.environ.get(
+            "TURINGDB_COMMUNITY_INDEX", f"{index_prefix}_community_vectors_{dimensions}"
+        ),
+        entity_processor=entity_processor,
+        memory_extractor=memory_extractor,
+        sparse_index=SparseIndex(sparse_path) if fusion_enabled else None,
+        fusion_enabled=fusion_enabled,
+        fusion_weights=_fusion_weights_from_env(),
+        community_detector=community_detector,
+        community_rebuild_on_batch=_env_bool(
+            "AGENTMEMORY_COMMUNITY_REBUILD_ON_BATCH", default=fusion_enabled
+        ),
+        document_graph_batch_chunks=_env_int(
+            "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_CHUNKS", default=250, minimum=1
+        ),
+        document_graph_batch_bytes=_env_int(
+            "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES", default=256 << 10, minimum=1024
+        ),
+    )
     store.bootstrap()
     return store
 
 
-def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
+def create_mcp_app(
+    store: TuringAgentMemory | None = None,
+    *,
+    upload_store: DocumentUploadStore | None = None,
+    document_manager: DocumentIngestManager | None = None,
+    start_document_worker: bool | None = None,
+) -> FastMCP:
+    production_store = store is None
     memory = store or store_from_env()
+    uploads = upload_store or document_upload_store_from_env()
+    manager = document_manager
+    if manager is None and production_store:
+        manager = document_ingest_manager_from_env(store_factory=store_from_env)
+    should_start_worker = production_store if start_document_worker is None else start_document_worker
+    if manager is not None and should_start_worker:
+        manager.start()
+        atexit.register(manager.stop)
+
+    def _document_manager() -> DocumentIngestManager:
+        if manager is None:
+            raise RuntimeError("asynchronous document ingestion is not configured")
+        return manager
 
     def _tool_span(tool: str) -> Any:
         observer = getattr(memory, "observer", None)
@@ -77,6 +232,22 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         ),
         auth=auth_from_env(),
     )
+
+    @app.custom_route("/health", methods=["GET"], include_in_schema=False)
+    async def health(_request: Any) -> JSONResponse:
+        runtime_status = getattr(memory, "runtime_status", None)
+        runtime = runtime_status() if callable(runtime_status) else {"stages": {}}
+        graph = runtime.get("stages", {}).get("graph", {}) if isinstance(runtime, dict) else {}
+        ready = not graph or bool(graph.get("ready"))
+        document_jobs = manager.runtime_status() if manager is not None else {"configured": False}
+        return JSONResponse(
+            {
+                "status": "ok" if ready else "degraded",
+                "runtime": runtime,
+                "document_ingest": document_jobs,
+            },
+            status_code=200 if ready else 503,
+        )
 
     @app.tool()
     def memory_store_message(
@@ -105,6 +276,14 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
             ).to_dict()
 
     @app.tool()
+    def memory_runtime_status() -> dict[str, object]:
+        """Return content-free readiness, projection, and degradation status."""
+        status = getattr(memory, "runtime_status", None)
+        if not callable(status):
+            return {"stages": {}, "projections": {}, "degraded_channel_counts": {}}
+        return status()
+
+    @app.tool()
     def memory_store_messages(
         messages: list[dict[str, object]],
         user_identifier: str = "default",
@@ -112,20 +291,40 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         tags: list[str] | None = None,
         metadata: dict[str, object] | None = None,
         expires_at: str = "",
+        refresh_communities: bool = True,
     ) -> list[dict[str, Any]]:
         """Store conversation messages in one duplicate-safe batch."""
         with _tool_span("memory_store_messages"):
+            store_arguments: dict[str, object] = {
+                "user_identifier": user_identifier,
+                "messages": messages,
+                "source": source,
+                "tags": tags,
+                "metadata": metadata,
+                "expires_at": expires_at,
+            }
+            if not refresh_communities:
+                store_arguments["refresh_communities"] = False
             return [
                 item.to_dict()
-                for item in memory.store_messages(
-                    user_identifier=user_identifier,
-                    messages=messages,
-                    source=source,
-                    tags=tags,
-                    metadata=metadata,
-                    expires_at=expires_at,
-                )
+                for item in memory.store_messages(**store_arguments)
             ]
+
+    @app.tool()
+    def memory_rebuild_communities(
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Rebuild derived Leiden communities after a bulk ingest."""
+        with _tool_span("memory_rebuild_communities"):
+            return memory.rebuild_communities(user_identifier=user_identifier)
+
+    @app.tool()
+    def memory_rebuild_vector_projection(
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Rebuild active tenant vectors from canonical graph records."""
+        with _tool_span("memory_rebuild_vector_projection"):
+            return memory.rebuild_vector_projection(user_identifier=user_identifier)
 
     @app.tool()
     def memory_get(
@@ -221,7 +420,7 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         threshold: float = 0.0,
         explain: bool = False,
     ) -> list[dict[str, Any]]:
-        """Search scoped memory by semantic similarity with optional metadata and date filters."""
+        """Search scoped memory with fused dense, BM25, entity, graph, and rerank signals."""
         with _tool_span("memory_search"):
             return [
                 item.to_dict()
@@ -325,6 +524,90 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
             ).to_dict()
 
     @app.tool()
+    def document_upload_begin(
+        filename: str,
+        total_bytes: int,
+        sha256: str,
+        title: str,
+        user_identifier: str = "default",
+        document_id: str | None = None,
+        source: str = "",
+        tags: list[str] | None = None,
+        metadata: dict[str, object] | None = None,
+        expires_at: str | None = None,
+    ) -> dict[str, object]:
+        """Start a tenant-scoped file upload for server-side document conversion."""
+        with _tool_span("document_upload_begin"):
+            return uploads.begin(
+                user_identifier=user_identifier,
+                filename=filename,
+                total_bytes=total_bytes,
+                sha256=sha256,
+                attributes={
+                    "title": title,
+                    "document_id": document_id,
+                    "source": source,
+                    "tags": list(tags or []),
+                    "metadata": dict(metadata or {}),
+                    "expires_at": expires_at,
+                },
+            )
+
+    @app.tool()
+    def document_upload_chunk(
+        upload_id: str,
+        sequence: int,
+        content_base64: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Append one ordered base64 chunk to a tenant-scoped document upload."""
+        with _tool_span("document_upload_chunk"):
+            return uploads.append_base64(
+                upload_id,
+                user_identifier=user_identifier,
+                sequence=sequence,
+                content_base64=content_base64,
+            )
+
+    @app.tool()
+    def document_upload_commit(
+        upload_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, Any]:
+        """Verify and durably enqueue an uploaded file for background ingestion."""
+        with _tool_span("document_upload_commit"):
+            try:
+                uploaded = uploads.complete(upload_id, user_identifier=user_identifier)
+                attributes = uploaded.attributes
+                return _document_manager().enqueue_file(
+                    uploaded.path,
+                    user_identifier=user_identifier,
+                    title=str(attributes["title"]),
+                    document_id=attributes.get("document_id"),
+                    source=str(attributes.get("source") or ""),
+                    tags=list(attributes.get("tags") or []),
+                    metadata=dict(attributes.get("metadata") or {}),
+                    expires_at=attributes.get("expires_at"),
+                    transport="mcp-chunk-upload",
+                    expected_sha256=uploaded.sha256,
+                    expected_bytes=uploaded.total_bytes,
+                ).to_dict()
+            finally:
+                uploads.discard(upload_id, user_identifier=user_identifier)
+
+    @app.tool()
+    def document_upload_abort(
+        upload_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Discard a tenant-scoped upload without converting or ingesting it."""
+        with _tool_span("document_upload_abort"):
+            return {
+                "upload_id": upload_id,
+                "aborted": uploads.discard(upload_id, user_identifier=user_identifier),
+            }
+
+    @app.tool()
     def document_ingest_text(
         title: str,
         text: str,
@@ -359,20 +642,53 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
         metadata: dict[str, object] | None = None,
         expires_at: str | None = None,
     ) -> dict[str, Any]:
-        """Convert a local file to Markdown with MarkItDown, then ingest it with citations."""
+        """Durably enqueue a server-local file for background conversion and ingestion."""
         with _tool_span("document_ingest_file"):
-            converted = convert_document_to_markdown(path)
-            enriched_metadata = dict(metadata or {})
-            enriched_metadata["document_processing"] = converted.metadata
-            return memory.ingest_document_text(
+            return _document_manager().enqueue_file(
+                path,
                 user_identifier=user_identifier,
                 title=title,
-                text=converted.text,
                 document_id=document_id,
                 source=source,
                 tags=tags,
-                metadata=enriched_metadata,
+                metadata=metadata,
                 expires_at=expires_at,
+            ).to_dict()
+
+    @app.tool()
+    def document_ingest_status(
+        job_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Return tenant-scoped state and progress for a document ingestion job."""
+        with _tool_span("document_ingest_status"):
+            job = _document_manager().get(job_id, user_identifier=user_identifier)
+            if job is None:
+                raise ValueError("document ingestion job is unknown")
+            return job.to_dict()
+
+    @app.tool()
+    def document_ingest_cancel(
+        job_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Cancel a queued job or request cooperative cancellation of a running job."""
+        with _tool_span("document_ingest_cancel"):
+            return _document_manager().cancel(
+                job_id,
+                user_identifier=user_identifier,
+            ).to_dict()
+
+    @app.tool()
+    def document_ingest_retry(
+        job_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Requeue a failed document ingestion job using its durable staged file."""
+        with _tool_span("document_ingest_retry"):
+            return _document_manager().retry(
+                job_id,
+                user_identifier=user_identifier,
             ).to_dict()
 
     @app.tool()

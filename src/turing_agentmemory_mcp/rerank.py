@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import math
 import re
+import time
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TypeVar
 from urllib.error import HTTPError, URLError
@@ -14,11 +16,16 @@ from turing_agentmemory_mcp.provider_config import (
     provider_api_key_header,
     provider_api_key_scheme,
     provider_env,
+    provider_error_code,
     provider_optional_int,
     provider_secret,
+    retryable_provider_code,
 )
 
-MAX_RERANK_DOC_CHARS = 480
+DEFAULT_MAX_RERANK_DOCUMENT_CHARS = 2048
+DEFAULT_MAX_RERANK_TOTAL_BYTES = 32768
+DEFAULT_MAX_RERANK_ESTIMATED_TOKENS = 8192
+DEFAULT_RERANK_CHARS_PER_TOKEN = 4.0
 RRF_K = 60
 T = TypeVar("T")
 
@@ -27,6 +34,50 @@ T = TypeVar("T")
 class Scored:
     index: int
     score: float
+
+
+@dataclass(frozen=True)
+class RerankLimits:
+    max_document_chars: int = DEFAULT_MAX_RERANK_DOCUMENT_CHARS
+    max_total_bytes: int = DEFAULT_MAX_RERANK_TOTAL_BYTES
+    max_estimated_tokens: int = DEFAULT_MAX_RERANK_ESTIMATED_TOKENS
+    chars_per_token: float = DEFAULT_RERANK_CHARS_PER_TOKEN
+
+    def __post_init__(self) -> None:
+        for name in (
+            "max_document_chars",
+            "max_total_bytes",
+            "max_estimated_tokens",
+        ):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                raise ValueError(f"{name} must be a positive integer")
+        if (
+            isinstance(self.chars_per_token, bool)
+            or not isinstance(self.chars_per_token, (int, float))
+            or not math.isfinite(float(self.chars_per_token))
+            or float(self.chars_per_token) <= 0
+        ):
+            raise ValueError("chars_per_token must be a positive finite number")
+
+
+@dataclass(frozen=True)
+class RerankResult:
+    scores: list[Scored]
+    status: str
+    model: str
+    document_count: int = 0
+    wire_bytes: int = 0
+    estimated_tokens: int = 0
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "status": self.status,
+            "model": self.model,
+            "document_count": self.document_count,
+            "wire_bytes": self.wire_bytes,
+            "estimated_tokens": self.estimated_tokens,
+        }
 
 
 @dataclass(frozen=True)
@@ -39,6 +90,15 @@ class OpenAICompatibleReranker:
     dimensions: int | None = None
     timeout_s: float = 30.0
     provider_min_score: float = 0.0
+    max_attempts: int = 3
+    retry_base_s: float = 0.5
+    limits: RerankLimits = RerankLimits()
+
+    def __post_init__(self) -> None:
+        if isinstance(self.max_attempts, bool) or self.max_attempts <= 0:
+            raise ValueError("rerank max attempts must be positive")
+        if self.retry_base_s < 0:
+            raise ValueError("rerank retry base seconds must not be negative")
 
     @classmethod
     def from_env(cls) -> OpenAICompatibleReranker:
@@ -52,17 +112,49 @@ class OpenAICompatibleReranker:
             dimensions=provider_optional_int("RERANK_DIMENSIONS"),
             timeout_s=float(provider_env("RERANK_TIMEOUT_SECONDS", default="30")),
             provider_min_score=max(0.0, float(provider_env("RERANK_PROVIDER_MIN_SCORE", default="0"))),
+            max_attempts=int(provider_env("RERANK_MAX_ATTEMPTS", default="3")),
+            retry_base_s=float(provider_env("RERANK_RETRY_BASE_SECONDS", default="0.5")),
+            limits=RerankLimits(
+                max_document_chars=int(
+                    provider_env(
+                        "RERANK_MAX_DOCUMENT_CHARS",
+                        default=str(DEFAULT_MAX_RERANK_DOCUMENT_CHARS),
+                    )
+                ),
+                max_total_bytes=int(
+                    provider_env(
+                        "RERANK_MAX_TOTAL_BYTES",
+                        default=str(DEFAULT_MAX_RERANK_TOTAL_BYTES),
+                    )
+                ),
+                max_estimated_tokens=int(
+                    provider_env(
+                        "RERANK_MAX_ESTIMATED_TOKENS",
+                        default=str(DEFAULT_MAX_RERANK_ESTIMATED_TOKENS),
+                    )
+                ),
+                chars_per_token=float(
+                    provider_env(
+                        "RERANK_CHARS_PER_TOKEN",
+                        default=str(DEFAULT_RERANK_CHARS_PER_TOKEN),
+                    )
+                ),
+            ),
         )
 
     def rerank(self, query: str, documents: list[str]) -> list[Scored]:
+        return self.rerank_with_status(query, documents).scores
+
+    def rerank_with_status(self, query: str, documents: list[str]) -> RerankResult:
         if not documents:
-            return []
+            return RerankResult([], "empty", self.model)
         if not self.base_url.strip():
-            return identity(documents)
+            return self._result(identity(documents), "disabled", documents)
+        bounded_documents = bound_rerank_documents(documents, self.limits)
         payload = {
             "model": self.model,
             "query": query,
-            "documents": [truncate_runes(doc, MAX_RERANK_DOC_CHARS) for doc in documents],
+            "documents": bounded_documents,
         }
         if self.dimensions is not None:
             payload["dimensions"] = self.dimensions
@@ -75,24 +167,77 @@ class OpenAICompatibleReranker:
         )
         if self.api_key:
             req.add_header(self.api_key_header, api_key_header_value(self.api_key, self.api_key_scheme))
-        try:
-            with urlopen(req, timeout=self.timeout_s) as resp:
-                decoded = json.loads(resp.read().decode("utf-8"))
-        except (HTTPError, URLError, json.JSONDecodeError, TimeoutError, OSError):
-            return identity(documents)
-        results = decoded.get("results") or []
-        if len(results) != len(documents):
-            return identity(documents)
+        decoded: object = None
+        for attempt in range(self.max_attempts):
+            try:
+                with urlopen(req, timeout=self.timeout_s) as resp:
+                    decoded = json.loads(resp.read().decode("utf-8"))
+            except HTTPError as exc:
+                if retryable_provider_code(exc.code) and attempt + 1 < self.max_attempts:
+                    time.sleep(self.retry_base_s * (2**attempt))
+                    continue
+                return self._result(identity(documents), "provider_error", bounded_documents)
+            except (URLError, TimeoutError, OSError):
+                if attempt + 1 < self.max_attempts:
+                    time.sleep(self.retry_base_s * (2**attempt))
+                    continue
+                return self._result(identity(documents), "provider_error", bounded_documents)
+            except json.JSONDecodeError:
+                return self._result(identity(documents), "provider_error", bounded_documents)
+            error_code = provider_error_code(decoded)
+            if error_code and retryable_provider_code(error_code) and attempt + 1 < self.max_attempts:
+                time.sleep(self.retry_base_s * (2**attempt))
+                continue
+            if error_code:
+                return self._result(identity(documents), "provider_error", bounded_documents)
+            break
+        if not isinstance(decoded, dict):
+            return self._result(identity(documents), "invalid_response", bounded_documents)
+        results = decoded.get("results")
+        if not isinstance(results, list) or len(results) != len(documents):
+            return self._result(identity(documents), "invalid_response", bounded_documents)
         scored: list[Scored] = []
+        seen_indices: set[int] = set()
         for row in results:
-            index = int(row.get("index", -1))
-            if index < 0 or index >= len(documents):
-                return identity(documents)
-            scored.append(Scored(index=index, score=float(row.get("relevance_score", 0.0))))
+            if not isinstance(row, dict):
+                return self._result(identity(documents), "invalid_response", bounded_documents)
+            raw_index = row.get("index")
+            raw_score = row.get("relevance_score")
+            if isinstance(raw_index, bool) or not isinstance(raw_index, int):
+                return self._result(identity(documents), "invalid_response", bounded_documents)
+            if raw_index < 0 or raw_index >= len(documents) or raw_index in seen_indices:
+                return self._result(identity(documents), "invalid_response", bounded_documents)
+            if isinstance(raw_score, bool) or not isinstance(raw_score, (int, float)):
+                return self._result(identity(documents), "invalid_response", bounded_documents)
+            score = float(raw_score)
+            if not math.isfinite(score):
+                return self._result(identity(documents), "invalid_response", bounded_documents)
+            seen_indices.add(raw_index)
+            scored.append(Scored(index=raw_index, score=score))
         ordered = sorted(scored, key=lambda item: item.score, reverse=True)
         if self.provider_min_score > 0.0 and ordered[0].score < self.provider_min_score:
-            return lexical_rerank(query, documents)
-        return ordered
+            return self._result(
+                lexical_rerank(query, bounded_documents),
+                "provider_floor_fallback",
+                bounded_documents,
+            )
+        return self._result(ordered, "applied", bounded_documents)
+
+    def _result(
+        self,
+        scores: list[Scored],
+        status: str,
+        documents: list[str],
+    ) -> RerankResult:
+        total_chars = sum(len(document) for document in documents)
+        return RerankResult(
+            scores=scores,
+            status=status,
+            model=self.model,
+            document_count=len(documents),
+            wire_bytes=sum(len(document.encode("utf-8")) for document in documents),
+            estimated_tokens=math.ceil(total_chars / self.limits.chars_per_token),
+        )
 
 
 def identity(documents: list[str]) -> list[Scored]:
@@ -184,6 +329,83 @@ def blend_rerank_orders(seed: list[T], scored: list[Scored]) -> list[tuple[T, fl
 
 def truncate_runes(value: str, limit: int) -> str:
     return value if len(value) <= limit else value[:limit]
+
+
+def assemble_rerank_document(
+    *,
+    content: str,
+    provenance: Mapping[str, object],
+) -> str:
+    preferred = (
+        "memory_id",
+        "kind",
+        "source",
+        "session_id",
+        "role",
+        "created_at",
+        "updated_at",
+        "path",
+        "locator",
+        "conversation_id",
+        "evidence_ids",
+    )
+    keys = [key for key in preferred if key in provenance]
+    keys.extend(sorted(key for key in provenance if key not in preferred))
+    lines = ["[provenance]"]
+    for key in keys:
+        value = provenance[key]
+        if value is None or value == "" or value == [] or value == ():
+            continue
+        if isinstance(value, (list, tuple, set)):
+            rendered = ", ".join(_one_line(str(item)) for item in value)
+        else:
+            rendered = _one_line(str(value))
+        lines.append(f"{key}: {rendered}")
+    lines.append("[/provenance]")
+    lines.append(content)
+    return "\n".join(lines)
+
+
+def bound_rerank_documents(
+    documents: Sequence[str],
+    limits: RerankLimits,
+) -> list[str]:
+    remaining_bytes = limits.max_total_bytes
+    remaining_chars = math.floor(
+        limits.max_estimated_tokens * limits.chars_per_token
+    )
+    bounded: list[str] = []
+    for index, document in enumerate(documents):
+        remaining_documents = len(documents) - index
+        char_share = remaining_chars // remaining_documents
+        byte_share = remaining_bytes // remaining_documents
+        char_limit = max(0, min(limits.max_document_chars, char_share))
+        value = truncate_runes(document, char_limit)
+        value = _truncate_utf8(value, max(0, byte_share))
+        bounded.append(value)
+        remaining_chars -= len(value)
+        remaining_bytes -= len(value.encode("utf-8"))
+    return bounded
+
+
+def _truncate_utf8(value: str, max_bytes: int) -> str:
+    if max_bytes <= 0:
+        return ""
+    if len(value.encode("utf-8")) <= max_bytes:
+        return value
+    low = 0
+    high = len(value)
+    while low < high:
+        middle = (low + high + 1) // 2
+        if len(value[:middle].encode("utf-8")) <= max_bytes:
+            low = middle
+        else:
+            high = middle - 1
+    return value[:low]
+
+
+def _one_line(value: str) -> str:
+    return " ".join(value.split())
 
 
 def _terms(value: str) -> list[str]:
