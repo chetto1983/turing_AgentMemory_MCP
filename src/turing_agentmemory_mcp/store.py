@@ -917,6 +917,16 @@ class TuringAgentMemory:
                     channels["graph"] = graph_values
             except Exception as exc:
                 degraded["graph"] = type(exc).__name__
+        for channel, values in channels.items():
+            channels[channel] = sorted(
+                values,
+                key=lambda item: (
+                    -item.raw_score,
+                    item.hop,
+                    item.source_memory_id,
+                    item.evidence_id,
+                ),
+            )
         return channels, degraded
 
     def _episode_dense_evidence(

@@ -302,6 +302,7 @@ class CollectorStore(TuringAgentMemory):
             raise RuntimeError("channel failed with private query")
         rows = {
             "memory.vector_search.fused": [
+                {"m.id": "m-low", "score": 0.1},
                 {"m.id": "m1", "score": 0.8},
             ],
             "fact.vector_search": [
@@ -349,7 +350,8 @@ def test_collectors_build_independent_dense_sparse_and_graph_channels(
 
     assert degraded == {}
     assert [(item.source_memory_id, item.evidence_id) for item in channels["episode_dense"]] == [
-        ("m1", "m1")
+        ("m1", "m1"),
+        ("m-low", "m-low"),
     ]
     assert [(item.source_memory_id, item.evidence_id) for item in channels["fact_dense"]] == [
         ("m1", "f1")
