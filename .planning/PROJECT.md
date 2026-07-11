@@ -2,9 +2,11 @@
 
 ## What This Is
 
-A TuringDB-backed Agent Memory MCP server (`turing_agentmemory_mcp`) that exposes
-memory-lifecycle and document tools over FastMCP, stores canonical graph + vector
-records in TuringDB, and serves tenant-scoped, cited retrieval. Provider integrations
+An Agent Memory MCP server (`turing_agentmemory_mcp`) that exposes memory-lifecycle
+and document tools over FastMCP, stores canonical graph + vector records in a graph+vector
+database, and serves tenant-scoped, cited retrieval. It is currently TuringDB-backed and
+**migrates to ArcadeDB as its sole backend this milestone** (chosen on licensing —
+Apache-2.0). Provider integrations
 (embedding, rerank, GLiNER2 entity extraction) are OpenAI-compatible HTTP endpoints.
 This milestone hardens an already-built system: it stands the **entire infrastructure
 up on Docker as a reliable one-command stack**, works through **every concern** in the
@@ -54,10 +56,11 @@ correctness or tenant isolation is a failure, not progress.
 - [ ] Security: hard-delete + audit, redaction pattern coverage, audit-sink durable flush, bearer-token log redaction
 - [ ] Performance: batch embedding API, batched memory extraction, vector-search fetch tuning
 - [ ] Fragile areas hardened with crash-recovery tests: document job state machine, sparse-index outbox replay, temporal-graph projection, query-graph evidence
-- [ ] **Backend driver abstraction (heavyweight):** extract a repository/driver interface; keep the TuringDB driver and add a coexisting **ArcadeDB driver** (deployments pick a backend). This is the CONCERNS.md "abstract behind a repository interface" path.
-- [ ] **Vector + full-text strategy (research-decided):** determine whether ArcadeDB's native HNSW vector + Lucene full-text is production-adequate and subsumes the separate external search-engine + vector-DB swaps, or whether dedicated systems are still needed. Roadmap targets the researched recommendation.
-- [ ] **Remaining heavyweight items:** S3-compatible object storage for staged files, tenant-scoped isolation (ArcadeDB per-database or scoped), OAuth/OIDC authentication, vector-index versioning, `expires_at` purge enforcement, extensible observability/metrics hooks
-- [ ] At-risk dependencies: version-gate graspologic-native / fastmcp with tests (the repository interface above resolves the TuringDB coupling risk)
+- [ ] **Backend replacement (heavyweight):** cut TuringDB entirely and **direct-port `store.py` to ArcadeDB** (Apache-2.0; chosen on licensing) — no driver-abstraction layer, ArcadeDB is the sole backend. Fresh start: no data migration (no production data to preserve).
+- [ ] **Vector + full-text on ArcadeDB (research-resolved):** use ArcadeDB native HNSW (`LSM_VECTOR`) vector search + native Lucene full-text — no separate external search engine or vector DB. Research confirmed production-adequate below ~1–5M vectors/tenant.
+- [ ] **Migration-correctness gate:** snapshot the current TuringDB retrieval baseline (`e2e_score.py` + `real_document_benchmark.py`) BEFORE removal; the ArcadeDB port must meet-or-exceed it as a hard exit criterion.
+- [ ] **Remaining heavyweight items:** Garage (S3-compatible) object storage for staged files (MinIO CE is dead/archived), tenant isolation via one ArcadeDB database per tenant, OAuth/OIDC via FastMCP's built-in `OAuthProxy`/`OIDCProxy` (no new dep) with `user_identifier` derived from verified token claims, vector-index versioning, `expires_at` purge enforcement, extensible observability/metrics hooks
+- [ ] At-risk dependencies: version-gate graspologic-native / fastmcp with tests (the TuringDB coupling risk is eliminated by removing TuringDB)
 - [ ] Test-coverage gaps closed: concurrent multi-tenant isolation, large-document ingestion, rebuild-under-query, sparse crash recovery, lease/timeout, extraction failure modes
 
 **Thrust 3 — CI + git hooks (modeled on Aura)**
@@ -89,9 +92,9 @@ correctness or tenant isolation is a failure, not progress.
 ## Constraints
 
 - **Tech stack**: Python 3.11–3.14, FastMCP 3.4–4, TuringDB 1.35, ruff (line-length 100, E501 ignored), pytest — [established; changes are themselves audited concerns, not free choices]
-- **Architecture — under revision this milestone**: CLAUDE.md invariant #2 holds TuringDB canonical with SQLite FTS/vectors as rebuildable projections. This milestone abstracts the store behind a repository/driver interface so **TuringDB and ArcadeDB coexist** as selectable canonical backends; invariant #2 continues to hold per-driver (each backend is canonical for its deployment). S3 staging and the vector/full-text strategy are first-class architecture changes with migration + rollback paths, not drop-ins. See Key Decisions.
-- **Tenant isolation**: every read/write explicitly scoped by `user_identifier`, fail-closed on empty — non-negotiable through all swaps — [CLAUDE.md invariant #1]
-- **Durability**: TuringDB data, SQLite job DB, staged files, audit/span JSONL live on the shared `/turing` volume — [containers share it because TuringDB loads vectors from server-side CSV]
+- **Architecture — replaced this milestone**: CLAUDE.md invariant #2 (TuringDB canonical) is superseded — **ArcadeDB becomes the sole canonical backend**; TuringDB is removed. ArcadeDB's native vector + full-text are ACID-consistent with graph writes, retiring the SQLite-FTS5 outbox as a separate rebuildable projection. CLAUDE.md invariants must be updated as part of this milestone. The port must preserve tenant isolation (invariant #1) and stable/deterministic IDs (invariant #3).
+- **Tenant isolation**: every read/write explicitly scoped by `user_identifier`, fail-closed on empty — non-negotiable through the port; reinforced by one ArcadeDB database per tenant — [CLAUDE.md invariant #1]
+- **Durability**: ArcadeDB data, the SQLite job DB, staged files (moving to Garage/S3), and audit/span JSONL are the durable state; ArcadeDB persists to its own data volume — [server-side CSV vector loading was a TuringDB constraint and no longer applies]
 - **GPU dependency**: embed/rerank sidecars are GPU-mandatory for the full stack — [CI must degrade gracefully on GPU-less runners]
 
 ## Key Decisions
@@ -99,9 +102,10 @@ correctness or tenant isolation is a failure, not progress.
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Full-scope stabilization: address every category in CONCERNS.md | User chose "Everything in CONCERNS.md" over stabilization-only | — Pending |
-| Backend abstracted behind a repository/driver interface; TuringDB and ArcadeDB coexist as selectable backends | User: "we have turingdb and we plan driver for arcadedb" → "coexist via driver abstraction"; matches CONCERNS.md repository-interface recommendation | — Pending (⚠ architecture change — sequence with migration + rollback) |
-| Whether ArcadeDB's native HNSW vector + Lucene full-text subsumes dedicated external search/vector systems is research-decided | User chose "Research should decide" — evaluate production-adequacy vs Elasticsearch/Qdrant-class systems before committing | — Pending (research feeds roadmap) |
-| Remaining heavyweight swaps (S3 staging, OAuth/OIDC, tenant isolation, vector versioning) | User chose "Full heavyweight swaps" over pragmatic mitigations | — Pending (sequence with migration + rollback) |
+| Cut TuringDB entirely; ArcadeDB is the sole backend, **direct port** of `store.py` (no abstraction layer) | User: "cut off touringdb we decide arcadedb for license" + "direct port to ArcadeDB" — Apache-2.0 licensing | — Pending (⚠ supersedes invariant #2; snapshot baseline before removal) |
+| Fresh start — no TuringDB→ArcadeDB data migration | User chose "Fresh start on ArcadeDB"; no production data to preserve | — Pending |
+| ArcadeDB native HNSW vector + native Lucene full-text; no separate external search/vector DB | Research confirmed production-adequate below ~1–5M vectors/tenant | — Pending |
+| Garage for S3 staging; FastMCP built-in OAuth/OIDC; one ArcadeDB DB per tenant | Research: MinIO CE archived Apr 2026; FastMCP `OAuthProxy` in pinned range; per-DB physical isolation | — Pending |
 | One-command Docker stack as the deployment target, verified by the E2E gate | User chose "Reliable one-command stack" | — Pending |
 | Done = green gate (pytest + ruff + E2E score) + healthy compose + real-document E2E | User chose "Above + real doc E2E" | — Pending |
 | CI + pre-commit + pre-push modeled on Aura (lefthook + GitHub Actions, no-skip-as-green) | User: "install also all ci precommit and prepush look D:\Repo\Aura" | — Pending |
