@@ -92,6 +92,12 @@ def pending_rows(
     return [row for row in retrieval_rows if row_key(row) not in completed]
 
 
+def limit_rows(rows: list[dict[str, object]], limit: int) -> list[dict[str, object]]:
+    if limit < 0:
+        raise ValueError("limit must be non-negative")
+    return rows if limit == 0 else rows[:limit]
+
+
 def parse_judge_payload(payload: object) -> tuple[bool, str]:
     if not isinstance(payload, dict) or type(payload.get("correct")) is not bool:
         raise ValueError("judge payload correct must be a JSON boolean")
@@ -250,6 +256,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--answer-model", default=os.environ.get("LOCOMO_ANSWER_MODEL", "gpt-5"))
     parser.add_argument("--judge-model", default=os.environ.get("LOCOMO_JUDGE_MODEL", "gpt-5"))
     parser.add_argument("--max-context-tokens", type=int, default=32768)
+    parser.add_argument("--limit", type=int, default=0, help="Evaluate only the first N rows; 0 means all.")
     parser.add_argument("--resume", action="store_true")
     return parser.parse_args()
 
@@ -259,7 +266,10 @@ def main() -> None:
     retrieval = json.loads(Path(args.retrieval).read_text(encoding="utf-8"))
     if retrieval.get("contract", {}).get("ingest") != "memory_store_messages":
         raise RuntimeError("retrieval artifact is not a direct-MCP turns-only benchmark")
-    rows = [row for row in retrieval.get("results", []) if isinstance(row, dict)]
+    rows = limit_rows(
+        [row for row in retrieval.get("results", []) if isinstance(row, dict)],
+        args.limit,
+    )
     output = Path(args.output)
     completed: list[dict[str, object]] = []
     if args.resume and output.exists():
@@ -290,6 +300,7 @@ def main() -> None:
             "answer_model": answerer.model,
             "judge_model": judge.model,
             "max_context_tokens": args.max_context_tokens,
+            "limit": args.limit,
             "total": len(rows),
             "completed": len(results),
             "correct": correct,
@@ -306,6 +317,7 @@ def main() -> None:
         "answer_model": answerer.model,
         "judge_model": judge.model,
         "max_context_tokens": args.max_context_tokens,
+        "limit": args.limit,
         "total": len(rows),
         "completed": len(results),
         "correct": correct,

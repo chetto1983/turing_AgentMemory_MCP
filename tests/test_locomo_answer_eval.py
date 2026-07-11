@@ -110,6 +110,18 @@ def test_resume_keys_are_stable_and_skip_completed_rows() -> None:
     assert [answers.row_key(row) for row in pending] == ["conv-1:8"]
 
 
+def test_limit_rows_selects_only_the_requested_prefix() -> None:
+    rows = [
+        {**retrieval_row(), "question_index": index}
+        for index in range(1, 4)
+    ]
+
+    assert answers.limit_rows(rows, 2) == rows[:2]
+    assert answers.limit_rows(rows, 0) == rows
+    with pytest.raises(ValueError, match="non-negative"):
+        answers.limit_rows(rows, -1)
+
+
 @pytest.mark.parametrize("value", ["yes", "1", {}, []])
 def test_judge_payload_requires_a_json_boolean(value: object) -> None:
     with pytest.raises(ValueError, match="correct"):
