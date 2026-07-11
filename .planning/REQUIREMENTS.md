@@ -84,7 +84,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [ ] **CI-04**: GitHub Actions unit-test job (pytest, `pythonpath=src`)
 - [ ] **CI-05**: GitHub Actions dockerized-integration job running the E2E score gate + real-document E2E
 - [ ] **CI-06**: GitHub Actions compose-validation + supply-chain scan (pip-audit `2.10.1`)
-- [ ] **CI-07**: No-skip-as-green — a skipped GPU/integration tier FAILS under CI rather than passing green
+- [x] **CI-07**: No-skip-as-green — a skipped GPU/integration tier FAILS under CI rather than passing green
 - [ ] **CI-08**: GPU-less CI degrades GPU tiers to a compile/stub floor (never silent green)
 - [ ] **CI-09**: Coverage gate with a floor measured against the actual current suite (not guessed)
 
@@ -174,7 +174,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | CI-04 | Phase 1 | Pending |
 | CI-05 | Phase 1 | Pending |
 | CI-06 | Phase 1 | Pending |
-| CI-07 | Phase 1 | Pending |
+| CI-07 | Phase 1 | Complete |
 | CI-08 | Phase 1 | Pending |
 | CI-09 | Phase 1 | Pending |
 | UTCP-01 | Phase 2 | Pending |

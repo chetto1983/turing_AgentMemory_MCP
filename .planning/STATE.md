@@ -6,14 +6,14 @@ current_phase: 01
 current_phase_name: ci-git-hook-discipline
 status: executing
 stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-07-11T22:07:45.564Z"
+last_updated: "2026-07-11T22:15:29.191Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 01 (ci-git-hook-discipline) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 01 execution started
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P05 | 30min | 2 tasks | 8 files |
 | Phase 01 P06 | 15min | 2 tasks | 71 files |
 | Phase 01 P07 | 40min | 3 tasks | 7 files |
+| Phase 01 P08 | 5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,7 @@ Recent decisions affecting current work:
 - [Phase ?]: Test-file splits (01-05): grouped gliner_provider main()/signal lifecycle tests with core provider-contract tests rather than a 4th file; named batch_memory siblings test_batch_memory_write.py/test_batch_memory_dedup.py per the plan's literal verify command; used leading-underscore _<name>_shared.py modules (not conftest.py) for shared fixtures since no tests/conftest.py exists yet
 - [Phase ?]: 01-06: One-time repo-wide ruff format bootstrap pass (D-09a) landed; format pass pushed tests/test_entity_extraction.py from 598 to 612 LOC, so it was split into test_entity_extraction.py (local/native backends) + test_entity_extraction_http.py (HTTP backend), mirroring the Wave-1 split pattern -- tree is now format-clean, ruff-check clean, 362 pytest, zero files over 600 LOC cap
 - [Phase ?]: 01-07: lefthook.yml commands wrapped in scripts/run-python.sh and scripts/run-fast-tests.sh (no embedded shell quoting) because lefthook 2.1.10's Windows command execution corrupts nested quotes and rejects a root-level shell: override; verified via lefthook run and a real git commit
+- [Phase ?]: 01-08: no-skip-as-green guard (conftest.py hookwrapper) and its pytester negative self-test written verbatim from RESEARCH.md D-03/D-04 (no in-repo analog existed); RED test committed before GREEN implementation per TDD task order
 
 ### Pending Todos
 
@@ -113,6 +115,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T22:07:45.555Z
+Last session: 2026-07-11T22:14:53.466Z
 Stopped at: Completed 01-07-PLAN.md
 Resume file: None
