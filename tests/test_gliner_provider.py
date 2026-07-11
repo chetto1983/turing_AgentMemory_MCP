@@ -89,9 +89,7 @@ def test_extract_memory_requires_schema_version_and_preserves_order() -> None:
         "schema_version": MEMORY_EXTRACTION_SCHEMA_VERSION,
         "results": [memory_result(), memory_result()],
     }
-    assert model.calls == [
-        {"texts": ["first", "second"], "batch_size": 4, "threshold": 0.5}
-    ]
+    assert model.calls == [{"texts": ["first", "second"], "batch_size": 4, "threshold": 0.5}]
 
 
 @pytest.mark.parametrize(
@@ -212,7 +210,9 @@ def test_extract_rejects_invalid_payloads(payload: dict[str, object]) -> None:
 
 def test_extract_rejects_provider_result_count_mismatch() -> None:
     class MismatchedModel(FakeModel):
-        def batch_extract_entities(self, *args: object, **kwargs: object) -> list[dict[str, object]]:
+        def batch_extract_entities(
+            self, *args: object, **kwargs: object
+        ) -> list[dict[str, object]]:
             return [{"entities": {}}]
 
     provider = GLiNERProvider(model=MismatchedModel(), model_name="fastino/gliner2-base-v1")
@@ -246,7 +246,9 @@ def test_main_validates_settings_before_loading_model(monkeypatch, name: str, va
 
     monkeypatch.setitem(sys.modules, "fast_gliner", SimpleNamespace(FastGLiNER2=FakeFastGLiNER2))
     monkeypatch.setenv(name, value)
-    monkeypatch.setattr(gliner_provider, "make_server", lambda *args, **kwargs: pytest.fail("server started"))
+    monkeypatch.setattr(
+        gliner_provider, "make_server", lambda *args, **kwargs: pytest.fail("server started")
+    )
 
     with pytest.raises(ValueError):
         gliner_provider.main()
@@ -287,7 +289,9 @@ def test_main_loads_the_model_once_after_validating_settings(monkeypatch) -> Non
         pass
 
     monkeypatch.setitem(sys.modules, "fast_gliner", SimpleNamespace(FastGLiNER2=FakeFastGLiNER2))
-    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(snapshot_download=snapshot_download))
+    monkeypatch.setitem(
+        sys.modules, "huggingface_hub", SimpleNamespace(snapshot_download=snapshot_download)
+    )
     monkeypatch.setitem(
         sys.modules,
         "huggingface_hub.errors",
@@ -344,7 +348,9 @@ def test_main_downloads_the_pinned_model_only_when_cache_is_absent(monkeypatch) 
         return "/models/downloaded-snapshot"
 
     monkeypatch.setitem(sys.modules, "fast_gliner", SimpleNamespace(FastGLiNER2=FakeFastGLiNER2))
-    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(snapshot_download=snapshot_download))
+    monkeypatch.setitem(
+        sys.modules, "huggingface_hub", SimpleNamespace(snapshot_download=snapshot_download)
+    )
     monkeypatch.setitem(
         sys.modules,
         "huggingface_hub.errors",
@@ -374,7 +380,11 @@ def test_signal_handlers_shutdown_server_from_another_thread(monkeypatch) -> Non
         def shutdown(self) -> None:
             shutdown_called.set()
 
-    monkeypatch.setattr(gliner_provider.signal, "signal", lambda signum, handler: handlers.__setitem__(signum, handler))
+    monkeypatch.setattr(
+        gliner_provider.signal,
+        "signal",
+        lambda signum, handler: handlers.__setitem__(signum, handler),
+    )
 
     gliner_provider._install_shutdown_signal_handlers(FakeServer())
 

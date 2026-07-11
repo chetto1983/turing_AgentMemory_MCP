@@ -131,9 +131,9 @@ class LocalRerankServer:
                         }
                     )
                 results.sort(key=lambda row: row["relevance_score"], reverse=True)
-                body = json.dumps({"model": payload.get("model") or "local-rerank", "results": results}).encode(
-                    "utf-8"
-                )
+                body = json.dumps(
+                    {"model": payload.get("model") or "local-rerank", "results": results}
+                ).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(body)))

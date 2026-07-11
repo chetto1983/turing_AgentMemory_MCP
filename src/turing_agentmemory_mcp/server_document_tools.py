@@ -77,19 +77,23 @@ def register_document_tools(
             try:
                 uploaded = uploads.complete(upload_id, user_identifier=user_identifier)
                 attributes = uploaded.attributes
-                return document_manager().enqueue_file(
-                    uploaded.path,
-                    user_identifier=user_identifier,
-                    title=str(attributes["title"]),
-                    document_id=attributes.get("document_id"),
-                    source=str(attributes.get("source") or ""),
-                    tags=list(attributes.get("tags") or []),
-                    metadata=dict(attributes.get("metadata") or {}),
-                    expires_at=attributes.get("expires_at"),
-                    transport="mcp-chunk-upload",
-                    expected_sha256=uploaded.sha256,
-                    expected_bytes=uploaded.total_bytes,
-                ).to_dict()
+                return (
+                    document_manager()
+                    .enqueue_file(
+                        uploaded.path,
+                        user_identifier=user_identifier,
+                        title=str(attributes["title"]),
+                        document_id=attributes.get("document_id"),
+                        source=str(attributes.get("source") or ""),
+                        tags=list(attributes.get("tags") or []),
+                        metadata=dict(attributes.get("metadata") or {}),
+                        expires_at=attributes.get("expires_at"),
+                        transport="mcp-chunk-upload",
+                        expected_sha256=uploaded.sha256,
+                        expected_bytes=uploaded.total_bytes,
+                    )
+                    .to_dict()
+                )
             finally:
                 uploads.discard(upload_id, user_identifier=user_identifier)
 
@@ -142,16 +146,20 @@ def register_document_tools(
     ) -> dict[str, Any]:
         """Durably enqueue a server-local file for background conversion and ingestion."""
         with tool_span("document_ingest_file"):
-            return document_manager().enqueue_file(
-                path,
-                user_identifier=user_identifier,
-                title=title,
-                document_id=document_id,
-                source=source,
-                tags=tags,
-                metadata=metadata,
-                expires_at=expires_at,
-            ).to_dict()
+            return (
+                document_manager()
+                .enqueue_file(
+                    path,
+                    user_identifier=user_identifier,
+                    title=title,
+                    document_id=document_id,
+                    source=source,
+                    tags=tags,
+                    metadata=metadata,
+                    expires_at=expires_at,
+                )
+                .to_dict()
+            )
 
     @app.tool()
     def document_ingest_status(
@@ -172,10 +180,14 @@ def register_document_tools(
     ) -> dict[str, object]:
         """Cancel a queued job or request cooperative cancellation of a running job."""
         with tool_span("document_ingest_cancel"):
-            return document_manager().cancel(
-                job_id,
-                user_identifier=user_identifier,
-            ).to_dict()
+            return (
+                document_manager()
+                .cancel(
+                    job_id,
+                    user_identifier=user_identifier,
+                )
+                .to_dict()
+            )
 
     @app.tool()
     def document_ingest_retry(
@@ -184,10 +196,14 @@ def register_document_tools(
     ) -> dict[str, object]:
         """Requeue a failed document ingestion job using its durable staged file."""
         with tool_span("document_ingest_retry"):
-            return document_manager().retry(
-                job_id,
-                user_identifier=user_identifier,
-            ).to_dict()
+            return (
+                document_manager()
+                .retry(
+                    job_id,
+                    user_identifier=user_identifier,
+                )
+                .to_dict()
+            )
 
     @app.tool()
     def document_reindex_text(

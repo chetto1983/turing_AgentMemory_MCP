@@ -32,9 +32,7 @@ class _RebuildMixin:
     ) -> str | None:
         if self.sparse_index is None or not payloads:
             return None
-        payload_by_memory_id = {
-            str(payload["memory_id"]): payload for payload in payloads
-        }
+        payload_by_memory_id = {str(payload["memory_id"]): payload for payload in payloads}
         mutations: list[SparseMutation] = []
         for payload in payloads:
             source_id = str(payload["memory_id"])
@@ -135,9 +133,7 @@ class _RebuildMixin:
         counts: dict[str, int] = {}
         for kind, base_index_name, id_factory in specifications:
             records = canonical.get(kind, [])
-            index_name = self._ensure_tenant_vector_index(
-                base_index_name, user_identifier
-            )
+            index_name = self._ensure_tenant_vector_index(base_index_name, user_identifier)
             vectors = self._embed_many([content for _source_id, content in records])
             if vectors:
                 self._load_vectors(
@@ -167,9 +163,7 @@ class _RebuildMixin:
 
     def rebuild_communities(self, *, user_identifier: str) -> dict[str, object]:
         self._require_user(user_identifier)
-        entities, facts, mentions_by_memory = self._community_graph_inputs(
-            user_identifier
-        )
+        entities, facts, mentions_by_memory = self._community_graph_inputs(user_identifier)
         edges = [
             WeightedEntityEdge(
                 fact.subject_entity_id,
@@ -216,9 +210,7 @@ class _RebuildMixin:
             mutations.extend(
                 SparseMutation.upsert(
                     SparseDocument(
-                        doc_key=self._sparse_doc_key(
-                            user_identifier, "community", projection.id
-                        ),
+                        doc_key=self._sparse_doc_key(user_identifier, "community", projection.id),
                         user_identifier=user_identifier,
                         source_id=projection.id,
                         kind="community",
@@ -321,8 +313,7 @@ class _RebuildMixin:
                     sorted(
                         sources_by_entity.get(
                             str(row.get("e.id")),
-                            {str(row.get("e.source_memory_id") or "")}
-                            - {""},
+                            {str(row.get("e.source_memory_id") or "")} - {""},
                         )
                     )
                 ),
@@ -396,46 +387,38 @@ class _RebuildMixin:
                 queries.append(
                     f'MATCH (c:Community) WHERE c.id = "{quote(projection.id)}" '
                     f'AND c.user_identifier = "{quote(user_identifier)}" '
-                    f'SET c.vector_id = {self._community_vector_id(user_identifier, projection.id)}, '
+                    f"SET c.vector_id = {self._community_vector_id(user_identifier, projection.id)}, "
                     f'c.content = "{quote(projection.content)}", '
                     f'c.member_ids_json = "{quote(self._json_dumps(list(projection.member_ids)))}", '
                     f'c.source_memory_ids_json = "{quote(self._json_dumps(list(projection.source_memory_ids)))}", '
                     f'c.fact_ids_json = "{quote(self._json_dumps(list(projection.fact_ids)))}", '
-                    f'c.confidence = {projection.confidence:.8f}, c.level = {projection.level}, '
+                    f"c.confidence = {projection.confidence:.8f}, c.level = {projection.level}, "
                     f'c.parent_id = "{quote(projection.parent_id)}", '
-                    f'c.edge_weight = {projection.edge_weight:.8f}, '
+                    f"c.edge_weight = {projection.edge_weight:.8f}, "
                     f'c.updated_at = "{quote(timestamp)}", c.status = "active"'
                 )
                 continue
             member_vars = [cypher_var(member_id) for member_id in projection.member_ids]
             community_var = cypher_var(projection.id)
-            match_nodes = ", ".join(
-                f"({variable}:Entity)" for variable in member_vars
-            )
+            match_nodes = ", ".join(f"({variable}:Entity)" for variable in member_vars)
             where_terms = " AND ".join(
                 f'{variable}.id = "{quote(member_id)}"'
-                for variable, member_id in zip(
-                    member_vars, projection.member_ids, strict=True
-                )
+                for variable, member_id in zip(member_vars, projection.member_ids, strict=True)
             )
             node = (
                 f'({community_var}:Community {{id: "{quote(projection.id)}", '
-                f'vector_id: {self._community_vector_id(user_identifier, projection.id)}, '
+                f"vector_id: {self._community_vector_id(user_identifier, projection.id)}, "
                 f'user_identifier: "{quote(user_identifier)}", content: "{quote(projection.content)}", '
                 f'member_ids_json: "{quote(self._json_dumps(list(projection.member_ids)))}", '
                 f'source_memory_ids_json: "{quote(self._json_dumps(list(projection.source_memory_ids)))}", '
                 f'fact_ids_json: "{quote(self._json_dumps(list(projection.fact_ids)))}", '
-                f'confidence: {projection.confidence:.8f}, level: {projection.level}, '
+                f"confidence: {projection.confidence:.8f}, level: {projection.level}, "
                 f'parent_id: "{quote(projection.parent_id)}", edge_weight: {projection.edge_weight:.8f}, '
                 f'created_at: "{quote(timestamp)}", updated_at: "{quote(timestamp)}", status: "active"}})'
             )
-            edges = [
-                f"({variable})-[:IN_COMMUNITY]->({community_var})"
-                for variable in member_vars
-            ]
+            edges = [f"({variable})-[:IN_COMMUNITY]->({community_var})" for variable in member_vars]
             queries.append(
-                f"MATCH {match_nodes} WHERE {where_terms} CREATE "
-                + ", ".join([node, *edges])
+                f"MATCH {match_nodes} WHERE {where_terms} CREATE " + ", ".join([node, *edges])
             )
         self._write_many(queries)
 
@@ -443,7 +426,7 @@ class _RebuildMixin:
         documents: list[SparseDocument] = []
         memory_rows = self._sparse_rebuild_rows(
             "Memory",
-            "MATCH (m:Memory) WHERE m.status = \"active\" "
+            'MATCH (m:Memory) WHERE m.status = "active" '
             "RETURN m.id, m.user_identifier, m.kind, m.content, m.source, m.session_id, "
             "m.created_at, m.expires_at",
             "sparse.rebuild.memory",
@@ -488,9 +471,7 @@ class _RebuildMixin:
                 if not source_id or not user_identifier or not content:
                     continue
                 created_at = str(
-                    row.get(f"{variable}.observed_at")
-                    or row.get(f"{variable}.created_at")
-                    or ""
+                    row.get(f"{variable}.observed_at") or row.get(f"{variable}.created_at") or ""
                 )
                 documents.append(
                     SparseDocument(
@@ -533,8 +514,7 @@ class _RebuildMixin:
                     str(row[f"{variable}.{text_property}"]),
                 )
                 for row in rows
-                if row.get(f"{variable}.id")
-                and row.get(f"{variable}.{text_property}")
+                if row.get(f"{variable}.id") and row.get(f"{variable}.{text_property}")
             ]
         return records
 

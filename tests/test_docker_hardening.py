@@ -39,6 +39,7 @@ GEMMA_URL = (
     f"resolve/{GEMMA_REVISION}/{GEMMA_FILENAME}?download=true"
 )
 
+
 def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
     app = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     turingdb = (ROOT / "docker" / "turingdb.Dockerfile").read_text(encoding="utf-8")
@@ -169,7 +170,10 @@ def test_compose_declares_profile_gated_embeddinggemma_gpu_candidate() -> None:
     assert candidate["read_only"] is True
     assert candidate["security_opt"] == ["no-new-privileges:true"]
     assert "agentmemory-llama-cache:/models" in candidate["volumes"]
-    assert candidate["depends_on"]["agentmemory-gemma-model-init"]["condition"] == "service_completed_successfully"
+    assert (
+        candidate["depends_on"]["agentmemory-gemma-model-init"]["condition"]
+        == "service_completed_successfully"
+    )
 
     script = init["command"][0]
     assert GEMMA_URL in script
@@ -239,8 +243,8 @@ def test_compose_provisions_commit_pinned_models_with_exact_checksums() -> None:
     normalized_script = re.sub(r"\\\s*", " ", script)
     normalized_script = re.sub(r"\s+", " ", normalized_script)
     download = (
-        'curl -fL --retry 5 --retry-delay 2 --retry-all-errors '
-        '--connect-timeout 30 --speed-limit 1024 --speed-time 120 '
+        "curl -fL --retry 5 --retry-delay 2 --retry-all-errors "
+        "--connect-timeout 30 --speed-limit 1024 --speed-time 120 "
         '--output "$$partial" "$$url"'
     )
     for flag in (
@@ -320,9 +324,7 @@ def test_compose_allows_overrideable_rerank_provider_min_score() -> None:
     override_env = os.environ.copy()
     override_env["RERANK_PROVIDER_MIN_SCORE"] = "0.25"
     overridden = yaml.safe_load(
-        subprocess.check_output(
-            ["docker", "compose", "config"], text=True, env=override_env
-        )
+        subprocess.check_output(["docker", "compose", "config"], text=True, env=override_env)
     )
 
     def value(config: dict) -> str:

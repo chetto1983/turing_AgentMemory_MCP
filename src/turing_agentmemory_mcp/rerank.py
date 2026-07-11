@@ -104,14 +104,15 @@ class OpenAICompatibleReranker:
     def from_env(cls) -> OpenAICompatibleReranker:
         return cls(
             base_url=provider_env("RERANK_BASE_URL", default="http://127.0.0.1:8085"),
-            model=provider_env("RERANK_MODEL", default="local-rerank")
-            or "local-rerank",
+            model=provider_env("RERANK_MODEL", default="local-rerank") or "local-rerank",
             api_key=provider_secret("RERANK"),
             api_key_header=provider_api_key_header("RERANK"),
             api_key_scheme=provider_api_key_scheme("RERANK"),
             dimensions=provider_optional_int("RERANK_DIMENSIONS"),
             timeout_s=float(provider_env("RERANK_TIMEOUT_SECONDS", default="30")),
-            provider_min_score=max(0.0, float(provider_env("RERANK_PROVIDER_MIN_SCORE", default="0"))),
+            provider_min_score=max(
+                0.0, float(provider_env("RERANK_PROVIDER_MIN_SCORE", default="0"))
+            ),
             max_attempts=int(provider_env("RERANK_MAX_ATTEMPTS", default="3")),
             retry_base_s=float(provider_env("RERANK_RETRY_BASE_SECONDS", default="0.5")),
             limits=RerankLimits(
@@ -166,7 +167,9 @@ class OpenAICompatibleReranker:
             headers={"Content-Type": "application/json"},
         )
         if self.api_key:
-            req.add_header(self.api_key_header, api_key_header_value(self.api_key, self.api_key_scheme))
+            req.add_header(
+                self.api_key_header, api_key_header_value(self.api_key, self.api_key_scheme)
+            )
         decoded: object = None
         for attempt in range(self.max_attempts):
             try:
@@ -185,7 +188,11 @@ class OpenAICompatibleReranker:
             except json.JSONDecodeError:
                 return self._result(identity(documents), "provider_error", bounded_documents)
             error_code = provider_error_code(decoded)
-            if error_code and retryable_provider_code(error_code) and attempt + 1 < self.max_attempts:
+            if (
+                error_code
+                and retryable_provider_code(error_code)
+                and attempt + 1 < self.max_attempts
+            ):
                 time.sleep(self.retry_base_s * (2**attempt))
                 continue
             if error_code:
@@ -371,9 +378,7 @@ def bound_rerank_documents(
     limits: RerankLimits,
 ) -> list[str]:
     remaining_bytes = limits.max_total_bytes
-    remaining_chars = math.floor(
-        limits.max_estimated_tokens * limits.chars_per_token
-    )
+    remaining_chars = math.floor(limits.max_estimated_tokens * limits.chars_per_token)
     bounded: list[str] = []
     for index, document in enumerate(documents):
         remaining_documents = len(documents) - index

@@ -77,8 +77,18 @@ def test_store_messages_deduplicates_entities_across_episode_batch(tmp_path: Pat
     store.store_messages(
         user_identifier="alice",
         messages=[
-            {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."},
-            {"memory_id": "e2", "session_id": "s1", "role": "user", "content": "Alice enjoys hiking."},
+            {
+                "memory_id": "e1",
+                "session_id": "s1",
+                "role": "user",
+                "content": "Alice likes hiking.",
+            },
+            {
+                "memory_id": "e2",
+                "session_id": "s1",
+                "role": "user",
+                "content": "Alice enjoys hiking.",
+            },
         ],
     )
 
@@ -100,7 +110,12 @@ def test_store_messages_memory_extraction_failure_prevents_every_write_and_embed
         store.store_messages(
             user_identifier="alice",
             messages=[
-                {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+                {
+                    "memory_id": "e1",
+                    "session_id": "s1",
+                    "role": "user",
+                    "content": "Alice likes hiking.",
+                }
             ],
         )
     except RuntimeError as exc:
@@ -157,7 +172,12 @@ def test_temporal_episode_id_cannot_be_reused_for_different_content(tmp_path: Pa
     store.store_messages(
         user_identifier="alice",
         messages=[
-            {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+            {
+                "memory_id": "e1",
+                "session_id": "s1",
+                "role": "user",
+                "content": "Alice likes hiking.",
+            }
         ],
     )
 
@@ -195,7 +215,12 @@ def test_temporal_graph_write_failure_publishes_no_vectors(tmp_path: Path) -> No
         store.store_messages(
             user_identifier="alice",
             messages=[
-                {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+                {
+                    "memory_id": "e1",
+                    "session_id": "s1",
+                    "role": "user",
+                    "content": "Alice likes hiking.",
+                }
             ],
         )
     except RuntimeError as exc:
@@ -222,7 +247,12 @@ def test_temporal_store_projects_episode_entities_and_fact_to_sparse_index(
     store.store_messages(
         user_identifier="alice",
         messages=[
-            {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+            {
+                "memory_id": "e1",
+                "session_id": "s1",
+                "role": "user",
+                "content": "Alice likes hiking.",
+            }
         ],
     )
 
@@ -251,7 +281,12 @@ def test_graph_failure_discards_prepared_sparse_projection(tmp_path: Path) -> No
         store.store_messages(
             user_identifier="alice",
             messages=[
-                {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+                {
+                    "memory_id": "e1",
+                    "session_id": "s1",
+                    "role": "user",
+                    "content": "Alice likes hiking.",
+                }
             ],
         )
 
@@ -268,7 +303,12 @@ def test_temporal_update_rejects_raw_episode_mutation(tmp_path: Path) -> None:
     store.store_messages(
         user_identifier="alice",
         messages=[
-            {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+            {
+                "memory_id": "e1",
+                "session_id": "s1",
+                "role": "user",
+                "content": "Alice likes hiking.",
+            }
         ],
     )
 
@@ -296,7 +336,12 @@ def test_delete_removes_episode_and_supported_facts_from_sparse_projection(
     store.store_messages(
         user_identifier="alice",
         messages=[
-            {"memory_id": "e1", "session_id": "s1", "role": "user", "content": "Alice likes hiking."}
+            {
+                "memory_id": "e1",
+                "session_id": "s1",
+                "role": "user",
+                "content": "Alice likes hiking.",
+            }
         ],
     )
     fact_ids = [
@@ -316,13 +361,16 @@ def test_delete_removes_episode_and_supported_facts_from_sparse_projection(
     result = store.delete_memory(user_identifier="alice", memory_id="e1")
 
     assert result["deleted"] is True
-    assert sparse.search(
-        user_identifier="alice",
-        query="hiking",
-        kinds=["episode", "fact"],
-        limit=10,
-    ) == []
-    assert len(
-        sparse.search(user_identifier="alice", query="hiking", kinds=["entity"], limit=10)
-    ) == 1
+    assert (
+        sparse.search(
+            user_identifier="alice",
+            query="hiking",
+            kinds=["episode", "fact"],
+            limit=10,
+        )
+        == []
+    )
+    assert (
+        len(sparse.search(user_identifier="alice", query="hiking", kinds=["entity"], limit=10)) == 1
+    )
     assert sparse.status()["pending_count"] == 0

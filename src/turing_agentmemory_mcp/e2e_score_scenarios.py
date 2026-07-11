@@ -110,8 +110,9 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "memory_store_message_writes_scoped_memory",
-            lambda: alice_message["user_identifier"] == "alice"
-            and alice_message["kind"] == "message",
+            lambda: (
+                alice_message["user_identifier"] == "alice" and alice_message["kind"] == "message"
+            ),
         )
 
         batch_messages = payload(
@@ -155,11 +156,13 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "memory_store_messages_batches_idempotent_searchable_writes",
-            lambda: len(batch_messages) == 3
-            and batch_messages[0]["id"] == batch_messages[2]["id"]
-            and batch_messages[0]["source"] == "e2e-batch"
-            and "idempotent" in batch_messages[0]["tags"]
-            and batch_search[0]["content"].startswith("Batch memory marker BATCH-43"),
+            lambda: (
+                len(batch_messages) == 3
+                and batch_messages[0]["id"] == batch_messages[2]["id"]
+                and batch_messages[0]["source"] == "e2e-batch"
+                and "idempotent" in batch_messages[0]["tags"]
+                and batch_search[0]["content"].startswith("Batch memory marker BATCH-43")
+            ),
         )
 
         alice_search = payload(
@@ -210,15 +213,21 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "memory_search_hybrid_exact_code_match_explains_lexical_score",
-            lambda: incident_hits[0]["id"] == incident_memory["id"]
-            and incident_details["lexical_score"] > 0.0
-            and incident_details["final_score"] >= incident_details["semantic_score"],
+            lambda: (
+                incident_hits[0]["id"] == incident_memory["id"]
+                and incident_details["lexical_score"] > 0.0
+                and incident_details["final_score"] >= incident_details["semantic_score"]
+            ),
         )
 
         context = payload(
             await client.call_tool(
                 "memory_get_context",
-                {"user_identifier": "alice", "query": "what drink during memory review", "limit": 3},
+                {
+                    "user_identifier": "alice",
+                    "query": "what drink during memory review",
+                    "limit": 3,
+                },
             )
         )
         check(
@@ -237,7 +246,9 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
             "metadata": {"source_test": "lifecycle"},
         }
         duplicate_first = payload(await client.call_tool("memory_store_message", duplicate_payload))
-        duplicate_second = payload(await client.call_tool("memory_store_message", duplicate_payload))
+        duplicate_second = payload(
+            await client.call_tool("memory_store_message", duplicate_payload)
+        )
         lifecycle_list = payload(
             await client.call_tool(
                 "memory_list",
@@ -252,10 +263,12 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "memory_store_message_is_idempotent_and_memory_list_filters_metadata",
-            lambda: duplicate_first["id"] == duplicate_second["id"]
-            and len(lifecycle_list) == 1
-            and lifecycle_list[0]["source"] == "e2e"
-            and "idempotent" in lifecycle_list[0]["tags"],
+            lambda: (
+                duplicate_first["id"] == duplicate_second["id"]
+                and len(lifecycle_list) == 1
+                and lifecycle_list[0]["source"] == "e2e"
+                and "idempotent" in lifecycle_list[0]["tags"]
+            ),
         )
 
         fetched = payload(
@@ -280,12 +293,14 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "memory_get_and_update_return_structured_metadata",
-            lambda: fetched["id"] == duplicate_first["id"]
-            and updated["content"].endswith("corrected memory updates.")
-            and updated["created_at"] == fetched["created_at"]
-            and updated["updated_at"] >= fetched["updated_at"]
-            and updated["source"] == "e2e-update"
-            and updated["metadata"]["source_test"] == "updated",
+            lambda: (
+                fetched["id"] == duplicate_first["id"]
+                and updated["content"].endswith("corrected memory updates.")
+                and updated["created_at"] == fetched["created_at"]
+                and updated["updated_at"] >= fetched["updated_at"]
+                and updated["source"] == "e2e-update"
+                and updated["metadata"]["source_test"] == "updated"
+            ),
         )
 
         delete_result = payload(
@@ -313,9 +328,11 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "memory_delete_hides_memory_from_get_and_search",
-            lambda: delete_result["deleted"] is True
-            and deleted_get is None
-            and all(row["id"] != duplicate_first["id"] for row in deleted_search),
+            lambda: (
+                delete_result["deleted"] is True
+                and deleted_get is None
+                and all(row["id"] != duplicate_first["id"] for row in deleted_search)
+            ),
         )
 
         document_text = (
@@ -353,9 +370,11 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "document_search_retrieves_exact_top1_with_citation_and_neighbor_context",
-            lambda: doc_hits[0]["chunk_id"] == "doc-machine-safety#1"
-            and doc_hits[0]["locator"] == "chunk=1"
-            and doc_hits[0]["context"][0]["chunk_id"] == "doc-machine-safety#2",
+            lambda: (
+                doc_hits[0]["chunk_id"] == "doc-machine-safety#1"
+                and doc_hits[0]["locator"] == "chunk=1"
+                and doc_hits[0]["context"][0]["chunk_id"] == "doc-machine-safety#2"
+            ),
         )
 
         hybrid_doc = payload(
@@ -389,10 +408,12 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "document_search_hybrid_exact_code_match_explains_lexical_score",
-            lambda: hybrid_doc["chunk_count"] == 2
-            and hybrid_doc_hits[0]["chunk_id"] == "doc-incident-runbook#1"
-            and hybrid_doc_details["lexical_score"] > 0.0
-            and hybrid_doc_details["final_score"] >= hybrid_doc_details["semantic_score"],
+            lambda: (
+                hybrid_doc["chunk_count"] == 2
+                and hybrid_doc_hits[0]["chunk_id"] == "doc-incident-runbook#1"
+                and hybrid_doc_details["lexical_score"] > 0.0
+                and hybrid_doc_details["final_score"] >= hybrid_doc_details["semantic_score"]
+            ),
         )
 
         duplicate_doc = payload(
@@ -426,11 +447,13 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "document_ingest_text_is_idempotent_for_same_payload",
-            lambda: duplicate_doc["document_id"] == repeated_doc["document_id"]
-            and duplicate_doc["chunk_count"] == repeated_doc["chunk_count"] == 3
-            and duplicate_doc["created_at"] == repeated_doc["created_at"]
-            and repeated_doc["source"] == "e2e"
-            and "idempotent" in repeated_doc["tags"],
+            lambda: (
+                duplicate_doc["document_id"] == repeated_doc["document_id"]
+                and duplicate_doc["chunk_count"] == repeated_doc["chunk_count"] == 3
+                and duplicate_doc["created_at"] == repeated_doc["created_at"]
+                and repeated_doc["source"] == "e2e"
+                and "idempotent" in repeated_doc["tags"]
+            ),
         )
 
         reindexed_doc = payload(
@@ -475,11 +498,13 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "document_reindex_text_replaces_old_chunks_and_metadata",
-            lambda: reindexed_doc["chunk_count"] == 2
-            and reindexed_doc["source"] == "e2e-reindex"
-            and reindexed_doc["metadata"]["revision"] == "2"
-            and reindexed_hits[0]["chunk_id"] == "doc-machine-safety#1"
-            and all("Monthly maintenance records" not in row["text"] for row in stale_hits),
+            lambda: (
+                reindexed_doc["chunk_count"] == 2
+                and reindexed_doc["source"] == "e2e-reindex"
+                and reindexed_doc["metadata"]["revision"] == "2"
+                and reindexed_hits[0]["chunk_id"] == "doc-machine-safety#1"
+                and all("Monthly maintenance records" not in row["text"] for row in stale_hits)
+            ),
         )
 
         payload(
@@ -549,6 +574,8 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         check(
             checks,
             "memoryarena_bucket_sample_retrieves_answer_context",
-            lambda: marker in arena_hits[0]["content"]
-            and "Chetro983/memoryarena-bucket" in sample["_source_url"],
+            lambda: (
+                marker in arena_hits[0]["content"]
+                and "Chetro983/memoryarena-bucket" in sample["_source_url"]
+            ),
         )

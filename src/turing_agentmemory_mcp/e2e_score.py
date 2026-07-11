@@ -98,7 +98,9 @@ def run_e2e(out: Path) -> dict[str, Any]:
 
             daemon = TuringDaemon(home)
             daemon.start()
-            restarted = TuringAgentMemory(daemon.client(), turing_home=home, graph="e2e_agent_memory")
+            restarted = TuringAgentMemory(
+                daemon.client(), turing_home=home, graph="e2e_agent_memory"
+            )
             restarted.load_graph_after_restart()
             memory = restarted.search_memory(
                 user_identifier="alice", query="espresso TuringDB memory", limit=1
@@ -109,8 +111,10 @@ def run_e2e(out: Path) -> dict[str, Any]:
             check(
                 checks,
                 "restart_preserves_memory_and_document_retrieval",
-                lambda: memory[0].content.startswith("Davide prefers espresso")
-                and docs[0].chunk_id == "doc-machine-safety#1",
+                lambda: (
+                    memory[0].content.startswith("Davide prefers espresso")
+                    and docs[0].chunk_id == "doc-machine-safety#1"
+                ),
             )
     finally:
         cleanup = daemon.stop()

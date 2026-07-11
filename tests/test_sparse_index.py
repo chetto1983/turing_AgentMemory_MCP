@@ -130,9 +130,9 @@ def test_upsert_and_delete_are_idempotent(tmp_path: Path) -> None:
     index.upsert_many([replacement])
 
     assert index.search(user_identifier="alice", query="old", limit=10) == []
-    assert [hit.content for hit in index.search(user_identifier="alice", query="new", limit=10)] == [
-        "new project name"
-    ]
+    assert [
+        hit.content for hit in index.search(user_identifier="alice", query="new", limit=10)
+    ] == ["new project name"]
     index.delete_many([replacement.doc_key, replacement.doc_key])
     assert index.search(user_identifier="alice", query="new", limit=10) == []
 
@@ -150,9 +150,9 @@ def test_committed_outbox_replays_after_process_restart(tmp_path: Path) -> None:
 
     assert restarted.replay() == 1
 
-    assert [hit.source_id for hit in restarted.search(user_identifier="alice", query="hiking", limit=10)] == [
-        "m1"
-    ]
+    assert [
+        hit.source_id for hit in restarted.search(user_identifier="alice", query="hiking", limit=10)
+    ] == ["m1"]
     assert restarted.replay() == 0
     assert restarted.status()["pending_count"] == 0
 
@@ -174,9 +174,7 @@ def test_schema_mismatch_requires_explicit_rebuild(tmp_path: Path) -> None:
     index.initialize()
     index.upsert_many([document("old", "stale projection")])
     with sqlite3.connect(path) as connection:
-        connection.execute(
-            "UPDATE sparse_meta SET value = '0' WHERE key = 'schema_version'"
-        )
+        connection.execute("UPDATE sparse_meta SET value = '0' WHERE key = 'schema_version'")
 
     with pytest.raises(SparseSchemaMismatch):
         SparseIndex(path).initialize()
@@ -185,9 +183,9 @@ def test_schema_mismatch_requires_explicit_rebuild(tmp_path: Path) -> None:
     rebuilt.rebuild([document("new", "rebuilt projection")])
 
     assert rebuilt.search(user_identifier="alice", query="stale", limit=10) == []
-    assert [hit.source_id for hit in rebuilt.search(user_identifier="alice", query="rebuilt", limit=10)] == [
-        "new"
-    ]
+    assert [
+        hit.source_id for hit in rebuilt.search(user_identifier="alice", query="rebuilt", limit=10)
+    ] == ["new"]
 
 
 def test_unavailable_index_raises_explicit_error(tmp_path: Path) -> None:

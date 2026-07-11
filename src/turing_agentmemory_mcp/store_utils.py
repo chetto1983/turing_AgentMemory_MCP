@@ -26,12 +26,10 @@ class _UtilsMixin:
             target_var = cypher_var(edge.target_id)
             properties = {"id": edge.id, **edge.properties}
             property_text = ", ".join(
-                f'{cypher_var(name)}: {cls._cypher_value(value)}'
+                f"{cypher_var(name)}: {cls._cypher_value(value)}"
                 for name, value in properties.items()
             )
-            literals.append(
-                f"({source_var})-[:{edge.kind} {{{property_text}}}]->({target_var})"
-            )
+            literals.append(f"({source_var})-[:{edge.kind} {{{property_text}}}]->({target_var})")
         return literals
 
     @staticmethod

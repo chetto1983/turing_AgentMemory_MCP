@@ -76,7 +76,9 @@ class RecordingMemoryStore(TuringAgentMemory):
     def _write_many(self, queries: list[str]) -> None:
         self.write_queries.extend(queries)
 
-    def _load_vectors(self, index_name: str, rows: list[tuple[int, list[float]]], stem: str) -> None:
+    def _load_vectors(
+        self, index_name: str, rows: list[tuple[int, list[float]]], stem: str
+    ) -> None:
         self.vector_loads.append(rows)
         self.indexed_vector_loads.append((index_name, rows))
 

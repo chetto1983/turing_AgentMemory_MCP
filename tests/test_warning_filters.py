@@ -24,8 +24,8 @@ def test_fastmcp_import_is_deprecation_clean() -> None:
 
 
 def test_project_requires_fastmcp_v3() -> None:
-    pyproject = Path(__file__).resolve().parents[1].joinpath("pyproject.toml").read_text(
-        encoding="utf-8"
+    pyproject = (
+        Path(__file__).resolve().parents[1].joinpath("pyproject.toml").read_text(encoding="utf-8")
     )
 
     assert '"fastmcp>=3.4,<4"' in pyproject

@@ -37,7 +37,8 @@ class _MemoryReadMixin:
         matching_rows = [
             row
             for row in rows
-            if str(row.get("m.id", "")) == memory_id and not self._row_is_expired(row, "m.expires_at")
+            if str(row.get("m.id", "")) == memory_id
+            and not self._row_is_expired(row, "m.expires_at")
         ]
         return self._memory_from_row(matching_rows[0]) if matching_rows else None
 
@@ -75,7 +76,11 @@ class _MemoryReadMixin:
             if "Unknown label: Memory" not in str(exc):
                 raise
             return []
-        items = [self._memory_from_row(row) for row in rows if not self._row_is_expired(row, "m.expires_at")]
+        items = [
+            self._memory_from_row(row)
+            for row in rows
+            if not self._row_is_expired(row, "m.expires_at")
+        ]
         items = [
             item
             for item in items
@@ -137,7 +142,9 @@ class _MemoryReadMixin:
         next_metadata = existing.metadata if metadata is None else dict(metadata)
         next_expires_at = existing.expires_at if expires_at is None else expires_at
         if content is not None:
-            next_content, next_metadata = self._process_text_for_storage(next_content, next_metadata)
+            next_content, next_metadata = self._process_text_for_storage(
+                next_content, next_metadata
+            )
         updated_at = self._now_iso()
         vid = self._memory_vector_id(user_identifier, memory_id)
         sparse_batch_id = None
@@ -239,24 +246,16 @@ class _MemoryReadMixin:
                     ],
                 ]
             )
-        match_nodes = ["(m:Memory)"] + [
-            f"({cypher_var(fact_id)}:Fact)" for fact_id in fact_ids
-        ]
+        match_nodes = ["(m:Memory)"] + [f"({cypher_var(fact_id)}:Fact)" for fact_id in fact_ids]
         where_terms = [
             f'm.id = "{quote(memory_id)}"',
             f'm.user_identifier = "{quote(user_identifier)}"',
-            *[
-                f'{cypher_var(fact_id)}.id = "{quote(fact_id)}"'
-                for fact_id in fact_ids
-            ],
+            *[f'{cypher_var(fact_id)}.id = "{quote(fact_id)}"' for fact_id in fact_ids],
         ]
         set_terms = [
             'm.status = "deleted"',
             f'm.updated_at = "{quote(updated_at)}"',
-            *[
-                f'{cypher_var(fact_id)}.status = "deleted"'
-                for fact_id in fact_ids
-            ],
+            *[f'{cypher_var(fact_id)}.status = "deleted"' for fact_id in fact_ids],
         ]
         try:
             self._write(

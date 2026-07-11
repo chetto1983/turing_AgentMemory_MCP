@@ -143,10 +143,7 @@ def test_resume_keys_are_stable_and_skip_completed_rows() -> None:
 
 
 def test_limit_rows_selects_only_the_requested_prefix() -> None:
-    rows = [
-        {**retrieval_row(), "question_index": index}
-        for index in range(1, 4)
-    ]
+    rows = [{**retrieval_row(), "question_index": index} for index in range(1, 4)]
 
     assert answers.limit_rows(rows, 2) == rows[:2]
     assert answers.limit_rows(rows, 0) == rows

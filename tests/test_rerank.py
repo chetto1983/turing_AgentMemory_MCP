@@ -420,6 +420,8 @@ def test_document_rerank_preserves_stronger_hybrid_seed(tmp_path) -> None:
         score=0.43,
     )
 
-    hits = store._rerank_documents("Aura useVoiceRuntime voice runtime hook microphone speech audio", [exact, broad])
+    hits = store._rerank_documents(
+        "Aura useVoiceRuntime voice runtime hook microphone speech audio", [exact, broad]
+    )
 
     assert [hit.document_id for hit in hits] == ["aura-web-voice-runtime", "aura-readme"]

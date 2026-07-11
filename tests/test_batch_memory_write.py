@@ -43,7 +43,12 @@ def test_store_messages_replay_is_duplicate_safe_without_reembedding(tmp_path: P
     store = RecordingMemoryStore(tmp_path, embedder)
     messages = [
         {"session_id": "s1", "role": "user", "content": "retry-safe memory"},
-        {"memory_id": "manual-id", "session_id": "s1", "role": "assistant", "content": "manual id memory"},
+        {
+            "memory_id": "manual-id",
+            "session_id": "s1",
+            "role": "assistant",
+            "content": "manual id memory",
+        },
     ]
 
     first = store.store_messages(user_identifier="alice", messages=messages)
@@ -171,8 +176,7 @@ def test_document_chunking_packs_short_lines_to_the_configured_budget() -> None:
 
 def test_document_chunking_preserves_pdf_page_boundaries_and_markers() -> None:
     chunks = TuringAgentMemory._chunk_text(
-        "<!-- page 7 -->\n\nalpha beta gamma delta\n\n"
-        "<!-- page 8 -->\n\nepsilon zeta",
+        "<!-- page 7 -->\n\nalpha beta gamma delta\n\n<!-- page 8 -->\n\nepsilon zeta",
         chunk_chars=34,
     )
 

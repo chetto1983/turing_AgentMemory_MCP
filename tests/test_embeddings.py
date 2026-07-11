@@ -139,7 +139,9 @@ def test_openai_compatible_embedder_sends_provider_api_key_header(monkeypatch) -
         thread.join(timeout=5)
 
 
-def test_openai_compatible_embedder_applies_distinct_query_and_document_prefixes(monkeypatch) -> None:
+def test_openai_compatible_embedder_applies_distinct_query_and_document_prefixes(
+    monkeypatch,
+) -> None:
     payloads: list[dict[str, Any]] = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -246,9 +248,7 @@ def test_openai_compatible_embedder_retries_transient_read_timeout(monkeypatch) 
             return None
 
         def read(self) -> bytes:
-            return json.dumps(
-                {"data": [{"index": 0, "embedding": [1.0, 0.0]}]}
-            ).encode("utf-8")
+            return json.dumps({"data": [{"index": 0, "embedding": [1.0, 0.0]}]}).encode("utf-8")
 
     def flaky_urlopen(*args: object, **kwargs: object) -> Response:
         nonlocal calls

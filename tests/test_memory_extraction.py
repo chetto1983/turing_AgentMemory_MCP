@@ -199,7 +199,15 @@ def test_http_memory_extractor_chunks_long_text_and_restores_offsets(monkeypatch
         for chunk in request_texts:
             start = chunk.find("Rome")
             entities = (
-                [{"text": "Rome", "label": "location", "score": 0.99, "start": start, "end": start + 4}]
+                [
+                    {
+                        "text": "Rome",
+                        "label": "location",
+                        "score": 0.99,
+                        "start": start,
+                        "end": start + 4,
+                    }
+                ]
                 if start >= 0
                 else []
             )
@@ -281,9 +289,7 @@ def test_http_memory_extractor_rejects_provider_contract(
 
 def test_http_memory_extractor_rejects_corrupt_provider_provenance(monkeypatch) -> None:
     raw = provider_result()
-    raw["entities"] = [
-        {"text": "Caroline", "label": "person", "score": 0.99, "start": 1, "end": 9}
-    ]
+    raw["entities"] = [{"text": "Caroline", "label": "person", "score": 0.99, "start": 1, "end": 9}]
     response = {
         "model": "model",
         "device": "cpu",

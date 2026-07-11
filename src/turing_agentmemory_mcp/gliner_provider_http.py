@@ -86,12 +86,16 @@ def make_handler(provider: ExtractProvider) -> type[BaseHTTPRequestHandler]:
                 path = _canonical_path(self.path)
                 if self.command == "GET":
                     if path != "/health":
-                        self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"}, count, started, path)
+                        self._send_json(
+                            HTTPStatus.NOT_FOUND, {"error": "not found"}, count, started, path
+                        )
                         return
                     self._send_json(HTTPStatus.OK, provider.health_payload(), count, started, path)
                     return
                 if self.command != "POST" or path not in {"/extract", "/extract-memory"}:
-                    self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"}, count, started, path)
+                    self._send_json(
+                        HTTPStatus.NOT_FOUND, {"error": "not found"}, count, started, path
+                    )
                     return
                 payload = self._read_json_body()
                 if path == "/extract-memory":
@@ -121,7 +125,11 @@ def make_handler(provider: ExtractProvider) -> type[BaseHTTPRequestHandler]:
                     server.extract_semaphore.release()
                 self._send_json(HTTPStatus.OK, response, count, started, path)
             except RequestFailure as exc:
-                error = "request too large" if exc.status == HTTPStatus.REQUEST_ENTITY_TOO_LARGE else "invalid request"
+                error = (
+                    "request too large"
+                    if exc.status == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+                    else "invalid request"
+                )
                 self._send_json(exc.status, {"error": error}, count, started, path)
             except Exception as exc:
                 LOGGER.error(
@@ -194,12 +202,18 @@ def make_handler(provider: ExtractProvider) -> type[BaseHTTPRequestHandler]:
                 (time.perf_counter() - started) * 1000,
             )
 
-        def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
+        def send_error(
+            self, code: int, message: str | None = None, explain: str | None = None
+        ) -> None:
             try:
                 status = HTTPStatus(code)
             except ValueError:
                 status = HTTPStatus.BAD_REQUEST
-            payload = {"error": "internal server error"} if status >= HTTPStatus.INTERNAL_SERVER_ERROR else {"error": "invalid request"}
+            payload = (
+                {"error": "internal server error"}
+                if status >= HTTPStatus.INTERNAL_SERVER_ERROR
+                else {"error": "invalid request"}
+            )
             self._send_json(status, payload, 0, time.perf_counter(), "<unknown>")
 
         def log_request(self, code: int | str = "-", size: int | str = "-") -> None:

@@ -409,9 +409,7 @@ class DocumentJobStore:
             status = "queued" if will_retry else "failed"
             stage = "queued" if will_retry else "failed"
             completed_at = "" if will_retry else timestamp
-            next_attempt_at = _timestamp(
-                instant + timedelta(seconds=max(0, retry_delay_seconds))
-            )
+            next_attempt_at = _timestamp(instant + timedelta(seconds=max(0, retry_delay_seconds)))
             connection.execute(
                 """
                 UPDATE document_ingest_jobs

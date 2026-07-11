@@ -125,7 +125,9 @@ class RecordingStore(TuringAgentMemory):
     def _write(self, query: str) -> None:
         self.write_queries.append(query)
 
-    def _load_vectors(self, index_name: str, rows: list[tuple[int, list[float]]], stem: str) -> None:
+    def _load_vectors(
+        self, index_name: str, rows: list[tuple[int, list[float]]], stem: str
+    ) -> None:
         return
 
     def _write_memory(self, **kwargs: Any) -> MemoryItem:
@@ -196,9 +198,9 @@ def test_expired_memory_is_hidden_from_get_list_and_search(tmp_path: Path) -> No
 
     assert store.get_memory(user_identifier="alice", memory_id="expired") is None
     assert [item.id for item in store.list_memories(user_identifier="alice")] == ["active"]
-    assert [item.id for item in store.search_memory(user_identifier="alice", query="memory", limit=5)] == [
-        "active"
-    ]
+    assert [
+        item.id for item in store.search_memory(user_identifier="alice", query="memory", limit=5)
+    ] == ["active"]
 
 
 def test_jsonl_audit_sink_writes_machine_readable_events(tmp_path: Path) -> None:
@@ -279,7 +281,8 @@ def test_expired_document_chunks_are_hidden_from_search(tmp_path: Path) -> None:
     )
 
     assert [
-        hit.chunk_id for hit in store.search_documents(user_identifier="alice", query="document", limit=5)
+        hit.chunk_id
+        for hit in store.search_documents(user_identifier="alice", query="document", limit=5)
     ] == ["doc-active#1"]
 
 

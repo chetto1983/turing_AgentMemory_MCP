@@ -313,8 +313,10 @@ async def run() -> dict[str, Any]:
     dataset_path = Path(args.dataset)
     repo_path = Path(args.repo)
     timestamp = utc_timestamp()
-    output_path = Path(args.output) if args.output else Path(".benchmarks") / (
-        f"backboard-locomo-direct-mcp-{timestamp}.json"
+    output_path = (
+        Path(args.output)
+        if args.output
+        else Path(".benchmarks") / (f"backboard-locomo-direct-mcp-{timestamp}.json")
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     data = json.loads(dataset_path.read_text(encoding="utf-8"))
@@ -336,9 +338,7 @@ async def run() -> dict[str, Any]:
     by_category: dict[str, dict[str, Any]] = defaultdict(init_metric_counts)
     total_turns = sum(len(build_messages(item)[0]) for item in data)
     evaluated_questions = sum(len(question_rows(item)) for item in data)
-    excluded_questions = sum(
-        len(item.get("qa", [])) - len(question_rows(item)) for item in data
-    )
+    excluded_questions = sum(len(item.get("qa", [])) - len(question_rows(item)) for item in data)
     started = time.perf_counter()
     runtime_status: dict[str, Any] = {}
 
@@ -413,7 +413,8 @@ async def run() -> dict[str, Any]:
                     "turns": len(messages),
                     "qa_total": len(item.get("qa", [])),
                     "evaluated_questions": len(question_rows(item)),
-                    "excluded_adversarial_questions": len(item.get("qa", [])) - len(question_rows(item)),
+                    "excluded_adversarial_questions": len(item.get("qa", []))
+                    - len(question_rows(item)),
                     "ingest": ingest_info,
                     "metrics": conv_metrics,
                 }
@@ -512,7 +513,10 @@ async def run() -> dict[str, Any]:
     }
     output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {output_path}", flush=True)
-    print(json.dumps({"metrics": payload["metrics"], "counts": payload["counts"]}, indent=2), flush=True)
+    print(
+        json.dumps({"metrics": payload["metrics"], "counts": payload["counts"]}, indent=2),
+        flush=True,
+    )
     return payload
 
 

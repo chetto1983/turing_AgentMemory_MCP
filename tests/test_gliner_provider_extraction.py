@@ -282,16 +282,20 @@ def test_fast_gliner2_adapter_converts_utf8_byte_offsets_to_character_offsets() 
     expected_family = (text.index("family"), text.index("family") + len("family"))
     expected_rome = (text.index("Rome"), text.index("Rome") + len("Rome"))
     assert (result["entities"][0]["start"], result["entities"][0]["end"]) == expected_family
-    assert (result["relations"][0]["subject"]["start"], result["relations"][0]["subject"]["end"]) == expected_family
-    assert (result["relations"][0]["object"]["start"], result["relations"][0]["object"]["end"]) == expected_rome
+    assert (
+        result["relations"][0]["subject"]["start"],
+        result["relations"][0]["subject"]["end"],
+    ) == expected_family
+    assert (
+        result["relations"][0]["object"]["start"],
+        result["relations"][0]["object"]["end"],
+    ) == expected_rome
 
 
 def test_fast_gliner2_adapter_rejects_offsets_that_match_neither_contract() -> None:
     class CorruptModel:
         def predict_entities(self, text: str, labels: list[str]) -> list[dict[str, object]]:
-            return [
-                {"text": "Alice", "label": "person", "score": 0.9, "start": 2, "end": 7}
-            ]
+            return [{"text": "Alice", "label": "person", "score": 0.9, "start": 2, "end": 7}]
 
     with pytest.raises(ValueError, match="offsets"):
         gliner_provider.FastGLiNER2Adapter(CorruptModel()).batch_extract_entities(

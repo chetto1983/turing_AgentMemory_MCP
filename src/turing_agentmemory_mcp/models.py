@@ -53,9 +53,7 @@ class FusedRetrievalCandidate:
             "candidate": self.candidate.to_dict(),
             "score": self.score,
             "best_rank": self.best_rank,
-            "channels": {
-                channel: detail.to_dict() for channel, detail in self.channels.items()
-            },
+            "channels": {channel: detail.to_dict() for channel, detail in self.channels.items()},
         }
 
 

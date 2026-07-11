@@ -76,9 +76,7 @@ def assert_json_response(raw: bytes, status: int) -> dict[str, object]:
     header_block, body = raw.split(b"\r\n\r\n", 1)
     lines = header_block.decode("iso-8859-1").split("\r\n")
     headers = {
-        name.lower(): value.strip()
-        for line in lines[1:]
-        for name, value in [line.split(":", 1)]
+        name.lower(): value.strip() for line in lines[1:] for name, value in [line.split(":", 1)]
     }
     assert int(lines[0].split()[1]) == status
     assert headers["content-type"] == "application/json; charset=utf-8"
@@ -104,7 +102,9 @@ def test_http_contract_includes_errors_and_private_logs(caplog: pytest.LogCaptur
             200,
             {"status": "ok", "model": "test", "device": "cpu"},
         )
-        assert request_json(f"{base_url}/extract", extract_payload(texts=["private source text"])) == (
+        assert request_json(
+            f"{base_url}/extract", extract_payload(texts=["private source text"])
+        ) == (
             200,
             {"model": "test", "device": "cpu", "results": [{"entities": {}}]},
         )
@@ -260,7 +260,9 @@ def test_extract_saturation_limits_pending_work_and_serializes_inference() -> No
             self.max_active = 0
             self.lock = threading.Lock()
 
-        def batch_extract_entities(self, *args: object, **kwargs: object) -> list[dict[str, object]]:
+        def batch_extract_entities(
+            self, *args: object, **kwargs: object
+        ) -> list[dict[str, object]]:
             with self.lock:
                 self.active += 1
                 self.max_active = max(self.max_active, self.active)

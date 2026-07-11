@@ -24,7 +24,9 @@ def main() -> int:
     score = sub.add_parser("e2e-score", help="Run deterministic 10/10 E2E score")
     score.add_argument("--out", default="e2e-results.json")
 
-    quality = sub.add_parser("agent-quality-eval", help="Run real-agent memory/document retrieval eval")
+    quality = sub.add_parser(
+        "agent-quality-eval", help="Run real-agent memory/document retrieval eval"
+    )
     quality.add_argument("--aura-root", default=r"D:\Aura")
     quality.add_argument("--out", default=None)
     quality.add_argument("--keep-home", action="store_true")

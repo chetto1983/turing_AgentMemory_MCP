@@ -80,9 +80,7 @@ class _SearchMixin:
                     explain=explain,
                 )
             literal = self._vector_literal(self._embed_text(query, operation="memory.search"))
-            memory_index = self._ensure_tenant_vector_index(
-                self.memory_index, user_identifier
-            )
+            memory_index = self._ensure_tenant_vector_index(self.memory_index, user_identifier)
             try:
                 vector_rows = self._records(
                     self._query(
@@ -140,9 +138,13 @@ class _SearchMixin:
                 semantic_score = semantic_by_id.get(memory_id, 0.0)
                 lexical = lexical_score(
                     query,
-                    self._row_search_text(row, text_key="m.content", metadata_key="m.metadata_json"),
+                    self._row_search_text(
+                        row, text_key="m.content", metadata_key="m.metadata_json"
+                    ),
                 )
-                final_score = blend_hybrid_score(semantic_score=semantic_score, lexical_score=lexical)
+                final_score = blend_hybrid_score(
+                    semantic_score=semantic_score, lexical_score=lexical
+                )
                 if allowed and kind not in allowed:
                     continue
                 if semantic_score <= 0.0 and lexical <= 0.0:
@@ -286,15 +288,15 @@ class _SearchMixin:
                 evidence = evidence_by_source.get(source_id, [])
                 details.update(
                     {
-                    "channels": {
-                        channel: score.to_dict()
-                        for channel, score in fused_candidate.channels.items()
-                    },
-                    "evidence_ids": sorted(
-                        {value.evidence_id for value in evidence if value.evidence_id}
-                    ),
-                    "max_hop": max((value.hop for value in evidence), default=0),
-                    "degraded_channels": sorted(degraded),
+                        "channels": {
+                            channel: score.to_dict()
+                            for channel, score in fused_candidate.channels.items()
+                        },
+                        "evidence_ids": sorted(
+                            {value.evidence_id for value in evidence if value.evidence_id}
+                        ),
+                        "max_hop": max((value.hop for value in evidence), default=0),
+                        "degraded_channels": sorted(degraded),
                     }
                 )
             results.append(

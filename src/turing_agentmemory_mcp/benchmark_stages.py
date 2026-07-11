@@ -181,8 +181,9 @@ def _benchmark_memory_store_batch(
                 for idx in ids
             ],
         ),
-        lambda result, ids: len(result) == len(ids)
-        and all(item.user_identifier == user for item in result),
+        lambda result, ids: (
+            len(result) == len(ids) and all(item.user_identifier == user for item in result)
+        ),
     )
     wall_ms = (time.perf_counter() - wall_start) * 1000
     throughput = memory_count / (wall_ms / 1000) if wall_ms else 0.0
@@ -284,10 +285,12 @@ def _benchmark_documents(
             query=_document_query(doc_ids[idx % len(doc_ids)], idx),
             limit=top_k,
         ),
-        lambda result, _idx: bool(result)
-        and bool(result[0].chunk_id)
-        and bool(result[0].locator)
-        and result[0].context is not None,
+        lambda result, _idx: (
+            bool(result)
+            and bool(result[0].chunk_id)
+            and bool(result[0].locator)
+            and result[0].context is not None
+        ),
     )
     citation_rate = _citation_hit_rate(search_batch)
     return [
@@ -319,7 +322,11 @@ def _benchmark_documents(
             durations_ms=search_batch.durations_ms,
             successes=search_batch.successes,
             notes=f"top_k={top_k}; citation_rate={citation_rate:.3f}; errors={len(search_batch.errors)}",
-            metadata={"top_k": top_k, "citation_rate": citation_rate, "errors": search_batch.errors[:3]},
+            metadata={
+                "top_k": top_k,
+                "citation_rate": citation_rate,
+                "errors": search_batch.errors[:3],
+            },
         ),
     ]
 

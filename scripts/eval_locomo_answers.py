@@ -149,7 +149,9 @@ def evaluate_row(
 
 
 class OpenAIChatClient:
-    def __init__(self, *, base_url: str, api_key: str, model: str, timeout_s: float = 120.0) -> None:
+    def __init__(
+        self, *, base_url: str, api_key: str, model: str, timeout_s: float = 120.0
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
@@ -246,21 +248,23 @@ class OpenAIJudge:
             correct, reason = parse_judge_payload(json.loads(response.text))
         except json.JSONDecodeError as exc:
             raise RuntimeError("judge returned invalid JSON") from exc
-        return JudgeResponse(
-            correct, reason, response.input_tokens, response.output_tokens
-        )
+        return JudgeResponse(correct, reason, response.input_tokens, response.output_tokens)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--retrieval", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--base-url", default=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com"))
+    parser.add_argument(
+        "--base-url", default=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com")
+    )
     parser.add_argument("--api-key", default=os.environ.get("OPENAI_API_KEY", ""))
     parser.add_argument("--answer-model", default=os.environ.get("LOCOMO_ANSWER_MODEL", "gpt-5"))
     parser.add_argument("--judge-model", default=os.environ.get("LOCOMO_JUDGE_MODEL", "gpt-5"))
     parser.add_argument("--max-context-tokens", type=int, default=32768)
-    parser.add_argument("--limit", type=int, default=0, help="Evaluate only the first N rows; 0 means all.")
+    parser.add_argument(
+        "--limit", type=int, default=0, help="Evaluate only the first N rows; 0 means all."
+    )
     parser.add_argument("--resume", action="store_true")
     return parser.parse_args()
 

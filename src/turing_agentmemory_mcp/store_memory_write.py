@@ -34,7 +34,9 @@ class _MemoryWriteMixin:
         metadata: dict[str, object] | None = None,
         expires_at: str = "",
     ) -> MemoryItem:
-        with self._span("memory.store_message", {"user_identifier": user_identifier, "source": source}):
+        with self._span(
+            "memory.store_message", {"user_identifier": user_identifier, "source": source}
+        ):
             self._require_user(user_identifier)
             if self.memory_extractor is not None:
                 return self.store_messages(
@@ -115,9 +117,13 @@ class _MemoryWriteMixin:
                     message.get("tags") if "tags" in message else tags  # type: ignore[arg-type]
                 )
                 item_metadata = dict(
-                    message.get("metadata") if isinstance(message.get("metadata"), dict) else metadata or {}
+                    message.get("metadata")
+                    if isinstance(message.get("metadata"), dict)
+                    else metadata or {}
                 )
-                item_expires_at = str(message.get("expires_at") if "expires_at" in message else expires_at)
+                item_expires_at = str(
+                    message.get("expires_at") if "expires_at" in message else expires_at
+                )
                 prepared.append(
                     {
                         "memory_id": str(message.get("memory_id") or ""),
@@ -464,7 +470,9 @@ class _MemoryWriteMixin:
             source = str(payload["source"])
             expires_at = str(payload.get("expires_at") or "")
             clean_tags = self._clean_tags(payload.get("tags"))  # type: ignore[arg-type]
-            clean_metadata = dict(payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {})
+            clean_metadata = dict(
+                payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+            )
             nodes.append(
                 f'({mem_var}:Memory {{id: "{quote(memory_id)}", vector_id: {vid}, '
                 f'user_identifier: "{quote(user_identifier)}", kind: "message", '
@@ -495,17 +503,13 @@ class _MemoryWriteMixin:
                 )
             )
         new_entity_ids = {entity.id for entity in new_entities}
-        all_entity_ids = {
-            entity.id
-            for projection in projections
-            for entity in projection.entities
-        }
+        all_entity_ids = {entity.id for projection in projections for entity in projection.entities}
         existing_entity_ids = all_entity_ids - new_entity_ids
         for entity in new_entities:
             entity_var = cypher_var(entity.id)
             nodes.append(
                 f'({entity_var}:Entity {{id: "{quote(entity.id)}", '
-                f'vector_id: {self._entity_vector_id(user_identifier, entity.id)}, '
+                f"vector_id: {self._entity_vector_id(user_identifier, entity.id)}, "
                 f'user_identifier: "{quote(user_identifier)}", '
                 f'entity_type: "{quote(entity.entity_type)}", '
                 f'canonical_name: "{quote(entity.canonical_name)}", '
@@ -523,7 +527,7 @@ class _MemoryWriteMixin:
             fact_var = cypher_var(fact.id)
             nodes.append(
                 f'({fact_var}:Fact {{id: "{quote(fact.id)}", '
-                f'vector_id: {self._fact_vector_id(user_identifier, fact.id)}, '
+                f"vector_id: {self._fact_vector_id(user_identifier, fact.id)}, "
                 f'user_identifier: "{quote(user_identifier)}", '
                 f'subject_entity_id: "{quote(fact.subject_entity_id)}", '
                 f'predicate: "{quote(fact.predicate)}", '

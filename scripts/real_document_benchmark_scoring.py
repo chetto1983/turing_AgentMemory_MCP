@@ -256,20 +256,14 @@ def _metrics(rows: list[dict[str, Any]], cutoffs: tuple[int, ...]) -> dict[str, 
         "question_count": count,
         "search_error_count": sum(bool(row.get("error")) for row in rows),
         "mrr_at_20": (
-            sum((1.0 / rank) if 0 < rank <= 20 else 0.0 for rank in ranks) / count
-            if count
-            else 0.0
+            sum((1.0 / rank) if 0 < rank <= 20 else 0.0 for rank in ranks) / count if count else 0.0
         ),
         "recall_at_k": {
-            str(cutoff): (
-                sum(0 < rank <= cutoff for rank in ranks) / count if count else 0.0
-            )
+            str(cutoff): (sum(0 < rank <= cutoff for rank in ranks) / count if count else 0.0)
             for cutoff in cutoffs
         },
         "latency_ms": {
-            "mean": statistics.fmean(
-                float(row.get("latency_ms") or 0.0) for row in rows
-            )
+            "mean": statistics.fmean(float(row.get("latency_ms") or 0.0) for row in rows)
             if rows
             else 0.0,
             "max": max((float(row.get("latency_ms") or 0.0) for row in rows), default=0.0),

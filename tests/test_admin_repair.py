@@ -115,9 +115,9 @@ def test_repair_sparse_projection_dry_run_does_not_mutate(tmp_path: Path) -> Non
 
     assert result["status"] == "would_rebuild"
     assert result["canonical_document_count"] == 1
-    assert [hit.source_id for hit in index.search(user_identifier="alice", query="old", limit=10)] == [
-        "old"
-    ]
+    assert [
+        hit.source_id for hit in index.search(user_identifier="alice", query="old", limit=10)
+    ] == ["old"]
 
 
 def test_repair_sparse_projection_rebuilds_from_canonical_documents(tmp_path: Path) -> None:
@@ -129,9 +129,9 @@ def test_repair_sparse_projection_rebuilds_from_canonical_documents(tmp_path: Pa
     index = SparseIndex(path)
     assert result["status"] == "rebuilt"
     assert result["applied"] is True
-    assert [hit.source_id for hit in index.search(user_identifier="alice", query="new", limit=10)] == [
-        "new"
-    ]
+    assert [
+        hit.source_id for hit in index.search(user_identifier="alice", query="new", limit=10)
+    ] == ["new"]
 
 
 class CommunityRepairStore:

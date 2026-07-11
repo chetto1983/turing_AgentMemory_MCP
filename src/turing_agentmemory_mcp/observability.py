@@ -34,8 +34,7 @@ class SpanEvent:
 
 
 class SpanRecorder(Protocol):
-    def span(self, name: str, attributes: dict[str, object] | None = None) -> Any:
-        ...
+    def span(self, name: str, attributes: dict[str, object] | None = None) -> Any: ...
 
 
 class NoopSpanRecorder:

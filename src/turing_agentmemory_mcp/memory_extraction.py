@@ -176,9 +176,7 @@ class HTTPMemoryExtractor:
         chunk_extractions: list[MemoryExtraction] = []
         for start in range(0, len(chunks), MAX_MEMORY_EXTRACTION_BATCH_TEXTS):
             batch = chunks[start : start + MAX_MEMORY_EXTRACTION_BATCH_TEXTS]
-            chunk_extractions.extend(
-                self._extract_provider_batch([chunk for _, _, chunk in batch])
-            )
+            chunk_extractions.extend(self._extract_provider_batch([chunk for _, _, chunk in batch]))
         return _merge_chunk_extractions(texts, chunks, chunk_extractions)
 
     def _extract_provider_batch(self, texts: list[str]) -> tuple[MemoryExtraction, ...]:
@@ -201,14 +199,18 @@ class HTTPMemoryExtractor:
                 f"memory extraction provider HTTP {exc.code} at {self.base_url}"
             ) from exc
         except (URLError, OSError, TimeoutError) as exc:
-            raise RuntimeError(f"memory extraction provider unavailable at {self.base_url}") from exc
+            raise RuntimeError(
+                f"memory extraction provider unavailable at {self.base_url}"
+            ) from exc
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise RuntimeError(
                 f"memory extraction provider returned invalid JSON at {self.base_url}"
             ) from exc
 
         if not isinstance(decoded, dict):
-            raise RuntimeError(f"memory extraction provider returned invalid JSON at {self.base_url}")
+            raise RuntimeError(
+                f"memory extraction provider returned invalid JSON at {self.base_url}"
+            )
         if decoded.get("model") != self.model_name:
             raise RuntimeError(f"memory extraction provider model mismatch at {self.base_url}")
         schema_version = decoded.get("schema_version")
@@ -353,9 +355,7 @@ def normalize_memory_extraction(
         raise ValueError("duplicate entity provenance")
 
     raw_relations = _require_list(raw.get("relations"), "relations")
-    relations = tuple(
-        _normalize_relation(text, item, entity_index) for item in raw_relations
-    )
+    relations = tuple(_normalize_relation(text, item, entity_index) for item in raw_relations)
 
     classifications = raw.get("classifications")
     if not isinstance(classifications, dict):

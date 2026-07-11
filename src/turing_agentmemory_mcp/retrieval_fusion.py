@@ -51,18 +51,12 @@ def fuse_rankings(
         for candidate in rankings[channel]:
             _validate_candidate(candidate)
             existing = accumulators.get(candidate.candidate_id)
-            if existing is not None and not _same_candidate_identity(
-                existing.candidate, candidate
-            ):
-                raise ValueError(
-                    f"conflicting candidate identity for {candidate.candidate_id}"
-                )
+            if existing is not None and not _same_candidate_identity(existing.candidate, candidate):
+                raise ValueError(f"conflicting candidate identity for {candidate.candidate_id}")
             duplicate = seen.get(candidate.candidate_id)
             if duplicate is not None:
                 if not _same_candidate_identity(duplicate, candidate):
-                    raise ValueError(
-                        f"conflicting candidate identity for {candidate.candidate_id}"
-                    )
+                    raise ValueError(f"conflicting candidate identity for {candidate.candidate_id}")
                 continue
             seen[candidate.candidate_id] = candidate
             unique.append(candidate)
@@ -90,8 +84,7 @@ def fuse_rankings(
             score=accumulator.score,
             best_rank=accumulator.best_rank,
             channels={
-                channel: accumulator.channels[channel]
-                for channel in sorted(accumulator.channels)
+                channel: accumulator.channels[channel] for channel in sorted(accumulator.channels)
             },
         )
         for accumulator in accumulators.values()
@@ -123,10 +116,7 @@ def diversify_fused(
     selected: list[FusedRetrievalCandidate] = []
     source_counts: dict[str, int] = {}
     for candidate in candidates:
-        source_id = (
-            candidate.candidate.source_memory_id
-            or candidate.candidate.candidate_id
-        )
+        source_id = candidate.candidate.source_memory_id or candidate.candidate.candidate_id
         if source_counts.get(source_id, 0) >= max_per_source:
             continue
         source_counts[source_id] = source_counts.get(source_id, 0) + 1
@@ -160,10 +150,16 @@ def _validate_channel_caps(
 def _validate_candidate(candidate: RetrievalCandidate) -> None:
     if not isinstance(candidate, RetrievalCandidate):
         raise ValueError("retrieval ranking contains an invalid candidate")
-    if not candidate.candidate_id.strip() or not candidate.kind.strip() or not candidate.content.strip():
+    if (
+        not candidate.candidate_id.strip()
+        or not candidate.kind.strip()
+        or not candidate.content.strip()
+    ):
         raise ValueError("retrieval candidate identity fields must be non-empty")
     if candidate.raw_score is not None:
-        if isinstance(candidate.raw_score, bool) or not isinstance(candidate.raw_score, (int, float)):
+        if isinstance(candidate.raw_score, bool) or not isinstance(
+            candidate.raw_score, (int, float)
+        ):
             raise ValueError("retrieval candidate raw score must be finite")
         if not math.isfinite(float(candidate.raw_score)):
             raise ValueError("retrieval candidate raw score must be finite")

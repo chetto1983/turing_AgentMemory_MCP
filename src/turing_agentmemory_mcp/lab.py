@@ -69,7 +69,9 @@ def list_benchmark_files(benchmark_dir: str | Path | None = None) -> list[Benchm
     return found
 
 
-def load_latest_benchmark(benchmark_dir: str | Path | None = None) -> tuple[Path | None, list[dict[str, Any]]]:
+def load_latest_benchmark(
+    benchmark_dir: str | Path | None = None,
+) -> tuple[Path | None, list[dict[str, Any]]]:
     files_found = list_benchmark_files(benchmark_dir)
     if not files_found:
         return None, []
@@ -115,7 +117,13 @@ def build_lab_payload(benchmark_dir: str | Path | None = None) -> dict[str, Any]
         {"id": "aura_rerank", "label": "Aura Rerank", "type": "provider", "x": 804, "y": 380},
         {"id": "memories", "label": "Memory Tools", "type": "memory", "x": 205, "y": 390},
         {"id": "documents", "label": "Document Tools", "type": "document", "x": 430, "y": 464},
-        {"id": "benchmark", "label": latest.name if latest else "No benchmark", "type": "benchmark", "x": 650, "y": 502},
+        {
+            "id": "benchmark",
+            "label": latest.name if latest else "No benchmark",
+            "type": "benchmark",
+            "x": 650,
+            "y": 502,
+        },
     ]
     edges: list[dict[str, str]] = [
         {"source": "mcp", "target": "turingdb", "label": "persists"},
@@ -195,7 +203,9 @@ def _static_response(handler: BaseHTTPRequestHandler, name: str, content_type: s
 
 
 def make_handler(benchmark_dir: str | Path | None = None) -> type[BaseHTTPRequestHandler]:
-    resolved_benchmark_dir = Path(benchmark_dir) if benchmark_dir is not None else default_benchmark_dir()
+    resolved_benchmark_dir = (
+        Path(benchmark_dir) if benchmark_dir is not None else default_benchmark_dir()
+    )
 
     class LabHandler(BaseHTTPRequestHandler):
         server_version = "AgentMemoryLab/1.0"
@@ -238,11 +248,15 @@ def make_handler(benchmark_dir: str | Path | None = None) -> type[BaseHTTPReques
     return LabHandler
 
 
-def run_lab(host: str = "127.0.0.1", port: int = 8096, benchmark_dir: str | Path | None = None) -> None:
+def run_lab(
+    host: str = "127.0.0.1", port: int = 8096, benchmark_dir: str | Path | None = None
+) -> None:
     handler = make_handler(benchmark_dir)
     server = ThreadingHTTPServer((host, port), handler)
     print(f"AgentMemory Lab listening on http://{host}:{port}")
-    print(f"Benchmark directory: {Path(benchmark_dir) if benchmark_dir is not None else default_benchmark_dir()}")
+    print(
+        f"Benchmark directory: {Path(benchmark_dir) if benchmark_dir is not None else default_benchmark_dir()}"
+    )
     try:
         server.serve_forever()
     except KeyboardInterrupt:

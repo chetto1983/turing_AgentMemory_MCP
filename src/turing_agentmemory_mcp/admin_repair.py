@@ -125,5 +125,7 @@ def repair_community_projection(
 def _repair_timestamp(timestamp: str | None) -> str:
     value = timestamp or datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     if not _SAFE_TIMESTAMP.fullmatch(value):
-        raise ValueError("timestamp may contain only letters, numbers, dots, dashes, or underscores")
+        raise ValueError(
+            "timestamp may contain only letters, numbers, dots, dashes, or underscores"
+        )
     return value

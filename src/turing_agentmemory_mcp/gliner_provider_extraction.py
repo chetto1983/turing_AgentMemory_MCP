@@ -132,13 +132,19 @@ class GLiNERProvider:
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def __post_init__(self) -> None:
-        if isinstance(self.batch_size, bool) or not isinstance(self.batch_size, int) or self.batch_size <= 0:
+        if (
+            isinstance(self.batch_size, bool)
+            or not isinstance(self.batch_size, int)
+            or self.batch_size <= 0
+        ):
             raise ValueError("batch_size must be a positive integer")
         if self.device not in {"cpu", "cuda"}:
             raise ValueError("GLiNERProvider device must be cpu or cuda")
 
     def extract(self, payload: dict[str, Any]) -> dict[str, Any]:
-        texts, labels, threshold, include_confidence, include_spans = _validate_extract_payload(payload)
+        texts, labels, threshold, include_confidence, include_spans = _validate_extract_payload(
+            payload
+        )
         try:
             with self.lock:
                 results = self.model.batch_extract_entities(
@@ -183,7 +189,9 @@ class GLiNERProvider:
         return {"status": "ok", "model": self.model_name, "device": self.device}
 
 
-def _validate_extract_payload(payload: dict[str, Any]) -> tuple[list[str], list[str], float, bool, bool]:
+def _validate_extract_payload(
+    payload: dict[str, Any],
+) -> tuple[list[str], list[str], float, bool, bool]:
     if not isinstance(payload, dict):
         raise RequestFailure()
     texts = _validate_string_list(payload.get("texts"), "texts", MAX_TEXTS, MAX_TEXT_CHARS)
@@ -324,6 +332,8 @@ def _normalize_classifications(value: object) -> list[dict[str, object]]:
 def _validate_string_list(value: Any, name: str, max_items: int, max_chars: int) -> list[str]:
     if not isinstance(value, list) or not value or len(value) > max_items:
         raise RequestFailure()
-    if any(not isinstance(item, str) or not item.strip() or len(item) > max_chars for item in value):
+    if any(
+        not isinstance(item, str) or not item.strip() or len(item) > max_chars for item in value
+    ):
         raise RequestFailure()
     return value

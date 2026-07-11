@@ -265,10 +265,15 @@ def summarize_case_results(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     citation_hits = sum(1 for row in citation_rows if row.get("citation_source_hit"))
     top1_accuracy = round(top1 / count, 4) if count else 0.0
     top3_accuracy = round(top3 / count, 4) if count else 0.0
-    citation_source_accuracy = round(citation_hits / len(citation_rows), 4) if citation_rows else 1.0
+    citation_source_accuracy = (
+        round(citation_hits / len(citation_rows), 4) if citation_rows else 1.0
+    )
     verdict = (
         "VALIDATED_AGENT_QUALITY"
-        if count and top1_accuracy >= 0.875 and top3_accuracy == 1.0 and citation_source_accuracy == 1.0
+        if count
+        and top1_accuracy >= 0.875
+        and top3_accuracy == 1.0
+        and citation_source_accuracy == 1.0
         else "NEEDS_ATTENTION"
     )
     return {
@@ -497,8 +502,12 @@ def run_agent_quality_eval(
         "timestamp": timestamp,
         "git_commit": _git_commit(),
         "turingdb_version": turingdb_version,
-        "embedding_model": os.environ.get("EMBED_MODEL") or "external" if use_external_embed else "local-embedding",
-        "rerank_model": os.environ.get("RERANK_MODEL") or "external" if use_external_rerank else "local-rerank",
+        "embedding_model": os.environ.get("EMBED_MODEL") or "external"
+        if use_external_embed
+        else "local-embedding",
+        "rerank_model": os.environ.get("RERANK_MODEL") or "external"
+        if use_external_rerank
+        else "local-rerank",
         "aura_root": str(aura_root.resolve()),
         "graph": graph,
         "memory_count": len(corpus.memories),

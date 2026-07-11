@@ -36,7 +36,9 @@ def load_samples(
         return []
     local_path = os.environ.get("MEMORYARENA_JSONL")
     if local_path:
-        return _load_samples_from_file(Path(local_path), start_index=start_index, limit=limit, source=local_path)
+        return _load_samples_from_file(
+            Path(local_path), start_index=start_index, limit=limit, source=local_path
+        )
 
     last_error: Exception | None = None
     timeout = float(os.environ.get("MEMORYARENA_TIMEOUT_SECONDS", "30"))

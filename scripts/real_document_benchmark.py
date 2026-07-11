@@ -422,11 +422,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
     timestamp = utc_timestamp()
     benchmark_id = f"real-documents-direct-mcp-{timestamp}"
     scope = args.scope.strip() or benchmark_id
-    output = (
-        Path(args.output)
-        if args.output
-        else Path(".benchmarks") / f"{benchmark_id}.json"
-    )
+    output = Path(args.output) if args.output else Path(".benchmarks") / f"{benchmark_id}.json"
     api_key = os.environ.get(args.question_api_key_env, "").strip()
     generator = QuestionGenerator(
         url=args.question_url,

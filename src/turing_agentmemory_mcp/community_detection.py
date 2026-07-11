@@ -135,14 +135,11 @@ class NativeLeidenDetector:
         aggregated = aggregate_weighted_edges(edges)
         node_set = set(nodes)
         if any(
-            edge.source_id not in node_set or edge.target_id not in node_set
-            for edge in aggregated
+            edge.source_id not in node_set or edge.target_id not in node_set for edge in aggregated
         ):
             raise ValueError("community edge endpoint is not in node_ids")
         connected = {
-            endpoint
-            for edge in aggregated
-            for endpoint in (edge.source_id, edge.target_id)
+            endpoint for edge in aggregated for endpoint in (edge.source_id, edge.target_id)
         }
         isolates = tuple(sorted(node_set - connected))
         if not aggregated:
@@ -181,9 +178,7 @@ class NativeLeidenDetector:
                 final_groups.append((level, ordered))
                 continue
             for offset in range(0, len(ordered), self.max_cluster_size):
-                final_groups.append(
-                    (level + 1, ordered[offset : offset + self.max_cluster_size])
-                )
+                final_groups.append((level + 1, ordered[offset : offset + self.max_cluster_size]))
         final_groups.sort(key=lambda item: item[1])
         communities = tuple(
             self._community_from_members(
@@ -211,18 +206,10 @@ class NativeLeidenDetector:
     ) -> DetectedCommunity:
         member_set = set(members)
         internal_edges = [
-            edge
-            for edge in edges
-            if edge.source_id in member_set and edge.target_id in member_set
+            edge for edge in edges if edge.source_id in member_set and edge.target_id in member_set
         ]
         source_memory_ids = tuple(
-            sorted(
-                {
-                    source_id
-                    for edge in internal_edges
-                    for source_id in edge.source_memory_ids
-                }
-            )
+            sorted({source_id for edge in internal_edges for source_id in edge.source_memory_ids})
         )
         return DetectedCommunity(
             id=stable_id("community", user_identifier, *members),
@@ -289,12 +276,8 @@ def build_community_projection(
     )
     parts = [f"Entities: {entity_text}."]
     if ranked_facts:
-        parts.append(
-            "Relations: " + "; ".join(fact.content for fact in ranked_facts) + "."
-        )
-        observed = sorted(
-            {fact.observed_at for fact in ranked_facts if fact.observed_at}
-        )
+        parts.append("Relations: " + "; ".join(fact.content for fact in ranked_facts) + ".")
+        observed = sorted({fact.observed_at for fact in ranked_facts if fact.observed_at})
         if len(observed) == 1:
             parts.append(f"Observed: {observed[0]}.")
         elif observed:
@@ -303,7 +286,11 @@ def build_community_projection(
         sorted(
             {
                 *community.source_memory_ids,
-                *(source_id for entity in ranked_entities for source_id in entity.source_memory_ids),
+                *(
+                    source_id
+                    for entity in ranked_entities
+                    for source_id in entity.source_memory_ids
+                ),
                 *(fact.source_memory_id for fact in ranked_facts if fact.source_memory_id),
             }
         )
@@ -325,11 +312,11 @@ def build_community_projection(
     )
 
 
-def _native_hierarchical_leiden(edges: list[tuple[str, str, float]], **kwargs: object) -> Sequence[Any]:
+def _native_hierarchical_leiden(
+    edges: list[tuple[str, str, float]], **kwargs: object
+) -> Sequence[Any]:
     try:
         from graspologic_native import hierarchical_leiden
     except ImportError as exc:
-        raise RuntimeError(
-            "graspologic-native==1.3.1 is required for community detection"
-        ) from exc
+        raise RuntimeError("graspologic-native==1.3.1 is required for community detection") from exc
     return hierarchical_leiden(edges, **kwargs)

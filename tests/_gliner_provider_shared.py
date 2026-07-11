@@ -29,11 +29,7 @@ def memory_payload(**overrides: object) -> dict[str, object]:
 
 def memory_result() -> dict[str, object]:
     return {
-        "entities": [
-            {"text": "Caroline", "label": "person", "score": 0.99, "start": 0, "end": 8}
-        ],
+        "entities": [{"text": "Caroline", "label": "person", "score": 0.99, "start": 0, "end": 8}],
         "relations": [],
-        "classifications": {
-            "memory_kind": [{"label": "episodic_event", "score": 0.88}]
-        },
+        "classifications": {"memory_kind": [{"label": "episodic_event", "score": 0.88}]},
     }

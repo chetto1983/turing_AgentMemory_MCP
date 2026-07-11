@@ -69,9 +69,7 @@ class _EvidenceMixin:
 
         if self.sparse_index is not None:
             try:
-                sparse_values = self._sparse_evidence(
-                    user_identifier, query, candidate_limit
-                )
+                sparse_values = self._sparse_evidence(user_identifier, query, candidate_limit)
                 if sparse_values:
                     channels["bm25"] = sparse_values
             except Exception as exc:
@@ -79,9 +77,7 @@ class _EvidenceMixin:
 
         if self.memory_extractor is not None:
             try:
-                graph_values = self._query_graph_evidence(
-                    user_identifier, query, candidate_limit
-                )
+                graph_values = self._query_graph_evidence(user_identifier, query, candidate_limit)
                 if graph_values:
                     channels["graph"] = graph_values
             except Exception as exc:
@@ -104,9 +100,7 @@ class _EvidenceMixin:
         query_vector: list[float],
         limit: int,
     ) -> list[RetrievalEvidence]:
-        index_name = self._ensure_tenant_vector_index(
-            self.memory_index, user_identifier
-        )
+        index_name = self._ensure_tenant_vector_index(self.memory_index, user_identifier)
         rows = self._records(
             self._query(
                 f"VECTOR SEARCH IN {index_name} FOR {limit} "
@@ -134,9 +128,7 @@ class _EvidenceMixin:
         query_vector: list[float],
         limit: int,
     ) -> list[RetrievalEvidence]:
-        index_name = self._ensure_tenant_vector_index(
-            self.fact_index, user_identifier
-        )
+        index_name = self._ensure_tenant_vector_index(self.fact_index, user_identifier)
         rows = self._records(
             self._query(
                 f"VECTOR SEARCH IN {index_name} FOR {limit} "
@@ -164,9 +156,7 @@ class _EvidenceMixin:
         query_vector: list[float],
         limit: int,
     ) -> list[RetrievalEvidence]:
-        index_name = self._ensure_tenant_vector_index(
-            self.entity_index, user_identifier
-        )
+        index_name = self._ensure_tenant_vector_index(self.entity_index, user_identifier)
         rows = self._records(
             self._query(
                 f"VECTOR SEARCH IN {index_name} FOR {limit} "
@@ -178,9 +168,7 @@ class _EvidenceMixin:
             )
         )
         seeds = {
-            str(row.get("e.id")): float(row.get("score") or 0.0)
-            for row in rows
-            if row.get("e.id")
+            str(row.get("e.id")): float(row.get("score") or 0.0) for row in rows if row.get("e.id")
         }
         return self._expand_entity_evidence(user_identifier, seeds, limit)
 
@@ -201,17 +189,11 @@ class _EvidenceMixin:
         fact_ids = [hit.source_id for hit in hits if hit.kind == "fact"]
         fact_sources = self._fact_sources_by_ids(user_identifier, fact_ids)
         community_ids = [hit.source_id for hit in hits if hit.kind == "community"]
-        community_sources = self._community_sources_by_ids(
-            user_identifier, community_ids
-        )
+        community_sources = self._community_sources_by_ids(user_identifier, community_ids)
         entity_seeds = {
-            hit.source_id: max(hit.score, 1e-12)
-            for hit in hits
-            if hit.kind == "entity"
+            hit.source_id: max(hit.score, 1e-12) for hit in hits if hit.kind == "entity"
         }
-        entity_evidence = self._expand_entity_evidence(
-            user_identifier, entity_seeds, limit
-        )
+        entity_evidence = self._expand_entity_evidence(user_identifier, entity_seeds, limit)
         values: list[RetrievalEvidence] = []
         for hit in hits:
             if hit.kind == "episode":
@@ -252,9 +234,7 @@ class _EvidenceMixin:
         query_vector: list[float],
         limit: int,
     ) -> list[RetrievalEvidence]:
-        index_name = self._ensure_tenant_vector_index(
-            self.community_index, user_identifier
-        )
+        index_name = self._ensure_tenant_vector_index(self.community_index, user_identifier)
         rows = self._records(
             self._query(
                 f"VECTOR SEARCH IN {index_name} FOR {limit} "
@@ -268,9 +248,7 @@ class _EvidenceMixin:
         values: list[RetrievalEvidence] = []
         for row in rows:
             community_id = str(row.get("c.id") or "")
-            source_ids = self._json_loads(
-                row.get("c.source_memory_ids_json"), []
-            )
+            source_ids = self._json_loads(row.get("c.source_memory_ids_json"), [])
             if not community_id or not isinstance(source_ids, list):
                 continue
             for source_id in source_ids:
@@ -304,9 +282,7 @@ class _EvidenceMixin:
         for entity in extractions[0].entities:
             entity_type = canonicalize_entity_type(entity.label)
             canonical_name = canonicalize_entity_name(entity.text)
-            entity_id = stable_id(
-                "ent", user_identifier, entity_type, canonical_name
-            )
+            entity_id = stable_id("ent", user_identifier, entity_type, canonical_name)
             seeds[entity_id] = max(seeds.get(entity_id, 0.0), entity.score)
         return self._expand_entity_evidence(user_identifier, seeds, limit)
 
@@ -318,9 +294,7 @@ class _EvidenceMixin:
     ) -> list[RetrievalEvidence]:
         if not entity_scores:
             return []
-        condition = " OR ".join(
-            f'e.id = "{quote(entity_id)}"' for entity_id in entity_scores
-        )
+        condition = " OR ".join(f'e.id = "{quote(entity_id)}"' for entity_id in entity_scores)
         queries = (
             (
                 "graph.entity_direct_subject",
@@ -384,9 +358,7 @@ class _EvidenceMixin:
     ) -> dict[str, str]:
         if not fact_ids:
             return {}
-        condition = " OR ".join(
-            f'f.id = "{quote(fact_id)}"' for fact_id in dict.fromkeys(fact_ids)
-        )
+        condition = " OR ".join(f'f.id = "{quote(fact_id)}"' for fact_id in dict.fromkeys(fact_ids))
         rows = self._records(
             self._query(
                 "MATCH (f:Fact) "
@@ -410,8 +382,7 @@ class _EvidenceMixin:
         if not community_ids:
             return {}
         condition = " OR ".join(
-            f'c.id = "{quote(community_id)}"'
-            for community_id in dict.fromkeys(community_ids)
+            f'c.id = "{quote(community_id)}"' for community_id in dict.fromkeys(community_ids)
         )
         rows = self._records(
             self._query(
@@ -425,9 +396,7 @@ class _EvidenceMixin:
         values: dict[str, tuple[str, ...]] = {}
         for row in rows:
             community_id = str(row.get("c.id") or "")
-            source_ids = self._json_loads(
-                row.get("c.source_memory_ids_json"), []
-            )
+            source_ids = self._json_loads(row.get("c.source_memory_ids_json"), [])
             if community_id and isinstance(source_ids, list):
                 values[community_id] = tuple(
                     source_id
@@ -444,8 +413,7 @@ class _EvidenceMixin:
         if not memory_ids:
             return {}
         condition = " OR ".join(
-            f'm.id = "{quote(memory_id)}"'
-            for memory_id in dict.fromkeys(memory_ids)
+            f'm.id = "{quote(memory_id)}"' for memory_id in dict.fromkeys(memory_ids)
         )
         try:
             rows = self._records(
@@ -463,6 +431,4 @@ class _EvidenceMixin:
             if "Unknown label: Memory" not in str(exc):
                 raise
             return {}
-        return {
-            str(row.get("m.id")): row for row in rows if row.get("m.id")
-        }
+        return {str(row.get("m.id")): row for row in rows if row.get("m.id")}

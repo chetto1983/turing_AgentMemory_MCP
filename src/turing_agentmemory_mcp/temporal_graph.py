@@ -33,7 +33,9 @@ class EpisodeContext:
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"episode {name} must be non-empty")
-        object.__setattr__(self, "observed_at", _normalize_timestamp(self.observed_at, "observed_at"))
+        object.__setattr__(
+            self, "observed_at", _normalize_timestamp(self.observed_at, "observed_at")
+        )
         if self.expires_at:
             object.__setattr__(
                 self,

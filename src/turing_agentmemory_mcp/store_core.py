@@ -142,10 +142,7 @@ class _StoreCore:
             ready=self.fusion_enabled,
             identity={
                 "algorithm": "weighted-rrf",
-                **{
-                    f"{channel}_weight": weight
-                    for channel, weight in self.fusion_weights.items()
-                },
+                **{f"{channel}_weight": weight for channel, weight in self.fusion_weights.items()},
             },
         )
         self.runtime_signals.configure_stage(
@@ -255,9 +252,7 @@ class _StoreCore:
             )
         except Exception:
             pass
-        rows = self._records(
-            self._query("SHOW VECTOR INDEXES", operation="vector_index.verify")
-        )
+        rows = self._records(self._query("SHOW VECTOR INDEXES", operation="vector_index.verify"))
         if not rows:
             ensured.add(name)
             return
@@ -274,9 +269,7 @@ class _StoreCore:
 
     @staticmethod
     def _tenant_vector_index(base_name: str, user_identifier: str) -> str:
-        digest = hashlib.blake2b(
-            user_identifier.encode("utf-8"), digest_size=8
-        ).hexdigest()
+        digest = hashlib.blake2b(user_identifier.encode("utf-8"), digest_size=8).hexdigest()
         return cypher_var(f"{base_name}_tenant_{digest}")
 
     def _ensure_tenant_vector_index(
@@ -365,7 +358,9 @@ class _StoreCore:
             for query in queries:
                 self._write(query)
 
-    def _load_vectors(self, index_name: str, rows: list[tuple[int, list[float]]], stem: str) -> None:
+    def _load_vectors(
+        self, index_name: str, rows: list[tuple[int, list[float]]], stem: str
+    ) -> None:
         if not rows:
             return
         self._ensure_vector_index(index_name)
@@ -399,7 +394,9 @@ class _StoreCore:
                 return value
             return str(value)
 
-        return [{str(key): clean(value) for key, value in row.items()} for row in df.to_dict("records")]
+        return [
+            {str(key): clean(value) for key, value in row.items()} for row in df.to_dict("records")
+        ]
 
     @staticmethod
     def _now_iso() -> str:
@@ -407,7 +404,9 @@ class _StoreCore:
 
     @staticmethod
     def _json_dumps(value: object) -> str:
-        return json.dumps(value, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=str)
+        return json.dumps(
+            value, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=str
+        )
 
     @staticmethod
     def _json_loads(value: object, fallback: object) -> object:

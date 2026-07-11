@@ -11,7 +11,10 @@ from typing import Protocol
 
 SECRET_PATTERNS = (
     ("secret", re.compile(r"\bsk-[a-zA-Z0-9][a-zA-Z0-9_-]{8,}\b")),
-    ("api_key", re.compile(r"(?i)\b(api[_-]?key|token|secret)\s*[:=]\s*['\"]?([a-z0-9][a-z0-9._-]{8,})")),
+    (
+        "api_key",
+        re.compile(r"(?i)\b(api[_-]?key|token|secret)\s*[:=]\s*['\"]?([a-z0-9][a-z0-9._-]{8,})"),
+    ),
     ("email", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")),
 )
 SENSITIVE_AUDIT_KEYS = {"content", "text", "query", "embedding", "vector", "documents"}
@@ -24,8 +27,7 @@ class RedactedText:
 
 
 class Redactor(Protocol):
-    def redact(self, text: str) -> RedactedText:
-        ...
+    def redact(self, text: str) -> RedactedText: ...
 
 
 class NoopRedactor:
@@ -58,8 +60,7 @@ class PatternRedactor:
 
 
 class AuditSink(Protocol):
-    def record(self, event: dict[str, object]) -> None:
-        ...
+    def record(self, event: dict[str, object]) -> None: ...
 
 
 class NoopAuditSink:

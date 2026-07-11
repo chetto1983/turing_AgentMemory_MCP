@@ -30,8 +30,7 @@ def test_product_service_enables_the_fused_temporal_pipeline() -> None:
         in environment
     )
     assert (
-        "TURINGDB_FACT_INDEX=${TURINGDB_FACT_INDEX:-agent_memory_fact_vectors_768}"
-        in environment
+        "TURINGDB_FACT_INDEX=${TURINGDB_FACT_INDEX:-agent_memory_fact_vectors_768}" in environment
     )
     assert (
         "TURINGDB_COMMUNITY_INDEX=${TURINGDB_COMMUNITY_INDEX:-agent_memory_community_vectors_768}"

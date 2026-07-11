@@ -128,9 +128,9 @@ def test_remote_upload_tools_enqueue_then_convert_and_ingest(
                     {
                         "upload_id": upload_id,
                         "sequence": sequence,
-                        "content_base64": __import__("base64").b64encode(
-                            content[offset : offset + 8]
-                        ).decode("ascii"),
+                        "content_base64": __import__("base64")
+                        .b64encode(content[offset : offset + 8])
+                        .decode("ascii"),
                         "user_identifier": "alice",
                     },
                 )

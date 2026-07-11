@@ -130,17 +130,11 @@ def store_from_env() -> TuringAgentMemory:
     memory_extractor = None
     entity_processor = None
     if fusion_enabled:
-        schema = os.environ.get(
-            "GLINER_MEMORY_SCHEMA", MEMORY_EXTRACTION_SCHEMA_VERSION
-        ).strip()
+        schema = os.environ.get("GLINER_MEMORY_SCHEMA", MEMORY_EXTRACTION_SCHEMA_VERSION).strip()
         if schema != MEMORY_EXTRACTION_SCHEMA_VERSION:
-            raise ValueError(
-                f"GLINER_MEMORY_SCHEMA must be {MEMORY_EXTRACTION_SCHEMA_VERSION}"
-            )
+            raise ValueError(f"GLINER_MEMORY_SCHEMA must be {MEMORY_EXTRACTION_SCHEMA_VERSION}")
         memory_extractor = HTTPMemoryExtractor(
-            base_url=os.environ.get(
-                "GLINER_BASE_URL", "http://agentmemory-gliner:8080"
-            ),
+            base_url=os.environ.get("GLINER_BASE_URL", "http://agentmemory-gliner:8080"),
             model_name=os.environ.get("GLINER_MODEL", "fastino/gliner2-base-v1"),
             threshold=float(os.environ.get("GLINER_THRESHOLD", "0.5")),
             timeout_s=_env_float("GLINER_TIMEOUT_SECONDS", default=30.0),
@@ -151,9 +145,7 @@ def store_from_env() -> TuringAgentMemory:
         resolution=_env_float("AGENTMEMORY_LEIDEN_RESOLUTION", default=1.0),
         randomness=_env_float("AGENTMEMORY_LEIDEN_RANDOMNESS", default=0.001),
         iterations=_env_int("AGENTMEMORY_LEIDEN_ITERATIONS", default=2, minimum=1),
-        max_cluster_size=_env_int(
-            "AGENTMEMORY_LEIDEN_MAX_CLUSTER_SIZE", default=100, minimum=1
-        ),
+        max_cluster_size=_env_int("AGENTMEMORY_LEIDEN_MAX_CLUSTER_SIZE", default=100, minimum=1),
     )
     client = TuringDB(type="json", host=url, token=token)
     store = TuringAgentMemory(
@@ -209,7 +201,9 @@ def create_mcp_app(
     manager = document_manager
     if manager is None and production_store:
         manager = document_ingest_manager_from_env(store_factory=store_from_env)
-    should_start_worker = production_store if start_document_worker is None else start_document_worker
+    should_start_worker = (
+        production_store if start_document_worker is None else start_document_worker
+    )
     if manager is not None and should_start_worker:
         manager.start()
         atexit.register(manager.stop)

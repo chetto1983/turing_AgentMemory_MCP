@@ -55,7 +55,9 @@ class FilterStore(TuringAgentMemory):
     def _active_memory_rows(self, user_identifier: str) -> list[dict[str, Any]]:
         return [row for row in self.memory_rows if row["m.user_identifier"] == user_identifier]
 
-    def _active_chunk_rows(self, user_identifier: str, *, document_id: str = "") -> list[dict[str, Any]]:
+    def _active_chunk_rows(
+        self, user_identifier: str, *, document_id: str = ""
+    ) -> list[dict[str, Any]]:
         return [
             row
             for row in self.chunk_rows

@@ -73,10 +73,7 @@ def register_memory_tools(
             }
             if not refresh_communities:
                 store_arguments["refresh_communities"] = False
-            return [
-                item.to_dict()
-                for item in memory.store_messages(**store_arguments)
-            ]
+            return [item.to_dict() for item in memory.store_messages(**store_arguments)]
 
     @app.tool()
     def memory_rebuild_communities(

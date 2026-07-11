@@ -52,7 +52,7 @@ def test_skill_covers_the_production_memory_lifecycle() -> None:
         "degraded",
         "idempotent",
         'Temporal episodes (`kind="message"`) are append-only',
-        '`memory_delete` requires `memory_id`; `document_id` is invalid',
+        "`memory_delete` requires `memory_id`; `document_id` is invalid",
         "Stop and request operator approval",
         "Done when",
     ):

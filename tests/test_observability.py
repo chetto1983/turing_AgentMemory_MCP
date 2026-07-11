@@ -194,7 +194,9 @@ def test_ingest_document_text_records_chunk_and_vector_load_spans(tmp_path: Path
     assert "document.ingest_text" in observer.names()
     assert "document.chunk" in observer.names()
     assert "vector.load" in observer.names()
-    assert observer.by_name("document.chunk")[0]["attributes"]["chunk_count"] == document.chunk_count
+    assert (
+        observer.by_name("document.chunk")[0]["attributes"]["chunk_count"] == document.chunk_count
+    )
     assert observer.by_name("vector.load")[0]["attributes"]["index"].startswith(
         "document_chunk_vectors_tenant_"
     )

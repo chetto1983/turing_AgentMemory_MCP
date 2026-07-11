@@ -58,8 +58,7 @@ def test_rebuild_sparse_projection_replaces_index_from_canonical_graph_documents
     assert status["document_count"] == 1
     assert sparse.search(user_identifier="alice", query="stale", limit=10) == []
     assert [
-        hit.source_id
-        for hit in sparse.search(user_identifier="alice", query="canonical", limit=10)
+        hit.source_id for hit in sparse.search(user_identifier="alice", query="canonical", limit=10)
     ] == ["canonical"]
 
 

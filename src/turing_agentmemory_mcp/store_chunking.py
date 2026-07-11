@@ -37,16 +37,13 @@ class _ChunkingMixin:
             chunks: list[str] = []
             for index, marker_match in enumerate(page_markers):
                 body_end = (
-                    page_markers[index + 1].start()
-                    if index + 1 < len(page_markers)
-                    else len(text)
+                    page_markers[index + 1].start() if index + 1 < len(page_markers) else len(text)
                 )
                 marker = marker_match.group(0)
                 body = text[marker_match.end() : body_end].strip()
                 body_budget = max(1, chunk_chars - len(marker) - 2)
                 chunks.extend(
-                    f"{marker}\n\n{part}"
-                    for part in cls._pack_text(body, chunk_chars=body_budget)
+                    f"{marker}\n\n{part}" for part in cls._pack_text(body, chunk_chars=body_budget)
                 )
             return chunks
         return cls._pack_text(text, chunk_chars=chunk_chars)
@@ -106,7 +103,9 @@ class _ChunkingMixin:
             for row in rows
         ]
 
-    def _active_chunk_rows(self, user_identifier: str, *, document_id: str = "") -> list[dict[str, Any]]:
+    def _active_chunk_rows(
+        self, user_identifier: str, *, document_id: str = ""
+    ) -> list[dict[str, Any]]:
         document_filter = ""
         if document_id:
             document_filter = f' AND c.document_id = "{quote(document_id)}"'

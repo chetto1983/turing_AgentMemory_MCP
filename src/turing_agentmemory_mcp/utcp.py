@@ -215,7 +215,9 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
         "name": "memory_get",
         "description": "Fetch one active scoped memory by id.",
         "tags": ["memory", "read", "lifecycle"],
-        "inputs": _schema({"memory_id": _string(), "user_identifier": _string("default")}, ["memory_id"]),
+        "inputs": _schema(
+            {"memory_id": _string(), "user_identifier": _string("default")}, ["memory_id"]
+        ),
         "outputs": MEMORY_ITEM_OUTPUT,
     },
     {
@@ -260,7 +262,9 @@ AGENTMEMORY_TOOL_SPECS: list[JsonDict] = [
         "name": "memory_delete",
         "description": "Soft-delete one scoped memory so it is hidden from retrieval.",
         "tags": ["memory", "delete", "lifecycle"],
-        "inputs": _schema({"memory_id": _string(), "user_identifier": _string("default")}, ["memory_id"]),
+        "inputs": _schema(
+            {"memory_id": _string(), "user_identifier": _string("default")}, ["memory_id"]
+        ),
         "outputs": DELETE_OUTPUT,
     },
     {

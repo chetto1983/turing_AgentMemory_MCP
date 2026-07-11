@@ -133,7 +133,9 @@ def test_entity_and_fact_ids_are_tenant_and_source_scoped() -> None:
     assert {fact.id for fact in alice.facts}.isdisjoint(
         {fact.id for fact in alice_second_source.facts}
     )
-    assert {entity.id for entity in alice.entities}.isdisjoint({entity.id for entity in bob.entities})
+    assert {entity.id for entity in alice.entities}.isdisjoint(
+        {entity.id for entity in bob.entities}
+    )
     assert {fact.id for fact in alice.facts}.isdisjoint({fact.id for fact in bob.facts})
 
 
@@ -184,9 +186,7 @@ def test_projection_deduplicates_semantic_relations_at_highest_confidence() -> N
     assert len(participated) == 1
     assert participated[0].confidence == 0.99
     related_edges = [
-        edge
-        for edge in projection.edges
-        if edge.properties.get("fact_id") == participated[0].id
+        edge for edge in projection.edges if edge.properties.get("fact_id") == participated[0].id
     ]
     assert len(related_edges) == 4
     assert {edge.properties["confidence"] for edge in related_edges} == {0.99}

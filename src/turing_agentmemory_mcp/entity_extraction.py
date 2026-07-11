@@ -41,8 +41,7 @@ class ProcessedText:
 
 
 class EntityProcessor(Protocol):
-    def process(self, text: str) -> ProcessedText:
-        ...
+    def process(self, text: str) -> ProcessedText: ...
 
 
 class NoopEntityProcessor:
@@ -68,7 +67,9 @@ class GLiNEREntityProcessor:
 
     @classmethod
     def from_env(cls) -> GLiNEREntityProcessor:
-        model_name = os.environ.get("GLINER_MODEL", DEFAULT_GLINER_MODEL).strip() or DEFAULT_GLINER_MODEL
+        model_name = (
+            os.environ.get("GLINER_MODEL", DEFAULT_GLINER_MODEL).strip() or DEFAULT_GLINER_MODEL
+        )
         backend = (os.environ.get("GLINER_BACKEND", "auto").strip() or "auto").lower()
         if backend == "auto":
             model_key = model_name.lower()
@@ -140,7 +141,9 @@ class HTTPGLiNEREntityProcessor:
 
     @classmethod
     def from_env(cls) -> HTTPGLiNEREntityProcessor:
-        model_name = os.environ.get("GLINER_MODEL", DEFAULT_GLINER_MODEL).strip() or DEFAULT_GLINER_MODEL
+        model_name = (
+            os.environ.get("GLINER_MODEL", DEFAULT_GLINER_MODEL).strip() or DEFAULT_GLINER_MODEL
+        )
         labels = _split_csv(os.environ.get("GLINER_LABELS")) or list(DEFAULT_GLINER_LABELS)
         threshold = float(os.environ.get("GLINER_THRESHOLD", "0.5"))
         redact = _env_bool("GLINER_REDACT")

@@ -49,7 +49,9 @@ def test_summarize_entity_extraction_reports_models_and_entity_counts() -> None:
         {"annotated_memories": 1, "entities": 2, "models": ["wrong-model"]},
     ],
 )
-def test_require_entity_model_rejects_missing_or_different_model(summary: dict[str, object]) -> None:
+def test_require_entity_model_rejects_missing_or_different_model(
+    summary: dict[str, object],
+) -> None:
     with pytest.raises(RuntimeError, match="lion-ai/gliner2-base-v1-onnx"):
         runner.require_entity_model(summary, "lion-ai/gliner2-base-v1-onnx")
 
@@ -111,7 +113,9 @@ def test_resume_ingest_skips_already_committed_immutable_episodes(
     async def fake_call(_client: object, name: str, arguments: dict[str, object]) -> object:
         calls.append((name, arguments))
         if name == "memory_get":
-            return {"id": arguments["memory_id"]} if arguments["memory_id"] in {"m0", "m1"} else None
+            return (
+                {"id": arguments["memory_id"]} if arguments["memory_id"] in {"m0", "m1"} else None
+            )
         if name == "memory_store_messages":
             return [{"id": str(row["memory_id"]), "metadata": {}} for row in arguments["messages"]]
         return {"community_count": 1}

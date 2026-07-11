@@ -83,7 +83,9 @@ def test_max_cluster_size_is_a_hard_deterministic_bound() -> None:
     result = NativeLeidenDetector(seed=42, max_cluster_size=3).detect("alice", nodes, edges)
 
     assert all(len(community.member_ids) <= 3 for community in result.communities)
-    assert sorted(node for community in result.communities for node in community.member_ids) == nodes
+    assert (
+        sorted(node for community in result.communities for node in community.member_ids) == nodes
+    )
 
 
 def test_aggregate_weighted_edges_merges_direction_and_provenance() -> None:
@@ -105,11 +107,15 @@ def test_weighted_edges_reject_invalid_weights(weight: object) -> None:
 
 
 def test_community_summary_is_deterministic_and_grounded() -> None:
-    community = NativeLeidenDetector(seed=42).detect(
-        "alice",
-        ["a", "b"],
-        [WeightedEntityEdge("a", "b", 2.0, ("m1",))],
-    ).communities[0]
+    community = (
+        NativeLeidenDetector(seed=42)
+        .detect(
+            "alice",
+            ["a", "b"],
+            [WeightedEntityEdge("a", "b", 2.0, ("m1",))],
+        )
+        .communities[0]
+    )
     entities = {
         "a": CommunityEntity("a", "Alice", "person", 0.98, ("m1", "m2")),
         "b": CommunityEntity("b", "Hiking", "activity", 0.91, ("m1",)),
@@ -128,7 +134,9 @@ def test_community_summary_is_deterministic_and_grounded() -> None:
     ]
 
     first = build_community_projection(community, entities, facts)
-    second = build_community_projection(community, dict(reversed(entities.items())), list(reversed(facts)))
+    second = build_community_projection(
+        community, dict(reversed(entities.items())), list(reversed(facts))
+    )
 
     assert first == second
     assert first.content == (

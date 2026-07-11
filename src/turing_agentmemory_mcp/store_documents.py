@@ -86,7 +86,11 @@ class _DocumentMixin:
     ) -> IngestedDocument:
         with self._span(
             "document.ingest_text",
-            {"user_identifier": user_identifier, "document_id": document_id or "", "source": source},
+            {
+                "user_identifier": user_identifier,
+                "document_id": document_id or "",
+                "source": source,
+            },
         ):
             self._require_user(user_identifier)
             if not title.strip():
@@ -157,7 +161,8 @@ class _DocumentMixin:
         matching_rows = [
             row
             for row in rows
-            if str(row.get("d.id", "")) == document_id and not self._row_is_expired(row, "d.expires_at")
+            if str(row.get("d.id", "")) == document_id
+            and not self._row_is_expired(row, "d.expires_at")
         ]
         return self._document_from_row(matching_rows[0]) if matching_rows else None
 
@@ -201,7 +206,11 @@ class _DocumentMixin:
                 source=source,
                 tags=tags,
                 metadata=metadata,
-                expires_at=expires_at if expires_at is not None else existing.expires_at if existing is not None else "",
+                expires_at=expires_at
+                if expires_at is not None
+                else existing.expires_at
+                if existing is not None
+                else "",
                 created_at=existing.created_at if existing is not None else None,
             )
             self._audit(
@@ -358,9 +367,7 @@ class _DocumentMixin:
 
         document_query = f"{user_match} CREATE {document_node}, {user_document_edge}"
         if len(document_query.encode("utf-8")) > self.document_graph_batch_bytes:
-            raise ValueError(
-                "document metadata exceeds AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES"
-            )
+            raise ValueError("document metadata exceeds AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES")
 
         queries = [document_query]
         batch: list[_DocumentChunkGraphUnit] = []
@@ -394,8 +401,7 @@ class _DocumentMixin:
                 batch = candidate
             if len(candidate_query.encode("utf-8")) > self.document_graph_batch_bytes:
                 raise ValueError(
-                    f"document chunk {unit.chunk_id} exceeds "
-                    "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES"
+                    f"document chunk {unit.chunk_id} exceeds AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES"
                 )
         if batch:
             queries.append(
@@ -494,9 +500,7 @@ class _DocumentMixin:
             document_filter = ""
             if document_id:
                 document_filter = f' AND c.document_id = "{quote(document_id)}"'
-            document_index = self._ensure_tenant_vector_index(
-                self.document_index, user_identifier
-            )
+            document_index = self._ensure_tenant_vector_index(self.document_index, user_identifier)
             try:
                 vector_rows = self._records(
                     self._query(
@@ -552,7 +556,9 @@ class _DocumentMixin:
                     query,
                     self._row_search_text(row, text_key="c.text", metadata_key="c.metadata_json"),
                 )
-                final_score = blend_hybrid_score(semantic_score=semantic_score, lexical_score=lexical)
+                final_score = blend_hybrid_score(
+                    semantic_score=semantic_score, lexical_score=lexical
+                )
                 if semantic_score <= 0.0 and lexical <= 0.0:
                     continue
                 if not passes_threshold(final_score, threshold):

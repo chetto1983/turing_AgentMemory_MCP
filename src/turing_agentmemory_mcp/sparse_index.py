@@ -254,7 +254,11 @@ class SparseIndex:
             raise ValueError("user_identifier must be non-empty")
         if not isinstance(query, str) or not query.strip():
             raise ValueError("sparse query must be non-empty")
-        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_SPARSE_RESULTS:
+        if (
+            isinstance(limit, bool)
+            or not isinstance(limit, int)
+            or not 1 <= limit <= MAX_SPARSE_RESULTS
+        ):
             raise ValueError(f"sparse limit must be between 1 and {MAX_SPARSE_RESULTS}")
         clean_kinds = tuple(dict.fromkeys(kinds or ()))
         if any(not isinstance(kind, str) or not kind.strip() for kind in clean_kinds):
@@ -262,7 +266,11 @@ class SparseIndex:
         compiled = compile_fts_query(query)
         if not compiled:
             return []
-        now_value = _normalize_timestamp(now) if now else datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        now_value = (
+            _normalize_timestamp(now)
+            if now
+            else datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        )
         sql = (
             "SELECT doc_key, user_identifier, source_id, kind, content, source, session_id, "
             "created_at, expires_at, projection_version, "
@@ -307,12 +315,10 @@ class SparseIndex:
                         "SELECT state, COUNT(*) FROM sparse_outbox GROUP BY state"
                     ).fetchall()
                 )
-                oldest = connection.execute(
-                    "SELECT MIN(created_at) FROM sparse_outbox"
-                ).fetchone()[0]
-                document_count = connection.execute(
-                    "SELECT COUNT(*) FROM sparse_fts"
-                ).fetchone()[0]
+                oldest = connection.execute("SELECT MIN(created_at) FROM sparse_outbox").fetchone()[
+                    0
+                ]
+                document_count = connection.execute("SELECT COUNT(*) FROM sparse_fts").fetchone()[0]
         except (OSError, sqlite3.Error) as exc:
             raise SparseIndexUnavailable(f"cannot inspect sparse index at {self.path}") from exc
         prepared = int(counts.get("prepared", 0))
@@ -415,8 +421,7 @@ class SparseIndex:
     @staticmethod
     def _create_tables(connection: sqlite3.Connection) -> None:
         connection.execute(
-            "CREATE TABLE IF NOT EXISTS sparse_meta("
-            "key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS sparse_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         )
         connection.execute(
             "CREATE VIRTUAL TABLE IF NOT EXISTS sparse_fts USING fts5("
@@ -433,8 +438,7 @@ class SparseIndex:
             "UNIQUE(batch_id, sequence))"
         )
         connection.execute(
-            "CREATE INDEX IF NOT EXISTS sparse_outbox_state_id "
-            "ON sparse_outbox(state, id)"
+            "CREATE INDEX IF NOT EXISTS sparse_outbox_state_id ON sparse_outbox(state, id)"
         )
 
     @staticmethod

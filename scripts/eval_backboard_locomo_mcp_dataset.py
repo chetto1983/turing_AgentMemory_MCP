@@ -343,7 +343,11 @@ def retrieval_diagnostics(hits: list[dict[str, Any]]) -> dict[str, Any]:
         "rerank_status": (
             next(iter(primary_statuses))
             if len(primary_statuses) == 1
-            else "mixed" if primary_statuses else "candidate_limit" if candidate_limited else ""
+            else "mixed"
+            if primary_statuses
+            else "candidate_limit"
+            if candidate_limited
+            else ""
         ),
         "rerank_model": next(iter(models)) if len(models) == 1 else "mixed" if models else "",
         "rerank_candidate_limited": candidate_limited,
@@ -381,7 +385,9 @@ def require_entity_model(summary: dict[str, Any], required_model: str) -> None:
         return
     models = summary.get("models")
     if not isinstance(models, list) or required_model not in models:
-        raise RuntimeError(f"benchmark ingest did not report required entity model: {required_model}")
+        raise RuntimeError(
+            f"benchmark ingest did not report required entity model: {required_model}"
+        )
 
 
 def extraction_summary_from_runtime(runtime: object) -> dict[str, Any]:
@@ -477,15 +483,15 @@ def finalize_metrics(bucket: dict[str, Any], ks: list[int]) -> dict[str, Any]:
         "total": total,
         "evidence_total": evidence_total,
         "search_errors": bucket["search_errors"],
-        "search_success_rate": round((total - bucket["search_errors"]) / total, 6) if total else 0.0,
+        "search_success_rate": round((total - bucket["search_errors"]) / total, 6)
+        if total
+        else 0.0,
         "latency_ms": {
             "mean": round(statistics.fmean(latencies), 3) if latencies else 0.0,
             "p50": round(statistics.median(latencies), 3) if latencies else 0.0,
             "max": round(max(latencies), 3) if latencies else 0.0,
         },
-        "mrr": round(bucket["reciprocal_rank_sum"] / evidence_total, 6)
-        if evidence_total
-        else 0.0,
+        "mrr": round(bucket["reciprocal_rank_sum"] / evidence_total, 6) if evidence_total else 0.0,
     }
     for k in ks:
         out[f"evidence_any_at_{k}"] = (

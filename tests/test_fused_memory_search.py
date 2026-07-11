@@ -241,11 +241,7 @@ def test_fused_search_returns_empty_when_all_evidence_sources_are_missing(
 ) -> None:
     store = FusedStore(
         tmp_path,
-        channels={
-            "fact_dense": [
-                evidence("deleted-source", "fact-1", kind="fact", raw_score=0.9)
-            ]
-        },
+        channels={"fact_dense": [evidence("deleted-source", "fact-1", kind="fact", raw_score=0.9)]},
         rows=[],
     )
 
@@ -466,9 +462,7 @@ def test_fused_rerank_fallback_preserves_rrf_order_and_is_visible(tmp_path: Path
     assert hits[0].score_details["rerank_status"] == "provider_error"
 
 
-def test_fused_rerank_bounds_gpu_candidates_and_preserves_tail(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_fused_rerank_bounds_gpu_candidates_and_preserves_tail(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("RERANK_CANDIDATE_LIMIT", "2")
     reranker = StatusReranker("applied")
     store = FusedStore(

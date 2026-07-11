@@ -27,8 +27,7 @@ TOKEN_RE = re.compile(r"[a-zA-Z0-9_]+")
 class Embedder(Protocol):
     dimensions: int
 
-    def embed(self, text: str) -> list[float]:
-        ...
+    def embed(self, text: str) -> list[float]: ...
 
 
 @dataclass(frozen=True)
@@ -88,8 +87,7 @@ class OpenAICompatibleEmbedder:
         return cls(
             base_url=provider_env("EMBED_BASE_URL", default="http://127.0.0.1:8081"),
             dimensions=configured_dimensions,
-            model=provider_env("EMBED_MODEL", default="local-embedding")
-            or "local-embedding",
+            model=provider_env("EMBED_MODEL", default="local-embedding") or "local-embedding",
             api_key=provider_secret("EMBED"),
             api_key_header=provider_api_key_header("EMBED"),
             api_key_scheme=provider_api_key_scheme("EMBED"),
@@ -133,7 +131,9 @@ class OpenAICompatibleEmbedder:
             headers={"Content-Type": "application/json"},
         )
         if self.api_key:
-            req.add_header(self.api_key_header, api_key_header_value(self.api_key, self.api_key_scheme))
+            req.add_header(
+                self.api_key_header, api_key_header_value(self.api_key, self.api_key_scheme)
+            )
         decoded: object = None
         for attempt in range(self.max_attempts):
             try:
@@ -148,11 +148,13 @@ class OpenAICompatibleEmbedder:
                 if attempt + 1 < self.max_attempts:
                     time.sleep(self.retry_base_s * (2**attempt))
                     continue
-                raise RuntimeError(
-                    f"embedding provider unavailable at {self.base_url}"
-                ) from exc
+                raise RuntimeError(f"embedding provider unavailable at {self.base_url}") from exc
             error_code = provider_error_code(decoded)
-            if error_code and retryable_provider_code(error_code) and attempt + 1 < self.max_attempts:
+            if (
+                error_code
+                and retryable_provider_code(error_code)
+                and attempt + 1 < self.max_attempts
+            ):
                 time.sleep(self.retry_base_s * (2**attempt))
                 continue
             if error_code:

@@ -369,9 +369,7 @@ def document_ingest_manager_from_env(*, store_factory: StoreFactory) -> Document
         ),
         store_factory=store_factory,
         lease_seconds=int(os.environ.get("AGENTMEMORY_DOCUMENT_JOB_LEASE_SECONDS", "900")),
-        heartbeat_seconds=float(
-            os.environ.get("AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS", "15")
-        ),
+        heartbeat_seconds=float(os.environ.get("AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS", "15")),
         poll_seconds=float(os.environ.get("AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS", "1")),
         max_attempts=int(os.environ.get("AGENTMEMORY_DOCUMENT_JOB_MAX_ATTEMPTS", "3")),
     )
