@@ -63,12 +63,13 @@ correctness or tenant isolation is a failure, not progress.
 - [ ] At-risk dependencies: version-gate graspologic-native / fastmcp with tests (the TuringDB coupling risk is eliminated by removing TuringDB)
 - [ ] Test-coverage gaps closed: concurrent multi-tenant isolation, large-document ingestion, rebuild-under-query, sparse crash recovery, lease/timeout, extraction failure modes
 
-**Thrust 3 — CI + git hooks (modeled on Aura)**
+**Thrust 3 — CI + git hooks (modeled on Aura)** — ✓ Validated in Phase 1 (CI + Git-Hook Discipline)
 
-- [ ] `lefthook.yml` with fast `pre-commit` (ruff format/check, file-size cap) and `pre-push` (import/compile check, fast pytest subset, `docker compose config`)
-- [ ] `.github/workflows/ci.yml` job matrix: lint (ruff), unit tests (pytest), dockerized integration + E2E score gate, compose validation, supply-chain scan (pip-audit)
-- [ ] No-skip-as-green discipline: a skipped test tier fails the gate rather than passing it green
-- [ ] Heavy gates (full E2E, real-doc E2E, coverage) live in CI; hooks stay fast enough not to be habitually bypassed
+- [x] `lefthook.yml` with fast `pre-commit` (ruff format/check, file-size cap) and `pre-push` (import/compile check, fast pytest subset, `docker compose config`)
+- [x] `.github/workflows/ci.yml` job matrix: lint (ruff), unit tests (pytest), dockerized integration + E2E score gate, compose validation, supply-chain scan (pip-audit)
+- [x] No-skip-as-green discipline: a skipped test tier fails the gate rather than passing it green
+- [x] Heavy gates (full E2E, real-doc E2E, coverage) live in CI; hooks stay fast enough not to be habitually bypassed
+- Note: the headline enabler — decomposing `store.py` (3891 LOC) into a 34-LOC facade + 9 ≤600-LOC mixins so the no-allowlist 600-LOC cap applies with zero exemptions — was completed and is behavior-preserving (362→364 tests green; Docker E2E byte-identical to the pre-phase baseline). The local/CI *stub* E2E is 18/19 (score 9.474) — a pre-existing `HashingEmbedder`-stub limitation on one semantic document-search check; full VALIDATED_10_10 requires the real-embed GPU CI tier.
 
 **Thrust 4 — UTCP spike (early de-risk)**
 
@@ -129,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-11 after initialization*
+*Last updated: 2026-07-12 after Phase 1 (CI + Git-Hook Discipline) completion*
