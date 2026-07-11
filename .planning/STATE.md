@@ -6,14 +6,14 @@ current_phase: 01
 current_phase_name: ci-git-hook-discipline
 status: executing
 stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-07-11T21:30:54.664Z"
+last_updated: "2026-07-11T21:47:07.312Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 9
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 01 (ci-git-hook-discipline) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 01 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P03 | 35min | 2 tasks | 7 files |
 | Phase 01 P04 | 20min | 2 tasks | 4 files |
 | Phase 01 P05 | 30min | 2 tasks | 8 files |
+| Phase 01 P06 | 15min | 2 tasks | 71 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ Recent decisions affecting current work:
 - [Phase ?]: benchmark.py _git_commit/_git_head_commit kept collocated with ROOT (not moved to a sibling) because tests/test_benchmark.py monkeypatches benchmark.ROOT directly
 - [Phase ?]: [Phase 01] real_document_benchmark.py split into deterministic scoring helpers vs live-MCP CLI siblings; eval_backboard_locomo_mcp.py split into dataset/metrics helpers vs call_tool-dependent orchestration, keeping call_tool/ingest_conversation/evaluate_question/evaluate_conversation co-located because tests/test_backboard_locomo_runner.py monkeypatches the module-global call_tool — both exceeded the no-allowlist 600-LOC cap (D-08); splits preserve every tested import path and the full 362-test suite
 - [Phase ?]: Test-file splits (01-05): grouped gliner_provider main()/signal lifecycle tests with core provider-contract tests rather than a 4th file; named batch_memory siblings test_batch_memory_write.py/test_batch_memory_dedup.py per the plan's literal verify command; used leading-underscore _<name>_shared.py modules (not conftest.py) for shared fixtures since no tests/conftest.py exists yet
+- [Phase ?]: 01-06: One-time repo-wide ruff format bootstrap pass (D-09a) landed; format pass pushed tests/test_entity_extraction.py from 598 to 612 LOC, so it was split into test_entity_extraction.py (local/native backends) + test_entity_extraction_http.py (HTTP backend), mirroring the Wave-1 split pattern -- tree is now format-clean, ruff-check clean, 362 pytest, zero files over 600 LOC cap
 
 ### Pending Todos
 
@@ -109,6 +111,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T21:30:54.655Z
+Last session: 2026-07-11T21:46:38.407Z
 Stopped at: Completed 01-05-PLAN.md
 Resume file: None

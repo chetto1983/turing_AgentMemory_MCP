@@ -43,7 +43,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A coverage gate enforces a floor measured against the actual current suite (not guessed).
   5. `store.py` (~3900 LOC) is decomposed into cohesive ≤600-LOC modules so the file-size cap passes with no allowlist, with behavior preserved (the E2E score gate and full pytest suite stay green across the split).
 
-**Plans:** 5/9 plans executed
+**Plans:** 6/9 plans executed
 Plans:
 **Wave 1**
 
@@ -55,7 +55,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-06-PLAN.md — Repo-wide ruff format bootstrap + behavior-preservation verification gate
+- [x] 01-06-PLAN.md — Repo-wide ruff format bootstrap + behavior-preservation verification gate
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -228,7 +228,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. CI + Git-Hook Discipline | 5/9 | In Progress|  |
+| 1. CI + Git-Hook Discipline | 6/9 | In Progress|  |
 | 2. UTCP Spike | 0/TBD | Not started | - |
 | 3. TuringDB Retrieval Baseline | 0/TBD | Not started | - |
 | 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
