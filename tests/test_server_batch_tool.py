@@ -59,6 +59,10 @@ class FakeMemory:
         self.calls.append({"rebuild_user_identifier": user_identifier})
         return {"community_count": 2}
 
+    def rebuild_vector_projection(self, *, user_identifier: str) -> dict[str, object]:
+        self.calls.append({"rebuild_vector_user_identifier": user_identifier})
+        return {"total": 5}
+
 
 def _payload(result: Any) -> Any:
     if hasattr(result, "structured_content") and result.structured_content is not None:
@@ -135,3 +139,22 @@ def test_memory_rebuild_communities_tool_exposes_derived_repair() -> None:
 
     asyncio.run(run())
     assert fake.calls == [{"rebuild_user_identifier": "alice"}]
+
+
+def test_memory_rebuild_vector_projection_tool_exposes_recoverable_reindex() -> None:
+    fake = FakeMemory()
+
+    async def run() -> None:
+        async with Client(create_mcp_app(fake)) as client:
+            tools = await client.list_tools()
+            assert "memory_rebuild_vector_projection" in {tool.name for tool in tools}
+            result = _payload(
+                await client.call_tool(
+                    "memory_rebuild_vector_projection",
+                    {"user_identifier": "alice"},
+                )
+            )
+            assert result == {"total": 5}
+
+    asyncio.run(run())
+    assert fake.calls == [{"rebuild_vector_user_identifier": "alice"}]

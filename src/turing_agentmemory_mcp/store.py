@@ -2348,6 +2348,48 @@ class TuringAgentMemory:
         self.sparse_index.rebuild(documents)
         return self.sparse_index.status()
 
+    def rebuild_vector_projection(self, *, user_identifier: str) -> dict[str, object]:
+        """Re-embed active tenant records into recoverable vector indexes."""
+        self._require_user(user_identifier)
+        canonical = self._canonical_vector_records(user_identifier)
+        specifications = (
+            ("memory", self.memory_index, self._memory_vector_id),
+            ("document", self.document_index, self._document_vector_id),
+            ("entity", self.entity_index, self._entity_vector_id),
+            ("fact", self.fact_index, self._fact_vector_id),
+            ("community", self.community_index, self._community_vector_id),
+        )
+        counts: dict[str, int] = {}
+        for kind, index_name, id_factory in specifications:
+            records = canonical.get(kind, [])
+            self._ensure_vector_index(index_name)
+            vectors = self._embed_many([content for _source_id, content in records])
+            if vectors:
+                self._load_vectors(
+                    index_name,
+                    [
+                        (id_factory(user_identifier, source_id), vector)
+                        for (source_id, _content), vector in zip(records, vectors, strict=True)
+                    ],
+                    f"{kind}_rebuild",
+                )
+            counts[kind] = len(records)
+        result: dict[str, object] = {
+            "user_identifier": user_identifier,
+            "counts": counts,
+            "total": sum(counts.values()),
+            "dimensions": self.dimensions,
+            "model": getattr(self.embedder, "model", type(self.embedder).__name__),
+        }
+        self._audit(
+            operation="vector_projection.rebuild",
+            user_identifier=user_identifier,
+            resource_type="vector_projection",
+            resource_id=user_identifier,
+            details={"counts": counts, "total": result["total"]},
+        )
+        return result
+
     def rebuild_communities(self, *, user_identifier: str) -> dict[str, object]:
         self._require_user(user_identifier)
         entities, facts, mentions_by_memory = self._community_graph_inputs(
@@ -2703,6 +2745,33 @@ class TuringAgentMemory:
                     )
                 )
         return documents
+
+    def _canonical_vector_records(
+        self,
+        user_identifier: str,
+    ) -> dict[str, list[tuple[str, str]]]:
+        records: dict[str, list[tuple[str, str]]] = {}
+        for kind, label, variable, status in (
+            ("memory", "Memory", "m", "active"),
+            ("document", "Chunk", "c", "searchable"),
+            ("entity", "Entity", "e", "active"),
+            ("fact", "Fact", "f", "active"),
+            ("community", "Community", "c", "active"),
+        ):
+            rows = self._sparse_rebuild_rows(
+                label,
+                f"MATCH ({variable}:{label}) "
+                f'WHERE {variable}.user_identifier = "{quote(user_identifier)}" '
+                f'AND {variable}.status = "{status}" '
+                f"RETURN {variable}.id, {variable}.content",
+                f"vector.rebuild.{kind}",
+            )
+            records[kind] = [
+                (str(row[f"{variable}.id"]), str(row[f"{variable}.content"]))
+                for row in rows
+                if row.get(f"{variable}.id") and row.get(f"{variable}.content")
+            ]
+        return records
 
     def _sparse_rebuild_rows(
         self,

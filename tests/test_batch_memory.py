@@ -544,6 +544,59 @@ def test_rebuild_sparse_projection_replaces_index_from_canonical_graph_documents
     ] == ["canonical"]
 
 
+def test_rebuild_vector_projection_reembeds_each_active_canonical_kind(tmp_path: Path) -> None:
+    class RebuildStore(RecordingMemoryStore):
+        def _canonical_vector_records(
+            self, user_identifier: str
+        ) -> dict[str, list[tuple[str, str]]]:
+            assert user_identifier == "alice"
+            return {
+                "memory": [("m1", "episode text")],
+                "document": [("chunk1", "document text")],
+                "entity": [("e1", "entity text")],
+                "fact": [("f1", "fact text")],
+                "community": [("c1", "community text")],
+            }
+
+        def _ensure_vector_index(self, name: str) -> None:
+            return
+
+    embedder = CountingBatchEmbedder()
+    store = RebuildStore(tmp_path, embedder)
+
+    result = store.rebuild_vector_projection(user_identifier="alice")
+
+    assert result["counts"] == {
+        "memory": 1,
+        "document": 1,
+        "entity": 1,
+        "fact": 1,
+        "community": 1,
+    }
+    assert result["total"] == 5
+    assert embedder.embed_many_calls == [
+        ["episode text"],
+        ["document text"],
+        ["entity text"],
+        ["fact text"],
+        ["community text"],
+    ]
+    assert [index for index, _rows in store.indexed_vector_loads] == [
+        store.memory_index,
+        store.document_index,
+        store.entity_index,
+        store.fact_index,
+        store.community_index,
+    ]
+    assert [rows[0][0] for _index, rows in store.indexed_vector_loads] == [
+        store._memory_vector_id("alice", "m1"),
+        store._document_vector_id("alice", "chunk1"),
+        store._entity_vector_id("alice", "e1"),
+        store._fact_vector_id("alice", "f1"),
+        store._community_vector_id("alice", "c1"),
+    ]
+
+
 def test_ingest_document_text_batches_chunk_embeddings_and_vector_loads(tmp_path: Path) -> None:
     embedder = CountingBatchEmbedder()
     store = RecordingDocumentStore(tmp_path, embedder)

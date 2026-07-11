@@ -280,6 +280,14 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
             return memory.rebuild_communities(user_identifier=user_identifier)
 
     @app.tool()
+    def memory_rebuild_vector_projection(
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Rebuild active tenant vectors from canonical graph records."""
+        with _tool_span("memory_rebuild_vector_projection"):
+            return memory.rebuild_vector_projection(user_identifier=user_identifier)
+
+    @app.tool()
     def memory_get(
         memory_id: str,
         user_identifier: str = "default",
