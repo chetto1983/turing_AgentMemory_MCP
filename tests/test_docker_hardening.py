@@ -128,6 +128,8 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert "--hf-file" not in rerank["command"]
     assert "--embedding" in rerank["command"]
     assert "--parallel" in rerank["command"]
+    parallel_index = rerank["command"].index("--parallel")
+    assert rerank["command"][parallel_index + 1] == "${RERANK_PARALLEL:-2}"
     assert "--no-cache-prompt" in rerank["command"]
 
     app = services["turing-agentmemory-mcp"]

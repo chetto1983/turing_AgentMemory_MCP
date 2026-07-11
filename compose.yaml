@@ -469,7 +469,7 @@ services:
       - --gpu-layers
       - all
       - --parallel
-      - "1"
+      - "${RERANK_PARALLEL:-2}"
       - --no-cache-prompt
       - --host
       - 0.0.0.0
