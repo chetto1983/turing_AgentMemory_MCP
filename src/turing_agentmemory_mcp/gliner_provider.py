@@ -34,6 +34,7 @@ READ_TIMEOUT_SECONDS = 30
 MAX_PENDING_EXTRACTION_REQUESTS = 32
 MAX_REQUEST_THREADS = MAX_PENDING_EXTRACTION_REQUESTS + 8
 INTERNAL_ERROR_BODY = b'{"error": "internal server error"}'
+EMPTY_RELATION_INPUT_ERROR = "invalid input: empty texts and/or entities"
 LOGGER = logging.getLogger(__name__)
 
 
@@ -113,7 +114,12 @@ class FastGLiNER2Adapter:
         memory_kinds = list(MEMORY_KIND_LABELS)
         for text in texts:
             raw_entities = self.model.predict_entities(text, labels)
-            raw_relations = self.model.extract_relations(text, labels, relation_schema)
+            try:
+                raw_relations = self.model.extract_relations(text, labels, relation_schema)
+            except RuntimeError as exc:
+                if str(exc).strip().strip('"') != EMPTY_RELATION_INPUT_ERROR:
+                    raise
+                raw_relations = []
             raw_classifications = self.model.classify(text, memory_kinds)
             entities = _filter_scored_objects(raw_entities, threshold, "entity")
             relations = _filter_scored_objects(raw_relations, threshold, "relation")
@@ -433,7 +439,13 @@ def make_handler(provider: ExtractProvider) -> type[BaseHTTPRequestHandler]:
             except RequestFailure as exc:
                 error = "request too large" if exc.status == HTTPStatus.REQUEST_ENTITY_TOO_LARGE else "invalid request"
                 self._send_json(exc.status, {"error": error}, count, started, path)
-            except Exception:
+            except Exception as exc:
+                LOGGER.error(
+                    "provider_request_failed method=%s path=%s exception_type=%s",
+                    self.command,
+                    path,
+                    type(exc).__name__,
+                )
                 self._send_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"error": "internal server error"},

@@ -369,6 +369,8 @@ def test_http_contract_includes_errors_and_private_logs(caplog: pytest.LogCaptur
     assert "path=/extract" in caplog.text
     assert "status=200" in caplog.text
     assert "count=1" in caplog.text
+    assert "provider_request_failed" in caplog.text
+    assert "exception_type=RuntimeError" in caplog.text
 
 
 def test_extract_memory_http_contract_is_versioned_and_private(
@@ -903,6 +905,76 @@ def test_fast_gliner2_adapter_extracts_constrained_memory_with_complete_endpoint
         ("relations", text, list(MEMORY_ENTITY_LABELS), list(MEMORY_RELATION_SCHEMA)),
         ("classify", text, list(MEMORY_KIND_LABELS)),
     ]
+
+
+def test_fast_gliner2_adapter_treats_empty_relation_candidates_as_no_relations() -> None:
+    class EmptyRelationModel:
+        def predict_entities(self, value: str, labels: list[str]) -> list[dict[str, object]]:
+            return [
+                {
+                    "text": "Markdown",
+                    "label": "object",
+                    "score": 0.86,
+                    "start": 40,
+                    "end": 48,
+                }
+            ]
+
+        def extract_relations(
+            self,
+            value: str,
+            labels: list[str],
+            schema: list[dict[str, object]],
+        ) -> list[dict[str, object]]:
+            raise RuntimeError('"invalid input: empty texts and/or entities"')
+
+        def classify(self, value: str, labels: list[str]) -> list[tuple[str, float]]:
+            return [("preference", 0.79), ("semantic_fact", 0.21)]
+
+    result = gliner_provider.FastGLiNER2Adapter(EmptyRelationModel()).batch_extract_memory(
+        ["Weekly status reports should be concise Markdown."],
+        batch_size=1,
+        threshold=0.5,
+    )
+
+    assert result[0]["relations"] == []
+    assert result[0]["entities"] == [
+        {
+            "text": "Markdown",
+            "label": "object",
+            "score": 0.86,
+            "start": 40,
+            "end": 48,
+        }
+    ]
+    assert result[0]["classifications"] == {
+        "memory_kind": [
+            {"label": "preference", "score": 0.79},
+            {"label": "semantic_fact", "score": 0.21},
+        ]
+    }
+
+
+def test_fast_gliner2_adapter_does_not_hide_other_relation_failures() -> None:
+    class FailingRelationModel:
+        def predict_entities(self, value: str, labels: list[str]) -> list[dict[str, object]]:
+            return []
+
+        def extract_relations(
+            self,
+            value: str,
+            labels: list[str],
+            schema: list[dict[str, object]],
+        ) -> list[dict[str, object]]:
+            raise RuntimeError("model execution failed")
+
+        def classify(self, value: str, labels: list[str]) -> list[tuple[str, float]]:
+            raise AssertionError("classification must not run after an unexpected relation failure")
+
+    adapter = gliner_provider.FastGLiNER2Adapter(FailingRelationModel())
+
+    with pytest.raises(RuntimeError, match="model execution failed"):
+        adapter.batch_extract_memory(["text"], batch_size=1, threshold=0.5)
 
 
 def test_fast_gliner2_adapter_converts_utf8_byte_offsets_to_character_offsets() -> None:

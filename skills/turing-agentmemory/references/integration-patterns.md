@@ -56,9 +56,10 @@ For an answer about both user history and policy:
 
 ## Correction
 
-When a user says "I moved from Rome to Milan": search for the residence fact, inspect its
-ID, update the canonical memory, and verify. Do not add a second residence unless the data
-model intentionally represents residence history with temporal qualifiers.
+When a user says "I moved from Rome to Milan": search for the residence fact and inspect its
+kind. Update a mutable structured residence record and verify it. If only a raw message
+episode exists, preserve that historical evidence and add a structured current residence
+fact. Do not rewrite an episode or leave two unqualified current residence facts.
 
 ## Forget Request
 
@@ -76,4 +77,3 @@ Never perform a tenant-wide scan or delete-all operation from a vague request.
   payloads.
 - Apply backpressure and bounded concurrency at the host. Retry only transient provider
   failures with capped exponential backoff and idempotency.
-

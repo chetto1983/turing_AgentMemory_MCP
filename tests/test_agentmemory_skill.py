@@ -28,6 +28,7 @@ def test_skill_has_discoverable_agentskills_frontmatter() -> None:
 
 def test_skill_covers_the_production_memory_lifecycle() -> None:
     text = SKILL_PATH.read_text(encoding="utf-8")
+    normalized_text = " ".join(text.split())
 
     for tool_name in (
         "memory_runtime_status",
@@ -50,10 +51,11 @@ def test_skill_covers_the_production_memory_lifecycle() -> None:
         "expires_at",
         "degraded",
         "idempotent",
+        'Temporal episodes (`kind="message"`) are append-only',
         "Stop and request operator approval",
         "Done when",
     ):
-        assert policy in text
+        assert policy in normalized_text
 
 
 def test_skill_references_are_local_and_complete() -> None:

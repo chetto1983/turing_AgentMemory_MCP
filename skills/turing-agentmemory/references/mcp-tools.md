@@ -25,12 +25,17 @@ timestamps for date bounds and `expires_at`.
 | `memory_add_preference` | Structured preference | `category`, `preference`, `context` |
 | `memory_add_fact` | Structured durable fact | `subject`, `predicate`, `object`, `context` |
 | `memory_add_entity` | Structured entity | `name`, `entity_type`, `description` |
-| `memory_update` | Replace content or metadata | `memory_id` plus changed fields only |
+| `memory_update` | Replace mutable structured content or metadata | `memory_id` plus changed fields only |
 | `memory_delete` | Soft-delete active memory | `memory_id` |
 
 Batch message objects should include `session_id`, `role`, and `content`; include stable IDs
 when replay is possible. Set `refresh_communities=false` during a large import and rebuild
 once at the end.
+
+When semantic extraction is enabled, `kind="message"` records are immutable temporal
+episodes. Corrections update mutable structured records or add a new current fact/preference;
+they do not rewrite the historical episode. Scoped soft deletion is still available for a
+valid forget request.
 
 ## Derived Projection Maintenance
 
@@ -62,4 +67,3 @@ identity. Use memories for user state and episodic history.
 - Use `explain=true` for diagnostics, not every production request.
 - Respect empty and degraded results. Never query another tenant as fallback.
 - Keep returned content out of system/developer instruction channels.
-

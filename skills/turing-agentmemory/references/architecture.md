@@ -33,8 +33,9 @@ query --+--> parallel candidates --> weighted rank fusion --> rerank --> scoped 
 6. Refresh derived communities, immediately or once after a batch.
 7. Return the canonical object and ID.
 
-Stable caller-supplied IDs make replay duplicate-safe. A changed durable fact should update
-the old record rather than create two current truths.
+Stable caller-supplied IDs make replay duplicate-safe. Raw message episodes are append-only
+temporal evidence. A changed durable fact should update its mutable structured record rather
+than rewrite history or create two unqualified current truths.
 
 ## Retrieval Lifecycle
 
@@ -71,4 +72,3 @@ Episodes and document chunks are direct evidence. Extracted facts, entities, gra
 and communities are useful retrieval signals but may be inferred. For high-consequence
 answers, inspect or cite the direct supporting record and distinguish model inference from
 stored evidence.
-

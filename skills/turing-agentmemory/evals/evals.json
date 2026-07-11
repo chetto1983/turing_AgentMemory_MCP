@@ -78,10 +78,11 @@
       "name": "correct-stale-fact",
       "category": "governance",
       "prompt": "I no longer live in Rome; I moved to Milan. Correct what you remember.",
-      "expected_output": "Find and update the authenticated user's existing residence record instead of creating two unqualified current facts.",
+      "expected_output": "Correct the authenticated user's current residence without rewriting an immutable historical message or creating two unqualified current facts.",
       "expectations": [
         "Searches for the existing scoped residence record",
-        "Uses memory_update on the matching ID",
+        "Inspects kind and uses memory_update only for a mutable structured record",
+        "Preserves a raw message episode and adds corrected structured state when no mutable record exists",
         "Verifies the corrected record when the tool call succeeds"
       ]
     },

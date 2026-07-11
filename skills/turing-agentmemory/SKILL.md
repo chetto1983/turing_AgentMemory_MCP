@@ -36,8 +36,9 @@ records in TuringDB.
    Do not automatically persist every turn.
 5. Use `expires_at` for temporary or policy-limited state. Do not simulate retention by
    hoping the agent will later remember to delete it.
-6. Search before changing durable state. Update the existing memory when a fact changes;
-   do not create contradictory duplicates.
+6. Search before changing durable state. Update an existing mutable structured memory when
+   a fact changes; do not create contradictory current facts. Temporal episodes
+   (`kind="message"`) are append-only and preserve what was said at that time.
 7. Preserve provenance with `source`, `tags`, and non-sensitive `metadata`. Use stable,
    idempotent `memory_id` or `document_id` values when the caller has a durable source key.
 8. Never claim recall when no supporting result was returned. State uncertainty or ask for
@@ -139,8 +140,12 @@ When the user corrects a remembered value:
 
 1. Search narrowly for the current fact.
 2. Confirm the result belongs to the caller's `user_identifier`.
-3. Call `memory_update` on the existing ID.
-4. Retrieve it again when the correction affects safety, money, identity, or a commitment.
+3. Inspect `kind`. For a mutable preference, fact, or entity, call `memory_update` on the
+   existing ID. Never rewrite a raw `message` episode.
+4. If only historical message evidence exists, preserve it and add the corrected current
+   state with `memory_add_fact` or `memory_add_preference`.
+5. Retrieve the current structured state again when the correction affects safety, money,
+   identity, or a commitment.
 
 When the user asks to forget something, locate the exact scoped record and call
 `memory_delete`. Confirm the returned deletion result. Do not replace deletion with a note
@@ -182,7 +187,7 @@ multiple active records and the intended target cannot be established safely.
 | Need | First call | Follow-up |
 |---|---|---|
 | Relevant personal context | `memory_get_context` | `memory_search` for IDs/explanations |
-| Exact known record | `memory_get` | `memory_update` or `memory_delete` |
+| Exact known record | `memory_get` | inspect kind before update; deletion remains scoped |
 | Durable preference | search for conflict | `memory_add_preference` or `memory_update` |
 | Durable fact | search for conflict | `memory_add_fact` or `memory_update` |
 | Cited knowledge | `document_search` | inspect chunk citation fields |
