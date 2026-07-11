@@ -39,7 +39,17 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A skipped GPU/integration tier fails the CI gate (no-skip-as-green); GPU-less runners degrade GPU tiers to a visible compile/stub floor, never silent green.
   4. A coverage gate enforces a floor measured against the actual current suite (not guessed).
   5. `store.py` (~3900 LOC) is decomposed into cohesive ≤600-LOC modules so the file-size cap passes with no allowlist, with behavior preserved (the E2E score gate and full pytest suite stay green across the split).
-**Plans**: TBD
+**Plans:** 9 plans
+Plans:
+- [ ] 01-01-PLAN.md — Decompose store.py (3891 LOC) into 9 ≤600-LOC mixin modules behind a facade
+- [ ] 01-02-PLAN.md — Decompose server.py, document_jobs.py, gliner_provider.py
+- [ ] 01-03-PLAN.md — Decompose benchmark.py + e2e_score.py (preserve the E2E gate's `main` export)
+- [ ] 01-04-PLAN.md — Decompose the two over-cap operator scripts (real_document_benchmark, eval_backboard_locomo)
+- [ ] 01-05-PLAN.md — Decompose the two over-cap test files (test_gliner_provider, test_batch_memory)
+- [ ] 01-06-PLAN.md — Repo-wide ruff format bootstrap + behavior-preservation verification gate
+- [ ] 01-07-PLAN.md — check-file-size.sh + lefthook.yml + pyproject/Makefile wiring + CLAUDE.md exception removal
+- [ ] 01-08-PLAN.md — No-skip-as-green conftest guard + negative self-test (TDD)
+- [ ] 01-09-PLAN.md — GitHub Actions CI matrix + measured coverage floor + pip-audit + stub E2E floor
 
 ### Phase 2: UTCP Spike
 **Goal**: A findings verdict on whether to natively serve tools over UTCP (vs. the current manual export) exists and gates any future UTCP build work.
@@ -165,7 +175,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. CI + Git-Hook Discipline | 0/TBD | Not started | - |
+| 1. CI + Git-Hook Discipline | 0/9 | Not started | - |
 | 2. UTCP Spike | 0/TBD | Not started | - |
 | 3. TuringDB Retrieval Baseline | 0/TBD | Not started | - |
 | 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
