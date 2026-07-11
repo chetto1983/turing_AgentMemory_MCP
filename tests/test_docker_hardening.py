@@ -71,6 +71,17 @@ def test_dockerfiles_use_pip_cache_mounts() -> None:
     assert "--no-cache-dir" not in turingdb
 
 
+def test_app_dependency_layer_is_not_invalidated_by_documentation_changes() -> None:
+    app = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    project_copy = app.index("COPY pyproject.toml ./")
+    dependency_install = app.index("python - <<'PY'")
+    documentation_copy = app.index("COPY README.md LICENSE ./")
+    source_copy = app.index("COPY src/ ./src/")
+
+    assert project_copy < dependency_install < documentation_copy < source_copy
+
+
 def test_compose_declares_runtime_hardening_controls() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
