@@ -3167,14 +3167,19 @@ class TuringAgentMemory:
     def _chunk_context(self, vector: int) -> list[dict[str, object]]:
         if vector <= 0:
             return []
-        rows = self._records(
-            self._query(
-                "MATCH (c:Chunk)-[:NEXT_CHUNK]->(n:Chunk) "
-                f'WHERE c.vector_id = {vector} AND c.status = "active" AND n.status = "active" '
-                "RETURN n.chunk_id, n.locator, n.text",
-                operation="document.chunk_context",
+        try:
+            rows = self._records(
+                self._query(
+                    "MATCH (c:Chunk)-[:NEXT_CHUNK]->(n:Chunk) "
+                    f'WHERE c.vector_id = {vector} AND c.status = "active" AND n.status = "active" '
+                    "RETURN n.chunk_id, n.locator, n.text",
+                    operation="document.chunk_context",
+                )
             )
-        )
+        except Exception as exc:
+            if "Unknown edge type: NEXT_CHUNK" not in str(exc):
+                raise
+            return []
         return [
             {
                 "chunk_id": row.get("n.chunk_id", ""),

@@ -258,3 +258,34 @@ def test_document_search_filters_by_source_tags_and_updated_range(tmp_path: Path
     )
 
     assert [hit.chunk_id for hit in hits] == ["doc-keep#1"]
+
+
+def test_chunk_context_treats_missing_next_chunk_edge_type_as_empty(tmp_path: Path) -> None:
+    class MissingNextChunkStore(FilterStore):
+        _chunk_context = TuringAgentMemory._chunk_context
+
+        def _query(self, query: str, *, operation: str) -> Rows:
+            assert operation == "document.chunk_context"
+            raise RuntimeError("ANALYZE_ERROR: Unknown edge type: NEXT_CHUNK")
+
+    store = MissingNextChunkStore(tmp_path)
+
+    assert store._chunk_context(100) == []
+
+
+def test_chunk_context_does_not_hide_unrelated_database_errors(tmp_path: Path) -> None:
+    class BrokenContextStore(FilterStore):
+        _chunk_context = TuringAgentMemory._chunk_context
+
+        def _query(self, query: str, *, operation: str) -> Rows:
+            assert operation == "document.chunk_context"
+            raise RuntimeError("database connection lost")
+
+    store = BrokenContextStore(tmp_path)
+
+    try:
+        store._chunk_context(100)
+    except RuntimeError as exc:
+        assert str(exc) == "database connection lost"
+    else:
+        raise AssertionError("unrelated context query errors must propagate")
