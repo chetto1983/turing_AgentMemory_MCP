@@ -200,14 +200,15 @@ def test_turn_content_omits_embedded_image_bytes_but_keeps_media_context() -> No
             "blip_caption": "three turtles on rocks",
             "img_url": [
                 "data:image/jpeg;base64,/9j/VERY-LONG-BINARY",
-                "https://example.test/turtles.jpg",
+                "https://example.test/turtles.jpg?token=SECRET-SIGNED-VALUE",
             ],
         },
     )
 
     assert "VERY-LONG-BINARY" not in content
+    assert "SECRET-SIGNED-VALUE" not in content
     assert "embedded image/jpeg omitted" in content
-    assert "https://example.test/turtles.jpg" in content
+    assert "example.test/turtles.jpg" in content
     assert "three turtles on rocks" in content
 
 

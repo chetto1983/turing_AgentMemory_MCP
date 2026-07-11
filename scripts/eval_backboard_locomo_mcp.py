@@ -19,6 +19,7 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple
+from urllib.parse import urlsplit
 
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
@@ -172,7 +173,14 @@ def turn_content(sample_id: str, session_key: str, session_dt: str, turn: dict[s
                 media_type = url[5:].split(";", 1)[0] or "media"
                 references.append(f"[embedded {media_type} omitted]")
             else:
-                references.append(url)
+                parsed = urlsplit(url)
+                if parsed.scheme in {"http", "https"} and parsed.hostname:
+                    filename = parsed.path.rstrip("/").rsplit("/", 1)[-1]
+                    references.append(
+                        f"{parsed.hostname}/{filename}" if filename else parsed.hostname
+                    )
+                else:
+                    references.append(url.split("?", 1)[0][:256])
         parts.append(f"Image URLs: {' '.join(dict.fromkeys(references))}")
     return " ".join(part for part in parts if part)
 
