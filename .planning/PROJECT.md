@@ -88,6 +88,7 @@ correctness or tenant isolation is a failure, not progress.
 - CONCERNS.md (2026-07-11) enumerates 6 tech-debt items, 3 known bugs, 4 security considerations, 4 perf bottlenecks, 4 fragile areas, 4 scaling limits, 3 at-risk deps, 7 missing features, and 6 test-coverage gaps — all in scope this milestone.
 - CI/hook discipline is modeled on `D:\Repo\Aura` (lefthook + GitHub Actions, no-skip-as-green, fast hooks / heavy gates in CI). Aura is Go; this repo is Python, so the *discipline* is mirrored and the *tooling* adapted (ruff, pytest, the E2E score gate, `docker compose config`).
 - The E2E stack's default CUDA embed/rerank sidecars require an NVIDIA GPU visible to Docker; CI on GPU-less runners must degrade those tiers to a compile/stub floor without silently skipping (Aura's pattern).
+- ArcadeDB source cloned for reference at `d:/tmp/arcadedb` (shallow). Relevant modules for the port: `server/` + `network/` (HTTP/JSON API our `urllib` driver targets), `postgresw/` (Postgres-wire adapter — a `psycopg` connection option to weigh vs raw HTTP), `e2e-python/` (official Python examples), `engine/` (LSM + vector/HNSW). Target images: `arcadedata/arcadedb:26.7.1`, `dxflrs/garage:v2.2.0`, Keycloak 26.7.0.
 
 ## Constraints
 
