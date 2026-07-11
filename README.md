@@ -11,6 +11,7 @@ retrieval.
   `memory_add_entity`, `memory_add_preference`, `memory_add_fact`.
 - Document tools for ingestion, repair, deletion, and retrieval:
   `document_ingest_text`, `document_ingest_file`, `document_reindex_text`,
+  `document_ingest_status`, `document_ingest_cancel`, `document_ingest_retry`,
   `document_delete`, `document_search`.
 - TuringDB graph edges for ownership and context:
   `(:User)-[:HAS_MEMORY]->(:Memory)`,
@@ -31,8 +32,9 @@ retrieval.
   `AGENTMEMORY_AUTH_TOKEN` or `AGENTMEMORY_AUTH_TOKENS` is set.
 - Hybrid retrieval combines vector similarity with lexical exact token, phrase,
   ID, error-code, and file-path matching.
-- Microsoft MarkItDown converts local PDF, Office, spreadsheet, HTML, and other
-  supported files to Markdown before the existing chunking/citation pipeline.
+- PDFium extracts page-aware text from PDFs. Microsoft MarkItDown converts
+  Office, spreadsheet, HTML, and other supported files before the existing
+  chunking/citation pipeline.
 
 ## Why It Is A Separate Repo
 
@@ -56,8 +58,8 @@ same `/turing` volume.
 ## Document Processing
 
 Use `document_ingest_text` when your caller already has clean text. Use
-`document_ingest_file` for local files that should be normalized to Markdown
-first:
+`document_ingest_file` for files that should be staged durably, normalized, and
+indexed in the background:
 
 ```json
 {
@@ -69,9 +71,31 @@ first:
 }
 ```
 
-The file path is resolved locally inside the MCP runtime. The converter uses
-MarkItDown's local-file conversion path, stores extracted Markdown as document
-chunks, and adds provenance under `metadata.document_processing`.
+The tool returns after durable staging, not after conversion and embedding. Its
+response contains a `job_id`, `status=queued`, stage, attempt count, and
+progress fields. Poll `document_ingest_status` with the same
+`user_identifier`; terminal states are `succeeded`, `failed`, and `canceled`.
+On success, `result` contains the normal document result including
+`document_id`, `chunk_count`, and processing metadata.
+
+Use `document_ingest_cancel` for queued or running work and
+`document_ingest_retry` for a failed job whose staged file remains available.
+Cancellation of running work is cooperative at conversion/indexing boundaries.
+Jobs, leases, attempts, and staged files survive MCP process restarts under
+`/turing/data`; workers renew their leases on a health cadence while provider or
+TuringDB calls are in progress.
+
+For a remote/container MCP, the local `turing_agentmemory_mcp.file_pipe` proxy
+keeps the same `document_ingest_file` tool name. It allowlists host roots,
+streams verified chunks through `document_upload_begin`,
+`document_upload_chunk`, and `document_upload_commit`, and never requires a
+host filesystem mount in the MCP container. A path passed directly to the
+remote MCP must already be local to that server.
+
+PDF processing preserves `<!-- page N -->` markers and uses 4096-character
+page-aware chunks. Other supported formats use MarkItDown. Provenance is stored
+under `metadata.document_processing`, including converter, original filename,
+SHA-256, byte size, transport, and page counts when available.
 
 ## AgentMemory Lab
 
@@ -110,7 +134,9 @@ docker compose up -d
 ```
 
 Keep audit/span JSONL under `/turing` if you want those files captured by the
-same backup procedure.
+same backup procedure. The same volume also contains the durable document job
+SQLite database and staged files, so queued and retryable work is captured by
+the backup.
 
 ## Vector Index Repair
 
@@ -195,6 +221,13 @@ Primary provider environment variables:
   `AGENTMEMORY_OBSERVABILITY_JSONL=/turing/audit/spans.jsonl` writes timing
   spans for embed, TuringDB query, vector load, rerank, chunking, and MCP tool
   latency.
+- Asynchronous document ingestion:
+  `AGENTMEMORY_DOCUMENT_JOB_PATH`, `AGENTMEMORY_DOCUMENT_STAGING_ROOT`,
+  `AGENTMEMORY_DOCUMENT_JOB_LEASE_SECONDS`,
+  `AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS`,
+  `AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS`, and
+  `AGENTMEMORY_DOCUMENT_JOB_MAX_ATTEMPTS`. Compose defaults keep the database
+  and staging root on the shared `turing-data` volume.
 - MCP auth:
   set `AGENTMEMORY_AUTH_TOKEN` for one static bearer token, or
   `AGENTMEMORY_AUTH_TOKENS=token-a,token-b` for token rotation. Optional

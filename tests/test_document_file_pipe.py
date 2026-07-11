@@ -15,6 +15,8 @@ from fastmcp.exceptions import ToolError
 if "turingdb" not in sys.modules:
     sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
+from turing_agentmemory_mcp.document_job_manager import DocumentIngestManager
+from turing_agentmemory_mcp.document_jobs import DocumentJobStore
 from turing_agentmemory_mcp.document_processing import ConvertedDocument
 from turing_agentmemory_mcp.file_upload import DocumentUploadStore
 from turing_agentmemory_mcp.models import IngestedDocument
@@ -77,8 +79,7 @@ class RecordingMemory:
         )
 
 
-def test_remote_upload_tools_convert_and_ingest(
-    monkeypatch: pytest.MonkeyPatch,
+def test_remote_upload_tools_enqueue_then_convert_and_ingest(
     tmp_path: Path,
 ) -> None:
     content = b"%PDF-remote-content"
@@ -93,8 +94,17 @@ def test_remote_upload_tools_convert_and_ingest(
             metadata={"converter": "markitdown", "source_filename": source.name},
         )
 
-    monkeypatch.setattr("turing_agentmemory_mcp.server.convert_document_to_markdown", fake_convert)
-    backend = create_mcp_app(memory, upload_store=upload_store)  # type: ignore[arg-type]
+    manager = DocumentIngestManager(
+        DocumentJobStore(tmp_path / "jobs.sqlite3"),
+        staging_root=tmp_path / "staging",
+        store_factory=lambda: memory,
+        converter=fake_convert,
+    )
+    backend = create_mcp_app(  # type: ignore[arg-type]
+        memory,
+        upload_store=upload_store,
+        document_manager=manager,
+    )
 
     async def run() -> dict[str, object]:
         async with Client(backend) as client:
@@ -133,7 +143,10 @@ def test_remote_upload_tools_convert_and_ingest(
 
     result = asyncio.run(run())
 
-    assert result["document_id"] == "uploaded-document"
+    assert result["status"] == "queued"
+    assert memory.calls == []
+    completed = manager.process_next(worker_id="worker-a")
+    assert completed is not None and completed.status == "succeeded"
     assert memory.calls[0]["text"] == "# Remote manual"
     metadata = memory.calls[0]["metadata"]
     assert isinstance(metadata, dict)
@@ -184,7 +197,6 @@ def test_remote_upload_commit_cleans_up_a_sha256_mismatch(tmp_path: Path) -> Non
 
 
 def test_file_pipe_streams_host_bytes_and_remote_mcp_converts_and_ingests(
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     from turing_agentmemory_mcp.file_pipe import create_file_pipe_proxy
@@ -210,8 +222,17 @@ def test_file_pipe_streams_host_bytes_and_remote_mcp_converts_and_ingests(
             chunk_chars=4096,
         )
 
-    monkeypatch.setattr("turing_agentmemory_mcp.server.convert_document_to_markdown", fake_convert)
-    backend = create_mcp_app(memory, upload_store=upload_store)  # type: ignore[arg-type]
+    manager = DocumentIngestManager(
+        DocumentJobStore(tmp_path / "jobs.sqlite3"),
+        staging_root=tmp_path / "staging",
+        store_factory=lambda: memory,
+        converter=fake_convert,
+    )
+    backend = create_mcp_app(  # type: ignore[arg-type]
+        memory,
+        upload_store=upload_store,
+        document_manager=manager,
+    )
     proxy = create_file_pipe_proxy(
         backend,
         allowed_roots=[allowed],
@@ -238,6 +259,10 @@ def test_file_pipe_streams_host_bytes_and_remote_mcp_converts_and_ingests(
     result = asyncio.run(run())
 
     assert result["document_id"] == "manual-1"
+    assert result["status"] == "queued"
+    assert memory.calls == []
+    completed = manager.process_next(worker_id="worker-a")
+    assert completed is not None and completed.status == "succeeded"
     assert memory.calls[0]["text"] == "# Manual\n\nConverted inside the remote MCP."
     assert memory.calls[0]["chunk_chars"] == 4096
     metadata = memory.calls[0]["metadata"]

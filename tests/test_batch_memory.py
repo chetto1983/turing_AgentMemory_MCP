@@ -689,6 +689,43 @@ def test_ingest_document_text_batches_graph_queries_below_payload_limit(tmp_path
     assert graph_writes.count(":NEXT_CHUNK") == document.chunk_count - 1
 
 
+def test_write_many_submits_each_dependent_graph_batch(tmp_path: Path) -> None:
+    class TransactionClient:
+        def __init__(self) -> None:
+            self.events: list[str] = []
+
+        def new_change(self) -> None:
+            self.events.append("new_change")
+
+        def query(self, query: str) -> list[object]:
+            self.events.append(query)
+            return []
+
+        def checkout(self) -> None:
+            self.events.append("checkout")
+
+    client = TransactionClient()
+    store = TuringAgentMemory(
+        client=client,  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        embedder=CountingBatchEmbedder(),
+        reranker=None,
+    )
+
+    store._write_many(["CREATE document", "MATCH document CREATE chunks"])
+
+    assert client.events == [
+        "new_change",
+        "CREATE document",
+        "CHANGE SUBMIT",
+        "checkout",
+        "new_change",
+        "MATCH document CREATE chunks",
+        "CHANGE SUBMIT",
+        "checkout",
+    ]
+
+
 def test_document_chunking_packs_short_lines_to_the_configured_budget() -> None:
     chunks = TuringAgentMemory._chunk_text(
         "alpha beta\ngamma delta\nepsilon zeta",

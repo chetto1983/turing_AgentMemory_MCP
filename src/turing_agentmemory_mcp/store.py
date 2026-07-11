@@ -3288,16 +3288,14 @@ class TuringAgentMemory:
         if not queries:
             return
         with self._span(
-            "turingdb.write_transaction",
+            "turingdb.write_batch",
             {"graph": self.graph, "statement_count": len(queries)},
         ):
-            self.client.new_change()
-            try:
-                for query in queries:
-                    self._query(query, operation="write")
-                self._query("CHANGE SUBMIT", operation="write.submit")
-            finally:
-                self.client.checkout()
+            # Later chunk batches MATCH nodes created by earlier batches. TuringDB
+            # only exposes those nodes after CHANGE SUBMIT, so each bounded batch
+            # is its own transaction.
+            for query in queries:
+                self._write(query)
 
     def _load_vectors(self, index_name: str, rows: list[tuple[int, list[float]]], stem: str) -> None:
         if not rows:

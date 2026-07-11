@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import atexit
 import json
 import math
 import os
@@ -12,7 +13,10 @@ from starlette.responses import JSONResponse
 from turingdb import TuringDB
 
 from turing_agentmemory_mcp.community_detection import NativeLeidenDetector
-from turing_agentmemory_mcp.document_processing import convert_document_to_markdown
+from turing_agentmemory_mcp.document_job_manager import (
+    DocumentIngestManager,
+    document_ingest_manager_from_env,
+)
 from turing_agentmemory_mcp.entity_extraction import NoopEntityProcessor
 from turing_agentmemory_mcp.file_upload import (
     DocumentUploadStore,
@@ -194,9 +198,24 @@ def create_mcp_app(
     store: TuringAgentMemory | None = None,
     *,
     upload_store: DocumentUploadStore | None = None,
+    document_manager: DocumentIngestManager | None = None,
+    start_document_worker: bool | None = None,
 ) -> FastMCP:
+    production_store = store is None
     memory = store or store_from_env()
     uploads = upload_store or document_upload_store_from_env()
+    manager = document_manager
+    if manager is None and production_store:
+        manager = document_ingest_manager_from_env(store_factory=store_from_env)
+    should_start_worker = production_store if start_document_worker is None else start_document_worker
+    if manager is not None and should_start_worker:
+        manager.start()
+        atexit.register(manager.stop)
+
+    def _document_manager() -> DocumentIngestManager:
+        if manager is None:
+            raise RuntimeError("asynchronous document ingestion is not configured")
+        return manager
 
     def _tool_span(tool: str) -> Any:
         observer = getattr(memory, "observer", None)
@@ -220,8 +239,13 @@ def create_mcp_app(
         runtime = runtime_status() if callable(runtime_status) else {"stages": {}}
         graph = runtime.get("stages", {}).get("graph", {}) if isinstance(runtime, dict) else {}
         ready = not graph or bool(graph.get("ready"))
+        document_jobs = manager.runtime_status() if manager is not None else {"configured": False}
         return JSONResponse(
-            {"status": "ok" if ready else "degraded", "runtime": runtime},
+            {
+                "status": "ok" if ready else "degraded",
+                "runtime": runtime,
+                "document_ingest": document_jobs,
+            },
             status_code=200 if ready else 503,
         )
 
@@ -550,34 +574,23 @@ def create_mcp_app(
         upload_id: str,
         user_identifier: str = "default",
     ) -> dict[str, Any]:
-        """Verify, convert, and ingest a completed uploaded file, then remove it."""
+        """Verify and durably enqueue an uploaded file for background ingestion."""
         with _tool_span("document_upload_commit"):
             try:
                 uploaded = uploads.complete(upload_id, user_identifier=user_identifier)
-                converted = convert_document_to_markdown(uploaded.path)
                 attributes = uploaded.attributes
-                enriched_metadata = dict(attributes.get("metadata") or {})
-                processing = dict(converted.metadata)
-                processing.pop("source_path", None)
-                processing.update(
-                    {
-                        "source_filename": uploaded.filename,
-                        "transport": "mcp-chunk-upload",
-                        "sha256": uploaded.sha256,
-                        "bytes": uploaded.total_bytes,
-                    }
-                )
-                enriched_metadata["document_processing"] = processing
-                return memory.ingest_document_text(
+                return _document_manager().enqueue_file(
+                    uploaded.path,
                     user_identifier=user_identifier,
                     title=str(attributes["title"]),
-                    text=converted.text,
-                    chunk_chars=converted.chunk_chars or 360,
                     document_id=attributes.get("document_id"),
                     source=str(attributes.get("source") or ""),
                     tags=list(attributes.get("tags") or []),
-                    metadata=enriched_metadata,
+                    metadata=dict(attributes.get("metadata") or {}),
                     expires_at=attributes.get("expires_at"),
+                    transport="mcp-chunk-upload",
+                    expected_sha256=uploaded.sha256,
+                    expected_bytes=uploaded.total_bytes,
                 ).to_dict()
             finally:
                 uploads.discard(upload_id, user_identifier=user_identifier)
@@ -629,21 +642,53 @@ def create_mcp_app(
         metadata: dict[str, object] | None = None,
         expires_at: str | None = None,
     ) -> dict[str, Any]:
-        """Convert a local file to Markdown with MarkItDown, then ingest it with citations."""
+        """Durably enqueue a server-local file for background conversion and ingestion."""
         with _tool_span("document_ingest_file"):
-            converted = convert_document_to_markdown(path)
-            enriched_metadata = dict(metadata or {})
-            enriched_metadata["document_processing"] = converted.metadata
-            return memory.ingest_document_text(
+            return _document_manager().enqueue_file(
+                path,
                 user_identifier=user_identifier,
                 title=title,
-                text=converted.text,
-                chunk_chars=converted.chunk_chars or 360,
                 document_id=document_id,
                 source=source,
                 tags=tags,
-                metadata=enriched_metadata,
+                metadata=metadata,
                 expires_at=expires_at,
+            ).to_dict()
+
+    @app.tool()
+    def document_ingest_status(
+        job_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Return tenant-scoped state and progress for a document ingestion job."""
+        with _tool_span("document_ingest_status"):
+            job = _document_manager().get(job_id, user_identifier=user_identifier)
+            if job is None:
+                raise ValueError("document ingestion job is unknown")
+            return job.to_dict()
+
+    @app.tool()
+    def document_ingest_cancel(
+        job_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Cancel a queued job or request cooperative cancellation of a running job."""
+        with _tool_span("document_ingest_cancel"):
+            return _document_manager().cancel(
+                job_id,
+                user_identifier=user_identifier,
+            ).to_dict()
+
+    @app.tool()
+    def document_ingest_retry(
+        job_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Requeue a failed document ingestion job using its durable staged file."""
+        with _tool_span("document_ingest_retry"):
+            return _document_manager().retry(
+                job_id,
+                user_identifier=user_identifier,
             ).to_dict()
 
     @app.tool()
