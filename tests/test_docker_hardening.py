@@ -125,6 +125,7 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert app["depends_on"]["agentmemory-rerank"]["condition"] == "service_healthy"
     assert "EMBED_BASE_URL=http://agentmemory-embed:8080" in app_env
     assert "EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M" in app_env
+    assert "EMBED_BATCH_SIZE=128" in app_env
     assert "RERANK_BASE_URL=http://agentmemory-rerank:8080" in app_env
     assert "RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf" in app_env
     assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}" in app_env
@@ -372,12 +373,18 @@ def test_turingdb_startup_cleans_runtime_socket_and_allows_slow_vector_load() ->
     assert "turingdb stop -turing-dir /turing" in command
     assert "trap shutdown TERM INT" in command
     assert "while :; do" in command
-    assert "TuringDB(type='json', host='http://127.0.0.1:6666').try_reach(timeout=2)" in command
+    assert "sleep 3600 &" in command
+    assert "wait $!" in command
+    assert "try_reach" not in command
     assert "stdin_open" not in service
     assert "exec turingdb start" not in command
     assert "-start-timeout" not in command
     assert "healthcheck" in service
     assert service["healthcheck"]["retries"] >= 80
+    assert service["deploy"]["resources"]["limits"] == {
+        "cpus": "4.0",
+        "memory": "8g",
+    }
 
 
 def test_compose_serves_agentmemory_lab_frontend_on_local_port() -> None:

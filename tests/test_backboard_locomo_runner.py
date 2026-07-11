@@ -56,14 +56,14 @@ def test_require_entity_model_rejects_missing_or_different_model(summary: dict[s
 
 def test_comparable_cutoffs_are_fixed_at_20_50_and_200() -> None:
     assert runner.COMPARABLE_CUTOFFS == (20, 50, 200)
-    assert runner.MAX_INGEST_BATCH == 50
+    assert runner.MAX_INGEST_BATCH == 1024
     assert runner.retrieval_cutoffs(200) == [1, 3, 5, 10, 20, 50, 200]
 
 
-def test_ingest_batch_validation_matches_gliner_sidecar_contract() -> None:
-    assert runner.validate_batch_size(50) == 50
-    with pytest.raises(ValueError, match="between 1 and 50"):
-        runner.validate_batch_size(51)
+def test_ingest_batch_validation_commits_a_full_conversation_once() -> None:
+    assert runner.validate_batch_size(1024) == 1024
+    with pytest.raises(ValueError, match="between 1 and 1024"):
+        runner.validate_batch_size(1025)
 
 
 def test_ingest_defers_communities_then_rebuilds_once(monkeypatch: pytest.MonkeyPatch) -> None:

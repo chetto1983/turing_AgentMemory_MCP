@@ -21,6 +21,7 @@ def test_openai_compatible_embedder_reads_provider_agnostic_env(monkeypatch) -> 
     monkeypatch.setenv("EMBED_MODEL", "generic-embedder")
     monkeypatch.setenv("EMBED_API_KEY", "embed-key")
     monkeypatch.setenv("EMBED_TIMEOUT_SECONDS", "12.5")
+    monkeypatch.setenv("EMBED_BATCH_SIZE", "2")
 
     embedder = OpenAICompatibleEmbedder.from_env()
 
@@ -29,6 +30,52 @@ def test_openai_compatible_embedder_reads_provider_agnostic_env(monkeypatch) -> 
     assert embedder.model == "generic-embedder"
     assert embedder.api_key == "embed-key"
     assert embedder.timeout_s == 12.5
+    assert embedder.batch_size == 2
+
+
+def test_openai_compatible_embedder_bounds_provider_batches(monkeypatch) -> None:
+    payloads: list[list[str]] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            length = int(self.headers.get("Content-Length", "0"))
+            inputs = json.loads(self.rfile.read(length).decode("utf-8"))["input"]
+            payloads.append(inputs)
+            body = json.dumps(
+                {
+                    "data": [
+                        {"index": index, "embedding": [float(index), 1.0]}
+                        for index, _ in enumerate(inputs)
+                    ]
+                }
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        embedder = OpenAICompatibleEmbedder(
+            base_url=f"http://127.0.0.1:{server.server_port}",
+            dimensions=2,
+            batch_size=2,
+        )
+
+        vectors = embedder.embed_many(["a", "b", "c", "d", "e"])
+
+        assert payloads == [["a", "b"], ["c", "d"], ["e"]]
+        assert len(vectors) == 5
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
 
 
 def test_openai_compatible_embedder_reads_retrieval_prompts(monkeypatch) -> None:

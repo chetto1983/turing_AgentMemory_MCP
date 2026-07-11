@@ -32,7 +32,7 @@ CATEGORY_NAMES = {
     5: "adversarial",
 }
 COMPARABLE_CUTOFFS = (20, 50, 200)
-MAX_INGEST_BATCH = 50
+MAX_INGEST_BATCH = 1024
 
 
 class ResumeState(NamedTuple):

@@ -43,11 +43,8 @@ services:
         trap shutdown TERM INT
         turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon
         while :; do
-          python - <<'PY'
-        from turingdb import TuringDB
-        TuringDB(type='json', host='http://127.0.0.1:6666').try_reach(timeout=2)
-        PY
-          sleep 5
+          sleep 3600 &
+          wait $!
         done
     environment:
       - HOME=/tmp
@@ -74,8 +71,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 2g
+          cpus: "4.0"
+          memory: 8g
         reservations:
           cpus: "0.25"
           memory: 256m
@@ -154,6 +151,7 @@ services:
       - EMBED_BASE_URL=http://agentmemory-embed:8080
       - EMBED_DIMENSIONS=768
       - EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M
+      - EMBED_BATCH_SIZE=128
       - EMBED_API_KEY
       - EMBED_API_KEY_HEADER
       - EMBED_API_KEY_SCHEME

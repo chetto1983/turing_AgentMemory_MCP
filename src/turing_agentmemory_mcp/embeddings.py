@@ -59,8 +59,15 @@ class OpenAICompatibleEmbedder:
     api_key_header: str = "Authorization"
     api_key_scheme: str = "Bearer"
     timeout_s: float = 60.0
+    batch_size: int = 128
     query_prefix: str = ""
     document_prefix: str = ""
+
+    def __post_init__(self) -> None:
+        if isinstance(self.batch_size, bool) or not isinstance(self.batch_size, int):
+            raise ValueError("embedding batch size must be an integer")
+        if self.batch_size <= 0:
+            raise ValueError("embedding batch size must be positive")
 
     @classmethod
     def from_env(cls, *, dimensions: int | None = None) -> OpenAICompatibleEmbedder:
@@ -74,6 +81,7 @@ class OpenAICompatibleEmbedder:
             api_key_header=provider_api_key_header("EMBED"),
             api_key_scheme=provider_api_key_scheme("EMBED"),
             timeout_s=float(provider_env("EMBED_TIMEOUT_SECONDS", default="60")),
+            batch_size=int(provider_env("EMBED_BATCH_SIZE", default="128")),
             query_prefix=provider_env("EMBED_QUERY_PREFIX"),
             document_prefix=provider_env("EMBED_DOCUMENT_PREFIX"),
         )
@@ -90,6 +98,12 @@ class OpenAICompatibleEmbedder:
     def embed_many(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
+        vectors: list[list[float]] = []
+        for start in range(0, len(texts), self.batch_size):
+            vectors.extend(self._embed_batch(texts[start : start + self.batch_size]))
+        return vectors
+
+    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         if not self.base_url.strip():
             raise ValueError("EMBED_BASE_URL is required")
         body = json.dumps({"model": self.model, "input": texts}).encode("utf-8")
