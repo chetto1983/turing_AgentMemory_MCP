@@ -276,7 +276,57 @@ These are fixed by ROADMAP.md success criteria + PROJECT.md Key Decisions:
   wrapper ships a working Windows binary; if it doesn't, fall back to the
   standalone-binary path (D-01's rejected alternative) and note the deviation.
 
+## Resolved Decisions (planning session — 2026-07-11)
+
+Post-research user decisions that resolve the Open Questions above. These are now
+**LOCKED for this phase** (do NOT re-litigate). Numbering continues the D-XX series.
+
+- **D-09 (file-size cap scope — resolves OQ "store.py decomposition" scope):**
+  Research found `store.py` is **not** the only over-cap file — **10 tracked `*.py`
+  files exceed 600 LOC today**. User chose the **literal reading of D-08 (no
+  allowlist, no category exemption)**: **all 10 are decomposed into cohesive
+  ≤600-LOC modules within this phase**, and the cap scans **all** tracked `*.py`.
+  The 10 files (current LOC):
+  1. `src/turing_agentmemory_mcp/store.py` (3891) — the headline split (mixin
+     modules behind a thin facade; preserve the `TuringAgentMemory` import path).
+  2. `tests/test_gliner_provider.py` (1076)
+  3. `src/turing_agentmemory_mcp/benchmark.py` (1044)
+  4. `scripts/eval_backboard_locomo_mcp.py` (936)
+  5. `src/turing_agentmemory_mcp/e2e_score.py` (873)
+  6. `scripts/real_document_benchmark.py` (827)
+  7. `src/turing_agentmemory_mcp/server.py` (762)
+  8. `tests/test_batch_memory.py` (749)
+  9. `src/turing_agentmemory_mcp/document_jobs.py` (666)
+  10. `src/turing_agentmemory_mcp/gliner_provider.py` (658)
+  Behavior is preserved across every split (E2E score gate + full pytest stay
+  green — run them after each extraction, not only at the end).
+  - **D-09a (second bootstrap gate, from research):** `ruff format --check` fails
+    on **49/78** tracked files today. A one-time repo-wide
+    `python -m ruff format src tests scripts` pass must land (verified green after)
+    as part of the bootstrap, **before** the pre-commit hook is enabled — otherwise
+    the hook-installing commit blocks itself on pre-existing formatting drift.
+
+- **D-10 (CI-05 "real-document E2E" — resolves OQ2):** Satisfied by the
+  **deterministic, in-process real-file path already in the repo** (the
+  `scripts/e2e_score.py` document flow + the existing deterministic doc test) — no
+  live LLM, no `PROVIDER_API_KEY` secret, CI-shaped and already green.
+  `scripts/real_document_benchmark.py` **stays an operator-run tool and is NOT
+  wired into CI** (it is still decomposed for the cap per D-09, just not made a CI
+  gate). A live-corpus CI run is an explicit non-goal for this phase.
+
+- **D-11 (CI Python version — resolves OQ3):** The CI unit-test job runs a
+  **single Python 3.12** (matches the dev venv + all research verification). A
+  3.11–3.14 matrix is an explicit, non-mandated future follow-up.
+
+### Follow-up status (from the Open Questions above)
+- ✅ **ROADMAP + REQUIREMENTS rewrite — DONE.** ROADMAP SC#1/#5 and REQUIREMENTS
+  CI-01 already say "≤600 LOC across all tracked `*.py`, NO allowlist, store.py
+  decomposed" (commit `33b43ac`). No contradicted criterion remains.
+- ⏳ **CLAUDE.md rewrite — IN SCOPE for this phase.** Remove the `store.py` "large
+  central exception … NO >600 loc" language in CLAUDE.md §"DEEP REFACTOR ON TOUCH"
+  and reflect the no-allowlist cap. The planner MUST include this edit.
+
 ---
 
 *Phase: 1-CI + Git-Hook Discipline*
-*Context gathered: 2026-07-11*
+*Context gathered: 2026-07-11 · Decisions resolved: 2026-07-11 (post-research)*
