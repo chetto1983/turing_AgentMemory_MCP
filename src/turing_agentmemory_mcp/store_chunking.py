@@ -11,6 +11,7 @@ import re
 from typing import Any
 
 from turing_agentmemory_mcp.ids import quote
+from turing_agentmemory_mcp.models import IngestedDocument
 
 _PAGE_MARKER_PATTERN = re.compile(r"<!-- page (\d+) -->")
 
@@ -123,6 +124,25 @@ class _ChunkingMixin:
             if "Unknown label: Chunk" not in str(exc):
                 raise
             return []
+
+    def _document_from_row(self, row: dict[str, Any]) -> IngestedDocument:
+        tags = self._json_loads(row.get("d.tags_json"), [])
+        metadata = self._json_loads(row.get("d.metadata_json"), {})
+        created_at = str(row.get("d.created_at") or "")
+        return IngestedDocument(
+            document_id=str(row.get("d.id", "")),
+            title=str(row.get("d.title", "")),
+            chunk_count=self._int_value(row.get("d.chunk_count")),
+            user_identifier=str(row.get("d.user_identifier", "")),
+            created_at=created_at,
+            updated_at=str(row.get("d.updated_at") or created_at),
+            expires_at=str(row.get("d.expires_at") or ""),
+            source=str(row.get("d.source", "")),
+            tags=tags if isinstance(tags, list) else [],
+            metadata=metadata if isinstance(metadata, dict) else {},
+            text_hash=str(row.get("d.text_hash", "")),
+            chunk_chars=self._int_value(row.get("d.chunk_chars")),
+        )
 
     @staticmethod
     def _document_chunk_batch_query(
