@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -81,6 +82,7 @@ from turing_agentmemory_mcp.temporal_graph import (
 )
 
 _MISSING = object()
+_PAGE_MARKER_PATTERN = re.compile(r"<!-- page (\d+) -->")
 
 
 @dataclass(frozen=True)
@@ -3693,17 +3695,55 @@ class TuringAgentMemory:
 
     @staticmethod
     def _chunk_text(text: str, *, chunk_chars: int) -> list[str]:
+        if chunk_chars < 1:
+            raise ValueError("chunk_chars must be positive")
+        page_markers = list(_PAGE_MARKER_PATTERN.finditer(text))
+        if page_markers:
+            chunks: list[str] = []
+            for index, marker_match in enumerate(page_markers):
+                body_end = (
+                    page_markers[index + 1].start()
+                    if index + 1 < len(page_markers)
+                    else len(text)
+                )
+                marker = marker_match.group(0)
+                body = text[marker_match.end() : body_end].strip()
+                body_budget = max(1, chunk_chars - len(marker) - 2)
+                chunks.extend(
+                    f"{marker}\n\n{part}"
+                    for part in TuringAgentMemory._pack_text(body, chunk_chars=body_budget)
+                )
+            return chunks
+        return TuringAgentMemory._pack_text(text, chunk_chars=chunk_chars)
+
+    @staticmethod
+    def _pack_text(text: str, *, chunk_chars: int) -> list[str]:
         paragraphs = [part.strip() for part in text.split("\n") if part.strip()]
         chunks: list[str] = []
+        current = ""
         for paragraph in paragraphs or [text.strip()]:
             while len(paragraph) > chunk_chars:
                 split_at = paragraph.rfind(" ", 0, chunk_chars)
-                if split_at < 80:
+                if split_at < min(80, chunk_chars // 2):
                     split_at = chunk_chars
-                chunks.append(paragraph[:split_at].strip())
+                part = paragraph[:split_at].strip()
+                if current:
+                    chunks.append(current)
+                    current = ""
+                if part:
+                    chunks.append(part)
                 paragraph = paragraph[split_at:].strip()
-            if paragraph:
-                chunks.append(paragraph)
+            if not paragraph:
+                continue
+            candidate = f"{current}\n\n{paragraph}" if current else paragraph
+            if len(candidate) <= chunk_chars:
+                current = candidate
+            else:
+                if current:
+                    chunks.append(current)
+                current = paragraph
+        if current:
+            chunks.append(current)
         return chunks
 
     @staticmethod

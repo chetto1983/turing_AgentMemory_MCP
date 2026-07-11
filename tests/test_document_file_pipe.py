@@ -207,6 +207,7 @@ def test_file_pipe_streams_host_bytes_and_remote_mcp_converts_and_ingests(
                 "source_filename": path.name,
                 "source_path": str(path),
             },
+            chunk_chars=4096,
         )
 
     monkeypatch.setattr("turing_agentmemory_mcp.server.convert_document_to_markdown", fake_convert)
@@ -238,6 +239,7 @@ def test_file_pipe_streams_host_bytes_and_remote_mcp_converts_and_ingests(
 
     assert result["document_id"] == "manual-1"
     assert memory.calls[0]["text"] == "# Manual\n\nConverted inside the remote MCP."
+    assert memory.calls[0]["chunk_chars"] == 4096
     metadata = memory.calls[0]["metadata"]
     assert isinstance(metadata, dict)
     assert metadata["department"] == "service"

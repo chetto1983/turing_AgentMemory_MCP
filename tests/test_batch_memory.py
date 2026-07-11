@@ -687,3 +687,26 @@ def test_ingest_document_text_batches_graph_queries_below_payload_limit(tmp_path
     assert graph_writes.count(":Chunk {") == document.chunk_count
     assert graph_writes.count(":HAS_CHUNK") == document.chunk_count
     assert graph_writes.count(":NEXT_CHUNK") == document.chunk_count - 1
+
+
+def test_document_chunking_packs_short_lines_to_the_configured_budget() -> None:
+    chunks = TuringAgentMemory._chunk_text(
+        "alpha beta\ngamma delta\nepsilon zeta",
+        chunk_chars=24,
+    )
+
+    assert chunks == ["alpha beta\n\ngamma delta", "epsilon zeta"]
+
+
+def test_document_chunking_preserves_pdf_page_boundaries_and_markers() -> None:
+    chunks = TuringAgentMemory._chunk_text(
+        "<!-- page 7 -->\n\nalpha beta gamma delta\n\n"
+        "<!-- page 8 -->\n\nepsilon zeta",
+        chunk_chars=34,
+    )
+
+    assert chunks == [
+        "<!-- page 7 -->\n\nalpha beta gamma",
+        "<!-- page 7 -->\n\ndelta",
+        "<!-- page 8 -->\n\nepsilon zeta",
+    ]
