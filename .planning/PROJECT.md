@@ -54,9 +54,10 @@ correctness or tenant isolation is a failure, not progress.
 - [ ] Security: hard-delete + audit, redaction pattern coverage, audit-sink durable flush, bearer-token log redaction
 - [ ] Performance: batch embedding API, batched memory extraction, vector-search fetch tuning
 - [ ] Fragile areas hardened with crash-recovery tests: document job state machine, sparse-index outbox replay, temporal-graph projection, query-graph evidence
-- [ ] **Scaling swaps (heavyweight):** migrate sparse index to an external search engine, adopt an external vector DB, move staged files to S3-compatible object storage, add tenant-scoped graph isolation
-- [ ] **Missing features (heavyweight):** OAuth/OIDC authentication, vector-index versioning, `expires_at` purge enforcement, extensible observability/metrics hooks
-- [ ] At-risk dependencies: abstract TuringDB behind a repository interface; version-gate graspologic-native / fastmcp with tests
+- [ ] **Backend driver abstraction (heavyweight):** extract a repository/driver interface; keep the TuringDB driver and add a coexisting **ArcadeDB driver** (deployments pick a backend). This is the CONCERNS.md "abstract behind a repository interface" path.
+- [ ] **Vector + full-text strategy (research-decided):** determine whether ArcadeDB's native HNSW vector + Lucene full-text is production-adequate and subsumes the separate external search-engine + vector-DB swaps, or whether dedicated systems are still needed. Roadmap targets the researched recommendation.
+- [ ] **Remaining heavyweight items:** S3-compatible object storage for staged files, tenant-scoped isolation (ArcadeDB per-database or scoped), OAuth/OIDC authentication, vector-index versioning, `expires_at` purge enforcement, extensible observability/metrics hooks
+- [ ] At-risk dependencies: version-gate graspologic-native / fastmcp with tests (the repository interface above resolves the TuringDB coupling risk)
 - [ ] Test-coverage gaps closed: concurrent multi-tenant isolation, large-document ingestion, rebuild-under-query, sparse crash recovery, lease/timeout, extraction failure modes
 
 **Thrust 3 — CI + git hooks (modeled on Aura)**
@@ -83,7 +84,7 @@ correctness or tenant isolation is a failure, not progress.
 ## Constraints
 
 - **Tech stack**: Python 3.11–3.14, FastMCP 3.4–4, TuringDB 1.35, ruff (line-length 100, E501 ignored), pytest — [established; changes are themselves audited concerns, not free choices]
-- **Architecture — under revision this milestone**: CLAUDE.md invariant #2 holds TuringDB canonical with SQLite FTS/vectors as rebuildable projections. The chosen heavyweight swaps (external search engine + external vector DB + S3 staging) deliberately revise this. See Key Decisions — treat each swap as a first-class architecture change with a migration + rollback path, not a drop-in.
+- **Architecture — under revision this milestone**: CLAUDE.md invariant #2 holds TuringDB canonical with SQLite FTS/vectors as rebuildable projections. This milestone abstracts the store behind a repository/driver interface so **TuringDB and ArcadeDB coexist** as selectable canonical backends; invariant #2 continues to hold per-driver (each backend is canonical for its deployment). S3 staging and the vector/full-text strategy are first-class architecture changes with migration + rollback paths, not drop-ins. See Key Decisions.
 - **Tenant isolation**: every read/write explicitly scoped by `user_identifier`, fail-closed on empty — non-negotiable through all swaps — [CLAUDE.md invariant #1]
 - **Durability**: TuringDB data, SQLite job DB, staged files, audit/span JSONL live on the shared `/turing` volume — [containers share it because TuringDB loads vectors from server-side CSV]
 - **GPU dependency**: embed/rerank sidecars are GPU-mandatory for the full stack — [CI must degrade gracefully on GPU-less runners]
@@ -93,7 +94,9 @@ correctness or tenant isolation is a failure, not progress.
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Full-scope stabilization: address every category in CONCERNS.md | User chose "Everything in CONCERNS.md" over stabilization-only | — Pending |
-| Heavyweight external swaps (search engine, vector DB, S3, OAuth/OIDC) rather than pragmatic in-architecture mitigations | User chose "Full heavyweight swaps"; accepts revising the TuringDB-canonical / projections invariant | — Pending (⚠ architecture pivot — sequence with migration + rollback) |
+| Backend abstracted behind a repository/driver interface; TuringDB and ArcadeDB coexist as selectable backends | User: "we have turingdb and we plan driver for arcadedb" → "coexist via driver abstraction"; matches CONCERNS.md repository-interface recommendation | — Pending (⚠ architecture change — sequence with migration + rollback) |
+| Whether ArcadeDB's native HNSW vector + Lucene full-text subsumes dedicated external search/vector systems is research-decided | User chose "Research should decide" — evaluate production-adequacy vs Elasticsearch/Qdrant-class systems before committing | — Pending (research feeds roadmap) |
+| Remaining heavyweight swaps (S3 staging, OAuth/OIDC, tenant isolation, vector versioning) | User chose "Full heavyweight swaps" over pragmatic mitigations | — Pending (sequence with migration + rollback) |
 | One-command Docker stack as the deployment target, verified by the E2E gate | User chose "Reliable one-command stack" | — Pending |
 | Done = green gate (pytest + ruff + E2E score) + healthy compose + real-document E2E | User chose "Above + real doc E2E" | — Pending |
 | CI + pre-commit + pre-push modeled on Aura (lefthook + GitHub Actions, no-skip-as-green) | User: "install also all ci precommit and prepush look D:\Repo\Aura" | — Pending |
