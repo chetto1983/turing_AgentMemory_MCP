@@ -205,6 +205,7 @@ multiple active records and the intended target cannot be established safely.
 | Ambiguous write timeout | Search stable ID/source before retrying |
 | Projection degraded | Continue only with reported healthy channels; disclose uncertainty |
 | User requests deletion | Delete the exact record and confirm, never add an "ignore" memory |
+| Wrong deletion argument | `memory_delete` requires `memory_id`; `document_id` is invalid |
 
 ## Verification Lock
 

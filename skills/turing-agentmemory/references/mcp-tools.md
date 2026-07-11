@@ -28,6 +28,9 @@ timestamps for date bounds and `expires_at`.
 | `memory_update` | Replace mutable structured content or metadata | `memory_id` plus changed fields only |
 | `memory_delete` | Soft-delete active memory | `memory_id` |
 
+Deletion IDs are not interchangeable: pass `memory_id` to `memory_delete` and
+`document_id` to `document_delete`.
+
 Batch message objects should include `session_id`, `role`, and `content`; include stable IDs
 when replay is possible. Set `refresh_communities=false` during a large import and rebuild
 once at the end.
