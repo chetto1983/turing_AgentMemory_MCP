@@ -212,10 +212,10 @@ The HTTP contracts remain OpenAI-compatible: `/v1/embeddings` for embedding and
 URLs at the compatible gateway/proxy and configure the API key/header variables
 above.
 
-By default, rerank will not displace the top hybrid lexical/vector seed when the
-rerank winner trails it by at least `RERANK_PRESERVE_SEED_MARGIN` (`0.05` by
-default). Set the margin to `0` for pure rerank ordering or use
-`RERANK_BLEND=1` for reciprocal-rank blending.
+By default, `RERANK_BLEND=1` combines the fused retrieval and provider orders
+with reciprocal-rank fusion. Set `RERANK_BLEND=0` for guarded pure rerank
+ordering; `RERANK_PRESERVE_SEED_MARGIN` (`0.05` by default) then keeps the top
+hybrid seed when the rerank winner trails it by at least that margin.
 
 `RERANK_PROVIDER_MIN_SCORE` defaults to `0` because GGUF ranking logits may be
 valid at very small scales. It can be overridden when a
