@@ -127,7 +127,7 @@ Adopted from the Aura project's working discipline, adapted to this Python repo:
 - **DEEP REFACTOR ON TOUCH.** A file you edit gets dead-code removal, dup-folding,
   and updated comments in the *same* commit. Prefer small modules split by
   concern (`<name>_<concern>.py`); the codebase already does this. `store.py` is
-  the large central exception — extend it deliberately, don't grow it casually.
+  the large central exception — extend it deliberately, don't grow it casually. NO >600 loc.
 - **NO COMMENTS UNLESS THE "WHY" IS NON-OBVIOUS.** Names explain *what*; comment
   only hidden constraints, workarounds, or surprising behavior (matches the
   existing style).
