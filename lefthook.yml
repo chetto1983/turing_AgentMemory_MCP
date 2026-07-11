@@ -1,0 +1,39 @@
+# lefthook.yml — local git hooks (https://lefthook.dev).
+#
+# Install once per clone:  lefthook install   (or: make hooks)
+#   binary source: pip install -e ".[dev]"  (bundles the platform lefthook binary)
+# Bypass in an emergency:  git commit --no-verify   /   git push --no-verify
+#
+# Heavy gates (E2E score gate, real-document E2E, coverage) intentionally stay in CI.
+#
+# PY resolver: bare `python` on Windows may hit the broken Windows Store app-execution
+# alias instead of the project venv. Commands that need the interpreter call
+# scripts/run-python.sh, which resolves it explicitly (.venv/Scripts on Windows,
+# .venv/bin on Linux/macOS CI, else PATH `python`) rather than assuming an activated
+# shell. The resolver logic lives in that script (not inline here) because lefthook's
+# Windows command execution does not reliably preserve nested shell quoting — every
+# `run:` value below is a single unquoted command line for that reason.
+
+pre-commit:
+  parallel: true
+  commands:
+    ruff-format:
+      glob: "*.py"
+      run: bash scripts/run-python.sh -m ruff format --check {staged_files}
+    ruff-check:
+      glob: "*.py"
+      run: bash scripts/run-python.sh -m ruff check {staged_files}
+    file-size:
+      # Intentionally NOT glob-gated to staged files — D-08 requires scanning ALL
+      # tracked *.py every commit, not just what changed.
+      run: bash scripts/check-file-size.sh
+
+pre-push:
+  parallel: true
+  commands:
+    compile-smoke:
+      run: bash scripts/run-python.sh -m compileall -q src tests scripts
+    fast-tests:
+      run: bash scripts/run-fast-tests.sh
+    compose-config:
+      run: docker compose config --quiet

@@ -1,4 +1,4 @@
-.PHONY: test e2e docker-e2e lint
+.PHONY: test e2e docker-e2e lint hooks
 
 test:
 	python -m pytest
@@ -11,3 +11,6 @@ docker-e2e:
 
 lint:
 	python -m ruff check src tests scripts
+
+hooks:
+	lefthook install
