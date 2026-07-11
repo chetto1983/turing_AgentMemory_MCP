@@ -103,6 +103,42 @@ def test_ingest_defers_communities_then_rebuilds_once(monkeypatch: pytest.Monkey
     assert info["community"] == {"community_count": 2}
 
 
+def test_resume_ingest_skips_already_committed_immutable_episodes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    async def fake_call(_client: object, name: str, arguments: dict[str, object]) -> object:
+        calls.append((name, arguments))
+        if name == "memory_get":
+            return {"id": arguments["memory_id"]} if arguments["memory_id"] in {"m0", "m1"} else None
+        if name == "memory_store_messages":
+            return [{"id": str(row["memory_id"]), "metadata": {}} for row in arguments["messages"]]
+        return {"community_count": 1}
+
+    monkeypatch.setattr(runner, "call_tool", fake_call)
+    messages = [
+        {"memory_id": f"m{index}", "session_id": "s1", "role": "user", "content": "x"}
+        for index in range(3)
+    ]
+
+    info, _rows = asyncio.run(
+        runner.ingest_conversation(
+            object(),
+            user_identifier="alice",
+            messages=messages,
+            batch_size=2,
+            skip_existing=True,
+        )
+    )
+
+    stored_call = next(arguments for name, arguments in calls if name == "memory_store_messages")
+    assert [row["memory_id"] for row in stored_call["messages"]] == ["m2"]
+    assert info["messages"] == 3
+    assert info["existing_results"] == 2
+    assert info["stored_results"] == 1
+
+
 def test_metrics_report_first_relevant_reciprocal_rank() -> None:
     bucket = runner.init_metric_counts()
 

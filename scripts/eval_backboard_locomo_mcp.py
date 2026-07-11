@@ -390,11 +390,34 @@ async def ingest_conversation(
     user_identifier: str,
     messages: list[dict[str, Any]],
     batch_size: int,
+    skip_existing: bool = False,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     stored = 0
     stored_rows: list[dict[str, Any]] = []
     started = time.perf_counter()
-    for batch in chunks(messages, batch_size):
+    pending_messages = messages
+    existing = 0
+    if skip_existing:
+        pending_messages = []
+        for index, message in enumerate(messages, 1):
+            current = await call_tool(
+                client,
+                "memory_get",
+                {
+                    "memory_id": str(message["memory_id"]),
+                    "user_identifier": user_identifier,
+                },
+            )
+            if current is None:
+                pending_messages.append(message)
+            else:
+                existing += 1
+            if index % 100 == 0 or index == len(messages):
+                print(
+                    f"  resume scan: {index}/{len(messages)} existing={existing}",
+                    flush=True,
+                )
+    for batch in chunks(pending_messages, batch_size):
         result = await call_tool(
             client,
             "memory_store_messages",
@@ -418,6 +441,7 @@ async def ingest_conversation(
     return (
         {
             "messages": len(messages),
+            "existing_results": existing,
             "stored_results": stored,
             "duration_ms": round((time.perf_counter() - started) * 1000, 3),
             "entity_extraction": summarize_entity_extraction(stored_rows),
@@ -648,6 +672,7 @@ async def run() -> dict[str, Any]:
         required = {
             "memory_store_messages",
             "memory_rebuild_communities",
+            "memory_get",
             "memory_search",
             "memory_runtime_status",
         }
@@ -672,6 +697,7 @@ async def run() -> dict[str, Any]:
             )
             ingest_info = {
                 "messages": len(messages),
+                "existing_results": 0,
                 "stored_results": 0,
                 "duration_ms": 0.0,
                 "entity_extraction": summarize_entity_extraction([]),
@@ -682,6 +708,7 @@ async def run() -> dict[str, Any]:
                     user_identifier=user_identifier,
                     messages=messages,
                     batch_size=args.batch_size,
+                    skip_existing=args.resume,
                 )
                 del conversation_entity_rows
                 print(
