@@ -126,8 +126,11 @@ Adopted from the Aura project's working discipline, adapted to this Python repo:
 - **REUSABLE CODE.** Don't duplicate — extract a helper.
 - **DEEP REFACTOR ON TOUCH.** A file you edit gets dead-code removal, dup-folding,
   and updated comments in the *same* commit. Prefer small modules split by
-  concern (`<name>_<concern>.py`); the codebase already does this. `store.py` is
-  the large central exception — extend it deliberately, don't grow it casually. NO >600 loc.
+  concern (`<name>_<concern>.py`); the codebase already does this. The 600-LOC cap
+  applies to every tracked `*.py` file with no allowlist — no file is exempt,
+  including `store.py` (already decomposed into `store_<concern>.py` mixin
+  modules behind a thin facade). Enforced by `scripts/check-file-size.sh` on
+  every commit.
 - **NO COMMENTS UNLESS THE "WHY" IS NON-OBVIOUS.** Names explain *what*; comment
   only hidden constraints, workarounds, or surprising behavior (matches the
   existing style).
