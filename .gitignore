@@ -13,3 +13,4 @@ build/
 e2e-results.json
 run.log
 .worktrees/
+test/*
