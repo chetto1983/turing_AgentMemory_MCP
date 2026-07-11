@@ -14,6 +14,10 @@ from turingdb import TuringDB
 from turing_agentmemory_mcp.community_detection import NativeLeidenDetector
 from turing_agentmemory_mcp.document_processing import convert_document_to_markdown
 from turing_agentmemory_mcp.entity_extraction import NoopEntityProcessor
+from turing_agentmemory_mcp.file_upload import (
+    DocumentUploadStore,
+    document_upload_store_from_env,
+)
 from turing_agentmemory_mcp.memory_extraction import (
     MEMORY_EXTRACTION_SCHEMA_VERSION,
     HTTPMemoryExtractor,
@@ -180,8 +184,13 @@ def store_from_env() -> TuringAgentMemory:
     return store
 
 
-def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
+def create_mcp_app(
+    store: TuringAgentMemory | None = None,
+    *,
+    upload_store: DocumentUploadStore | None = None,
+) -> FastMCP:
     memory = store or store_from_env()
+    uploads = upload_store or document_upload_store_from_env()
 
     def _tool_span(tool: str) -> Any:
         observer = getattr(memory, "observer", None)
@@ -483,6 +492,100 @@ def create_mcp_app(store: TuringAgentMemory | None = None) -> FastMCP:
                 object_value=object,
                 context=context,
             ).to_dict()
+
+    @app.tool()
+    def document_upload_begin(
+        filename: str,
+        total_bytes: int,
+        sha256: str,
+        title: str,
+        user_identifier: str = "default",
+        document_id: str | None = None,
+        source: str = "",
+        tags: list[str] | None = None,
+        metadata: dict[str, object] | None = None,
+        expires_at: str | None = None,
+    ) -> dict[str, object]:
+        """Start a tenant-scoped file upload for server-side document conversion."""
+        with _tool_span("document_upload_begin"):
+            return uploads.begin(
+                user_identifier=user_identifier,
+                filename=filename,
+                total_bytes=total_bytes,
+                sha256=sha256,
+                attributes={
+                    "title": title,
+                    "document_id": document_id,
+                    "source": source,
+                    "tags": list(tags or []),
+                    "metadata": dict(metadata or {}),
+                    "expires_at": expires_at,
+                },
+            )
+
+    @app.tool()
+    def document_upload_chunk(
+        upload_id: str,
+        sequence: int,
+        content_base64: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Append one ordered base64 chunk to a tenant-scoped document upload."""
+        with _tool_span("document_upload_chunk"):
+            return uploads.append_base64(
+                upload_id,
+                user_identifier=user_identifier,
+                sequence=sequence,
+                content_base64=content_base64,
+            )
+
+    @app.tool()
+    def document_upload_commit(
+        upload_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, Any]:
+        """Verify, convert, and ingest a completed uploaded file, then remove it."""
+        with _tool_span("document_upload_commit"):
+            try:
+                uploaded = uploads.complete(upload_id, user_identifier=user_identifier)
+                converted = convert_document_to_markdown(uploaded.path)
+                attributes = uploaded.attributes
+                enriched_metadata = dict(attributes.get("metadata") or {})
+                processing = dict(converted.metadata)
+                processing.pop("source_path", None)
+                processing.update(
+                    {
+                        "source_filename": uploaded.filename,
+                        "transport": "mcp-chunk-upload",
+                        "sha256": uploaded.sha256,
+                        "bytes": uploaded.total_bytes,
+                    }
+                )
+                enriched_metadata["document_processing"] = processing
+                return memory.ingest_document_text(
+                    user_identifier=user_identifier,
+                    title=str(attributes["title"]),
+                    text=converted.text,
+                    document_id=attributes.get("document_id"),
+                    source=str(attributes.get("source") or ""),
+                    tags=list(attributes.get("tags") or []),
+                    metadata=enriched_metadata,
+                    expires_at=attributes.get("expires_at"),
+                ).to_dict()
+            finally:
+                uploads.discard(upload_id, user_identifier=user_identifier)
+
+    @app.tool()
+    def document_upload_abort(
+        upload_id: str,
+        user_identifier: str = "default",
+    ) -> dict[str, object]:
+        """Discard a tenant-scoped upload without converting or ingesting it."""
+        with _tool_span("document_upload_abort"):
+            return {
+                "upload_id": upload_id,
+                "aborted": uploads.discard(upload_id, user_identifier=user_identifier),
+            }
 
     @app.tool()
     def document_ingest_text(
