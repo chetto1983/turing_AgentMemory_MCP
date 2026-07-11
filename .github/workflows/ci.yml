@@ -1,0 +1,114 @@
+name: CI
+
+# L-04 gate: lint + unit-tests(+coverage floor) + compose-validation + supply-chain
+# + dockerized-integration on every push/PR to master. Heavy gates (full E2E, coverage,
+# supply-chain) intentionally live here, not in the fast local lefthook hooks (L-05).
+#
+# no-skip-as-green (D-03/D-04/CI-07): any job that can exercise a skippable
+# integration/gpu-marked tier sets `env: { CI: "true" }` to arm the tests/conftest.py
+# hookwrapper guard, converting a marked skip into a hard failure.
+#
+# GPU-less stub floor (D-05/D-06/CI-08): this repo has no GPU runner. The
+# dockerized-integration job runs the deterministic E2E score gate against the
+# in-process stub embed/rerank endpoints scripts/e2e_score.py already spins up. The
+# HashingEmbedder stub cannot do semantic ranking, so this run cannot reach the
+# script's own internal 10/10 gate (currently 18/19 checks, score 9.474 — the script
+# itself reports "FAILED_SCORE_GATE" in stub mode; that is expected, not a
+# regression). Because of this, the CI job below does NOT assert the script's own
+# exit code — it asserts the measured stub floor instead (score >= 9.4, all 19
+# checks executed, never fewer — a real pass/fail signal, never a silent skip). A
+# full 19/19 VALIDATED_10_10 run requires real embed/rerank providers
+# (E2E_USE_EXTERNAL_EMBED=1/E2E_USE_EXTERNAL_RERANK=1 + GPU sidecars) and belongs to
+# a future GPU/real-embed CI tier, not this stub-only runner.
+#
+# CI-05 (real-document E2E): satisfied by the deterministic in-process real-file path
+# (D-10) — scripts/e2e_score.py's document flow plus the existing deterministic
+# document tests in the unit-tests job. The other, operator-run benchmark script that
+# needs a live paid LLM key and a pre-running MCP server stays outside CI entirely and
+# is intentionally NOT wired here.
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install "ruff==0.15.21"
+      - run: ruff format --check src tests scripts
+      - run: ruff check src tests scripts
+      - run: bash scripts/check-file-size.sh
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      # Coverage floor measured against the post-decomposition suite (D-07/CI-09):
+      # 364 tests, 78.12% covered (e2e_score.py omitted per [tool.coverage.run]).
+      # Never guessed; ratchets up only, never silently lowered.
+      - run: python -m pytest --cov=src/turing_agentmemory_mcp --cov-fail-under=78 -q
+      - name: no-skip-as-green guard self-test
+        env:
+          CI: "true" # arms the tests/conftest.py no-skip-as-green hookwrapper guard
+        run: python -m pytest tests/test_no_skip_as_green_guard.py -q
+
+  compose-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose config --quiet
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" "pip-audit==2.10.1"
+      - run: pip-audit # audits the active virtualenv's resolved distributions
+
+  dockerized-integration:
+    runs-on: ubuntu-latest
+    env:
+      CI: "true" # arms the no-skip-as-green guard for this job too
+    steps:
+      - uses: actions/checkout@v7
+      - name: "E2E score gate — GPU-less stub floor (D-05/D-06): score >= 9.4, all 19 checks executed, never a silent skip"
+        run: |
+          # The script's own exit code asserts VALIDATED_10_10 (score>=9.8, 19/19
+          # checks) — a GPU/real-embed-tier bar this stub-mode runner cannot reach.
+          # `|| true` keeps this step alive past that non-zero exit so the floor
+          # assertion below runs against the captured result instead.
+          docker compose run --rm e2e > e2e-stub-result.json || true
+          score=$(jq '.score' e2e-stub-result.json)
+          check_count=$(jq '.check_count' e2e-stub-result.json)
+          verdict=$(jq -r '.verdict' e2e-stub-result.json)
+          echo "stub-mode E2E: score=$score check_count=$check_count verdict=$verdict"
+          if [ "$check_count" != "19" ]; then
+            echo "FAIL: expected 19 executed checks, got $check_count (a check may have been skipped — never a silent skip)"
+            exit 1
+          fi
+          if ! awk -v s="$score" 'BEGIN { exit !(s >= 9.4) }'; then
+            echo "FAIL: stub-mode score $score dropped below the measured 9.4 floor"
+            exit 1
+          fi
+          echo "PASS: GPU-less stub floor met (this is NOT VALIDATED_10_10 — that requires real embed/rerank + GPU)"
