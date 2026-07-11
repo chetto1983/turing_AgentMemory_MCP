@@ -217,7 +217,8 @@ rerank winner trails it by at least `RERANK_PRESERVE_SEED_MARGIN` (`0.05` by
 default). Set the margin to `0` for pure rerank ordering or use
 `RERANK_BLEND=1` for reciprocal-rank blending.
 
-`RERANK_PROVIDER_MIN_SCORE` defaults to `0.00001` and can be overridden when a
+`RERANK_PROVIDER_MIN_SCORE` defaults to `0` because GGUF ranking logits may be
+valid at very small scales. It can be overridden when a
 local GGUF reranker returns
 provider-specific near-zero scores that should not be trusted as calibrated
 relevance. If the provider's top score is below that value, AgentMemory still
