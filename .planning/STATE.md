@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: ci-git-hook-discipline
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-07-11T21:03:19.764Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-07-11T21:16:50.998Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 9
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 01 (ci-git-hook-discipline) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 01 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 30min | 2 tasks | 10 files |
 | Phase 01 P02 | 16min | 2 tasks | 8 files |
 | Phase 01 P03 | 35min | 2 tasks | 7 files |
+| Phase 01 P04 | 20min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,7 @@ Recent decisions affecting current work:
 - [Phase ?]: store.py decomposed into 9 store_<concern>.py mixin modules + slim facade (mixin-composed-facade pattern), all <=600 LOC, preserving public API and tenant scoping verbatim
 - [Phase 01]: server.py split into exactly two MCP tool-group siblings (server_memory_tools.py, server_document_tools.py) via registrar functions; document_jobs.py split into schema/dataclass vs SQLite session/query concern siblings; gliner_provider.py split into extraction/label-schema vs HTTP-plumbing concern siblings, keeping LOGGER's dotted name literal and main()/signal handling in the orchestrator to satisfy existing test monkeypatches — All three modules exceeded the no-allowlist 600-LOC cap (D-08); splits preserve every public import path (create_mcp_app, auth_from_env, DocumentJobStore, DocumentIngestJob, GLiNERProvider, start_server) and the full 362-test suite
 - [Phase ?]: benchmark.py _git_commit/_git_head_commit kept collocated with ROOT (not moved to a sibling) because tests/test_benchmark.py monkeypatches benchmark.ROOT directly
+- [Phase ?]: [Phase 01] real_document_benchmark.py split into deterministic scoring helpers vs live-MCP CLI siblings; eval_backboard_locomo_mcp.py split into dataset/metrics helpers vs call_tool-dependent orchestration, keeping call_tool/ingest_conversation/evaluate_question/evaluate_conversation co-located because tests/test_backboard_locomo_runner.py monkeypatches the module-global call_tool — both exceeded the no-allowlist 600-LOC cap (D-08); splits preserve every tested import path and the full 362-test suite
 
 ### Pending Todos
 
@@ -105,6 +107,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T21:02:53.169Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-07-11T21:16:37.890Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
