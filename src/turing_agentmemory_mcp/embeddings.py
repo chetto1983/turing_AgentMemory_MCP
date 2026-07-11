@@ -14,6 +14,7 @@ from turing_agentmemory_mcp.provider_config import (
     provider_api_key_header,
     provider_api_key_scheme,
     provider_env,
+    provider_optional_int,
     provider_secret,
 )
 
@@ -60,6 +61,7 @@ class OpenAICompatibleEmbedder:
     api_key_scheme: str = "Bearer"
     timeout_s: float = 60.0
     batch_size: int = 128
+    request_dimensions: int | None = None
     query_prefix: str = ""
     document_prefix: str = ""
 
@@ -68,6 +70,8 @@ class OpenAICompatibleEmbedder:
             raise ValueError("embedding batch size must be an integer")
         if self.batch_size <= 0:
             raise ValueError("embedding batch size must be positive")
+        if self.request_dimensions is not None and self.request_dimensions != self.dimensions:
+            raise ValueError("embedding request dimensions must match store dimensions")
 
     @classmethod
     def from_env(cls, *, dimensions: int | None = None) -> OpenAICompatibleEmbedder:
@@ -82,6 +86,7 @@ class OpenAICompatibleEmbedder:
             api_key_scheme=provider_api_key_scheme("EMBED"),
             timeout_s=float(provider_env("EMBED_TIMEOUT_SECONDS", default="60")),
             batch_size=int(provider_env("EMBED_BATCH_SIZE", default="128")),
+            request_dimensions=provider_optional_int("EMBED_REQUEST_DIMENSIONS"),
             query_prefix=provider_env("EMBED_QUERY_PREFIX"),
             document_prefix=provider_env("EMBED_DOCUMENT_PREFIX"),
         )
@@ -106,7 +111,10 @@ class OpenAICompatibleEmbedder:
     def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         if not self.base_url.strip():
             raise ValueError("EMBED_BASE_URL is required")
-        body = json.dumps({"model": self.model, "input": texts}).encode("utf-8")
+        payload: dict[str, object] = {"model": self.model, "input": texts}
+        if self.request_dimensions is not None:
+            payload["dimensions"] = self.request_dimensions
+        body = json.dumps(payload).encode("utf-8")
         req = Request(
             self.base_url.rstrip("/") + "/v1/embeddings",
             data=body,

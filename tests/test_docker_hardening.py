@@ -136,11 +136,16 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     app_env = set(app["environment"])
     assert app["depends_on"]["agentmemory-embed"]["condition"] == "service_healthy"
     assert app["depends_on"]["agentmemory-rerank"]["condition"] == "service_healthy"
-    assert "EMBED_BASE_URL=http://agentmemory-embed:8080" in app_env
-    assert "EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M" in app_env
-    assert "EMBED_BATCH_SIZE=128" in app_env
-    assert "RERANK_BASE_URL=http://agentmemory-rerank:8080" in app_env
-    assert "RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf" in app_env
+    assert "EMBED_BASE_URL=${EMBED_BASE_URL:-http://agentmemory-embed:8080}" in app_env
+    assert (
+        "EMBED_MODEL=${EMBED_MODEL:-mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M}"
+        in app_env
+    )
+    assert "EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-768}" in app_env
+    assert "EMBED_BATCH_SIZE=${EMBED_BATCH_SIZE:-128}" in app_env
+    assert "EMBED_REQUEST_DIMENSIONS" in app_env
+    assert "RERANK_BASE_URL=${RERANK_BASE_URL:-http://agentmemory-rerank:8080}" in app_env
+    assert "RERANK_MODEL=${RERANK_MODEL:-Qwen3-Reranker-0.6B-q8_0.gguf}" in app_env
     assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}" in app_env
     assert "RERANK_CANDIDATE_LIMIT=${RERANK_CANDIDATE_LIMIT:-50}" in app_env
     assert "RERANK_BLEND=${RERANK_BLEND:-1}" in app_env

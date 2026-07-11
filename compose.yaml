@@ -143,20 +143,21 @@ services:
       - TURINGDB_URL=http://turingdb:6666
       - TURINGDB_HOME=/turing
       - TURINGDB_GRAPH=agent_memory
-      - TURINGDB_MEMORY_INDEX=agent_memory_episode_vectors_768
-      - TURINGDB_DOCUMENT_INDEX=agent_memory_document_vectors_768
-      - TURINGDB_ENTITY_INDEX=agent_memory_entity_vectors_768
-      - TURINGDB_FACT_INDEX=agent_memory_fact_vectors_768
-      - TURINGDB_COMMUNITY_INDEX=agent_memory_community_vectors_768
-      - EMBED_BASE_URL=http://agentmemory-embed:8080
-      - EMBED_DIMENSIONS=768
-      - EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M
-      - EMBED_BATCH_SIZE=128
+      - TURINGDB_MEMORY_INDEX=${TURINGDB_MEMORY_INDEX:-agent_memory_episode_vectors_768}
+      - TURINGDB_DOCUMENT_INDEX=${TURINGDB_DOCUMENT_INDEX:-agent_memory_document_vectors_768}
+      - TURINGDB_ENTITY_INDEX=${TURINGDB_ENTITY_INDEX:-agent_memory_entity_vectors_768}
+      - TURINGDB_FACT_INDEX=${TURINGDB_FACT_INDEX:-agent_memory_fact_vectors_768}
+      - TURINGDB_COMMUNITY_INDEX=${TURINGDB_COMMUNITY_INDEX:-agent_memory_community_vectors_768}
+      - EMBED_BASE_URL=${EMBED_BASE_URL:-http://agentmemory-embed:8080}
+      - EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-768}
+      - EMBED_MODEL=${EMBED_MODEL:-mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M}
+      - EMBED_BATCH_SIZE=${EMBED_BATCH_SIZE:-128}
+      - EMBED_REQUEST_DIMENSIONS
       - EMBED_API_KEY
       - EMBED_API_KEY_HEADER
       - EMBED_API_KEY_SCHEME
-      - RERANK_BASE_URL=http://agentmemory-rerank:8080
-      - RERANK_MODEL=Qwen3-Reranker-0.6B-q8_0.gguf
+      - RERANK_BASE_URL=${RERANK_BASE_URL:-http://agentmemory-rerank:8080}
+      - RERANK_MODEL=${RERANK_MODEL:-Qwen3-Reranker-0.6B-q8_0.gguf}
       - RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}
       - RERANK_CANDIDATE_LIMIT=${RERANK_CANDIDATE_LIMIT:-50}
       - RERANK_DIMENSIONS

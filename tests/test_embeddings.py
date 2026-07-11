@@ -22,6 +22,7 @@ def test_openai_compatible_embedder_reads_provider_agnostic_env(monkeypatch) -> 
     monkeypatch.setenv("EMBED_API_KEY", "embed-key")
     monkeypatch.setenv("EMBED_TIMEOUT_SECONDS", "12.5")
     monkeypatch.setenv("EMBED_BATCH_SIZE", "2")
+    monkeypatch.setenv("EMBED_REQUEST_DIMENSIONS", "384")
 
     embedder = OpenAICompatibleEmbedder.from_env()
 
@@ -31,6 +32,7 @@ def test_openai_compatible_embedder_reads_provider_agnostic_env(monkeypatch) -> 
     assert embedder.api_key == "embed-key"
     assert embedder.timeout_s == 12.5
     assert embedder.batch_size == 2
+    assert embedder.request_dimensions == 384
 
 
 def test_openai_compatible_embedder_bounds_provider_batches(monkeypatch) -> None:
@@ -122,6 +124,7 @@ def test_openai_compatible_embedder_sends_provider_api_key_header(monkeypatch) -
         monkeypatch.setenv("PROVIDER_API_KEY", "cloud-secret")
         monkeypatch.setenv("PROVIDER_API_KEY_HEADER", "x-api-key")
         monkeypatch.setenv("PROVIDER_API_KEY_SCHEME", "")
+        monkeypatch.setenv("EMBED_REQUEST_DIMENSIONS", "3")
 
         vector = OpenAICompatibleEmbedder.from_env().embed("hello cloud")
 
@@ -129,6 +132,7 @@ def test_openai_compatible_embedder_sends_provider_api_key_header(monkeypatch) -
         assert seen["path"] == "/v1/embeddings"
         assert seen["api_key"] == "cloud-secret"
         assert seen["payload"]["model"] == "cloud-embedder"
+        assert seen["payload"]["dimensions"] == 3
     finally:
         server.shutdown()
         server.server_close()
