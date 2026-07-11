@@ -103,6 +103,17 @@ class RecordingDocumentStore(RecordingMemoryStore):
         return document
 
 
+def test_tenant_vector_index_names_are_deterministic_and_isolated(tmp_path: Path) -> None:
+    store = RecordingMemoryStore(tmp_path, CountingBatchEmbedder())
+
+    alice = store._tenant_vector_index(store.memory_index, "alice")
+
+    assert alice == store._tenant_vector_index(store.memory_index, "alice")
+    assert alice != store._tenant_vector_index(store.memory_index, "bob")
+    assert alice.startswith(f"{store.memory_index}_tenant_")
+    assert store.memory_index != alice
+
+
 def test_store_messages_batches_embeddings_and_vector_loads(tmp_path: Path) -> None:
     embedder = CountingBatchEmbedder()
     store = RecordingMemoryStore(tmp_path, embedder)
@@ -239,9 +250,9 @@ def test_store_messages_projects_temporal_graph_atomically_before_vector_publica
         ["Alice likes hiking.", "Alice (person)", "hiking (activity)", "Alice prefers hiking"]
     ]
     assert [name for name, _ in store.indexed_vector_loads] == [
-        store.memory_index,
-        store.entity_index,
-        store.fact_index,
+        store._tenant_vector_index(store.memory_index, "alice"),
+        store._tenant_vector_index(store.entity_index, "alice"),
+        store._tenant_vector_index(store.fact_index, "alice"),
     ]
 
 
@@ -582,11 +593,11 @@ def test_rebuild_vector_projection_reembeds_each_active_canonical_kind(tmp_path:
         ["community text"],
     ]
     assert [index for index, _rows in store.indexed_vector_loads] == [
-        store.memory_index,
-        store.document_index,
-        store.entity_index,
-        store.fact_index,
-        store.community_index,
+        store._tenant_vector_index(store.memory_index, "alice"),
+        store._tenant_vector_index(store.document_index, "alice"),
+        store._tenant_vector_index(store.entity_index, "alice"),
+        store._tenant_vector_index(store.fact_index, "alice"),
+        store._tenant_vector_index(store.community_index, "alice"),
     ]
     assert [rows[0][0] for _index, rows in store.indexed_vector_loads] == [
         store._memory_vector_id("alice", "m1"),
@@ -595,6 +606,36 @@ def test_rebuild_vector_projection_reembeds_each_active_canonical_kind(tmp_path:
         store._fact_vector_id("alice", "f1"),
         store._community_vector_id("alice", "c1"),
     ]
+
+
+def test_canonical_vector_records_use_active_document_chunk_text(tmp_path: Path) -> None:
+    class Rows:
+        def __init__(self, values: list[dict[str, object]]) -> None:
+            self.values = values
+
+        def to_dict(self, orient: str) -> list[dict[str, object]]:
+            assert orient == "records"
+            return self.values
+
+    class CanonicalStore(RecordingMemoryStore):
+        def __init__(self) -> None:
+            super().__init__(tmp_path, CountingBatchEmbedder())
+            self.queries: list[str] = []
+
+        def _query(self, query: str, *, operation: str) -> Rows:
+            self.queries.append(query)
+            if operation == "vector.rebuild.document":
+                return Rows([{"c.id": "chunk-1", "c.text": "canonical chunk text"}])
+            return Rows([])
+
+    store = CanonicalStore()
+
+    records = store._canonical_vector_records("alice")
+
+    assert records["document"] == [("chunk-1", "canonical chunk text")]
+    document_query = next(query for query in store.queries if "MATCH (c:Chunk)" in query)
+    assert 'c.status = "active"' in document_query
+    assert "RETURN c.id, c.text" in document_query
 
 
 def test_ingest_document_text_batches_chunk_embeddings_and_vector_loads(tmp_path: Path) -> None:

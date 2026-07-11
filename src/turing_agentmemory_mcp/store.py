@@ -122,6 +122,7 @@ class TuringAgentMemory:
         self.entity_index = entity_index
         self.fact_index = fact_index
         self.community_index = community_index
+        self._ensured_vector_indexes: set[str] = set()
         self.embedder = embedder or OpenAICompatibleEmbedder.from_env(dimensions=self.dimensions)
         self.reranker = reranker or OpenAICompatibleReranker.from_env()
         self.rerank_candidate_limit = max(
@@ -475,10 +476,14 @@ class TuringAgentMemory:
             for memory_id, vector in vector_by_id.items():
                 vector_rows.append((self._memory_vector_id(user_identifier, memory_id), vector))
             if vector_rows:
-                self._load_vectors(self.memory_index, vector_rows, "memory_batch")
+                self._load_vectors(
+                    self._tenant_vector_index(self.memory_index, user_identifier),
+                    vector_rows,
+                    "memory_batch",
+                )
             if entity_vectors:
                 self._load_vectors(
-                    self.entity_index,
+                    self._tenant_vector_index(self.entity_index, user_identifier),
                     [
                         (self._entity_vector_id(user_identifier, entity.id), vector)
                         for entity, vector in zip(entities, entity_vectors, strict=True)
@@ -487,7 +492,7 @@ class TuringAgentMemory:
                 )
             if fact_vectors:
                 self._load_vectors(
-                    self.fact_index,
+                    self._tenant_vector_index(self.fact_index, user_identifier),
                     [
                         (self._fact_vector_id(user_identifier, fact.id), vector)
                         for fact, vector in zip(facts, fact_vectors, strict=True)
@@ -612,10 +617,13 @@ class TuringAgentMemory:
                     explain=explain,
                 )
             literal = self._vector_literal(self._embed_text(query, operation="memory.search"))
+            memory_index = self._ensure_tenant_vector_index(
+                self.memory_index, user_identifier
+            )
             try:
                 vector_rows = self._records(
                     self._query(
-                        f"VECTOR SEARCH IN {self.memory_index} FOR {max(limit * 4, limit)} {literal} "
+                        f"VECTOR SEARCH IN {memory_index} FOR {max(limit * 4, limit)} {literal} "
                         f"YIELD ids, score MATCH (m:Memory) "
                         f'WHERE m.vector_id = ids AND m.user_identifier = "{quote(user_identifier)}" '
                         'AND m.status = "active" '
@@ -935,9 +943,12 @@ class TuringAgentMemory:
         query_vector: list[float],
         limit: int,
     ) -> list[RetrievalEvidence]:
+        index_name = self._ensure_tenant_vector_index(
+            self.memory_index, user_identifier
+        )
         rows = self._records(
             self._query(
-                f"VECTOR SEARCH IN {self.memory_index} FOR {limit} "
+                f"VECTOR SEARCH IN {index_name} FOR {limit} "
                 f"{self._vector_literal(query_vector)} YIELD ids, score "
                 "MATCH (m:Memory) "
                 f'WHERE m.vector_id = ids AND m.user_identifier = "{quote(user_identifier)}" '
@@ -962,9 +973,12 @@ class TuringAgentMemory:
         query_vector: list[float],
         limit: int,
     ) -> list[RetrievalEvidence]:
+        index_name = self._ensure_tenant_vector_index(
+            self.fact_index, user_identifier
+        )
         rows = self._records(
             self._query(
-                f"VECTOR SEARCH IN {self.fact_index} FOR {limit} "
+                f"VECTOR SEARCH IN {index_name} FOR {limit} "
                 f"{self._vector_literal(query_vector)} YIELD ids, score "
                 "MATCH (f:Fact) "
                 f'WHERE f.vector_id = ids AND f.user_identifier = "{quote(user_identifier)}" '
@@ -989,9 +1003,12 @@ class TuringAgentMemory:
         query_vector: list[float],
         limit: int,
     ) -> list[RetrievalEvidence]:
+        index_name = self._ensure_tenant_vector_index(
+            self.entity_index, user_identifier
+        )
         rows = self._records(
             self._query(
-                f"VECTOR SEARCH IN {self.entity_index} FOR {limit} "
+                f"VECTOR SEARCH IN {index_name} FOR {limit} "
                 f"{self._vector_literal(query_vector)} YIELD ids, score "
                 "MATCH (e:Entity) "
                 f'WHERE e.vector_id = ids AND e.user_identifier = "{quote(user_identifier)}" '
@@ -1074,9 +1091,12 @@ class TuringAgentMemory:
         query_vector: list[float],
         limit: int,
     ) -> list[RetrievalEvidence]:
+        index_name = self._ensure_tenant_vector_index(
+            self.community_index, user_identifier
+        )
         rows = self._records(
             self._query(
-                f"VECTOR SEARCH IN {self.community_index} FOR {limit} "
+                f"VECTOR SEARCH IN {index_name} FOR {limit} "
                 f"{self._vector_literal(query_vector)} YIELD ids, score "
                 "MATCH (c:Community) "
                 f'WHERE c.vector_id = ids AND c.user_identifier = "{quote(user_identifier)}" '
@@ -1454,7 +1474,7 @@ class TuringAgentMemory:
             self.sparse_index.replay(batch_id=sparse_batch_id)
         if load_vector and next_content != existing.content:
             self._load_vectors(
-                self.memory_index,
+                self._tenant_vector_index(self.memory_index, user_identifier),
                 [
                     (
                         vid,
@@ -1811,7 +1831,11 @@ class TuringAgentMemory:
             f'MATCH (u:User) WHERE u.identifier = "{quote(user_identifier)}" CREATE '
             + ", ".join(nodes + edges)
         )
-        self._load_vectors(self.document_index, vector_rows, f"document_{document_id}")
+        self._load_vectors(
+            self._tenant_vector_index(self.document_index, user_identifier),
+            vector_rows,
+            f"document_{document_id}",
+        )
         return IngestedDocument(
             document_id=document_id,
             title=title,
@@ -1913,10 +1937,13 @@ class TuringAgentMemory:
             document_filter = ""
             if document_id:
                 document_filter = f' AND c.document_id = "{quote(document_id)}"'
+            document_index = self._ensure_tenant_vector_index(
+                self.document_index, user_identifier
+            )
             try:
                 vector_rows = self._records(
                     self._query(
-                        f"VECTOR SEARCH IN {self.document_index} FOR {max(limit * 4, limit)} {literal} "
+                        f"VECTOR SEARCH IN {document_index} FOR {max(limit * 4, limit)} {literal} "
                         f"YIELD ids, score MATCH (c:Chunk) "
                         f'WHERE c.vector_id = ids AND c.user_identifier = "{quote(user_identifier)}" '
                         f'AND c.status = "active"{document_filter} '
@@ -2065,7 +2092,7 @@ class TuringAgentMemory:
         )
         if load_vector:
             self._load_vectors(
-                self.memory_index,
+                self._tenant_vector_index(self.memory_index, user_identifier),
                 [
                     (
                         vid,
@@ -2360,9 +2387,11 @@ class TuringAgentMemory:
             ("community", self.community_index, self._community_vector_id),
         )
         counts: dict[str, int] = {}
-        for kind, index_name, id_factory in specifications:
+        for kind, base_index_name, id_factory in specifications:
             records = canonical.get(kind, [])
-            self._ensure_vector_index(index_name)
+            index_name = self._ensure_tenant_vector_index(
+                base_index_name, user_identifier
+            )
             vectors = self._embed_many([content for _source_id, content in records])
             if vectors:
                 self._load_vectors(
@@ -2469,7 +2498,7 @@ class TuringAgentMemory:
             self.sparse_index.replay(batch_id=sparse_batch_id)
         if vectors:
             self._load_vectors(
-                self.community_index,
+                self._tenant_vector_index(self.community_index, user_identifier),
                 [
                     (
                         self._community_vector_id(user_identifier, projection.id),
@@ -2751,25 +2780,29 @@ class TuringAgentMemory:
         user_identifier: str,
     ) -> dict[str, list[tuple[str, str]]]:
         records: dict[str, list[tuple[str, str]]] = {}
-        for kind, label, variable, status in (
-            ("memory", "Memory", "m", "active"),
-            ("document", "Chunk", "c", "searchable"),
-            ("entity", "Entity", "e", "active"),
-            ("fact", "Fact", "f", "active"),
-            ("community", "Community", "c", "active"),
+        for kind, label, variable, status, text_property in (
+            ("memory", "Memory", "m", "active", "content"),
+            ("document", "Chunk", "c", "active", "text"),
+            ("entity", "Entity", "e", "active", "content"),
+            ("fact", "Fact", "f", "active", "content"),
+            ("community", "Community", "c", "active", "content"),
         ):
             rows = self._sparse_rebuild_rows(
                 label,
                 f"MATCH ({variable}:{label}) "
                 f'WHERE {variable}.user_identifier = "{quote(user_identifier)}" '
                 f'AND {variable}.status = "{status}" '
-                f"RETURN {variable}.id, {variable}.content",
+                f"RETURN {variable}.id, {variable}.{text_property}",
                 f"vector.rebuild.{kind}",
             )
             records[kind] = [
-                (str(row[f"{variable}.id"]), str(row[f"{variable}.content"]))
+                (
+                    str(row[f"{variable}.id"]),
+                    str(row[f"{variable}.{text_property}"]),
+                )
                 for row in rows
-                if row.get(f"{variable}.id") and row.get(f"{variable}.content")
+                if row.get(f"{variable}.id")
+                and row.get(f"{variable}.{text_property}")
             ]
         return records
 
@@ -2980,6 +3013,12 @@ class TuringAgentMemory:
         self.client.set_graph(self.graph)
 
     def _ensure_vector_index(self, name: str) -> None:
+        ensured = getattr(self, "_ensured_vector_indexes", None)
+        if ensured is None:
+            ensured = set()
+            self._ensured_vector_indexes = ensured
+        if name in ensured:
+            return
         try:
             self._query(
                 f"CREATE VECTOR INDEX {name} WITH DIMENSION {self.dimensions} METRIC COSINE",
@@ -2991,6 +3030,7 @@ class TuringAgentMemory:
             self._query("SHOW VECTOR INDEXES", operation="vector_index.verify")
         )
         if not rows:
+            ensured.add(name)
             return
         matching = [row for row in rows if str(row.get("name") or "") == name]
         if not matching:
@@ -3001,6 +3041,23 @@ class TuringAgentMemory:
                 f"vector index {name} dimension mismatch: "
                 f"expected {self.dimensions}, found {actual}"
             )
+        ensured.add(name)
+
+    @staticmethod
+    def _tenant_vector_index(base_name: str, user_identifier: str) -> str:
+        digest = hashlib.blake2b(
+            user_identifier.encode("utf-8"), digest_size=8
+        ).hexdigest()
+        return cypher_var(f"{base_name}_tenant_{digest}")
+
+    def _ensure_tenant_vector_index(
+        self,
+        base_name: str,
+        user_identifier: str,
+    ) -> str:
+        name = self._tenant_vector_index(base_name, user_identifier)
+        self._ensure_vector_index(name)
+        return name
 
     def _ensure_user(self, user_identifier: str) -> None:
         try:
@@ -3084,6 +3141,7 @@ class TuringAgentMemory:
     def _load_vectors(self, index_name: str, rows: list[tuple[int, list[float]]], stem: str) -> None:
         if not rows:
             return
+        self._ensure_vector_index(index_name)
         with self._span(
             "vector.load",
             {"index": index_name, "rows": len(rows), "stem": stem, "dimensions": self.dimensions},

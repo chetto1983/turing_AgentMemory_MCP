@@ -225,7 +225,9 @@ def test_store_rebuilds_embeds_and_sparse_indexes_grounded_communities(
     assert projection.member_ids == ("a", "b")
     assert projection.source_memory_ids == ("m1",)
     assert store.community_embedder.calls == [[projection.content]]
-    assert [name for name, _ in store.vector_loads] == [store.community_index]
+    assert [name for name, _ in store.vector_loads] == [
+        store._tenant_vector_index(store.community_index, "alice")
+    ]
     hits = store.sparse.search(
         user_identifier="alice",
         query="Alice Hiking",
