@@ -55,13 +55,19 @@ observable maintenance workflow.
 | Tool | Purpose |
 |---|---|
 | `document_ingest_text` | Chunk and index supplied text with citations |
-| `document_ingest_file` | Convert a runtime-local file through MarkItDown, then ingest |
+| `document_ingest_file` | Durably enqueue a runtime-local file and return a job |
+| `document_ingest_status` | Poll tenant-scoped conversion and indexing state |
+| `document_ingest_cancel` | Cancel queued work or request cooperative cancellation |
+| `document_ingest_retry` | Requeue a failed job while staged bytes remain |
 | `document_search` | Return ranked, cited chunks under tenant and metadata filters |
 | `document_reindex_text` | Replace chunks and vectors under a stable document ID |
 | `document_delete` | Soft-delete a document and hide its chunks from retrieval |
 
 Use documents for source material that must retain title, source, chunk, and citation
 identity. Use memories for user state and episodic history.
+
+File ingest is complete only when status is `succeeded` and a scoped search returns cited
+chunks. Reusing the same tenant, document identity, and digest is idempotent.
 
 ## Result Handling
 

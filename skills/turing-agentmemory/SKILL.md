@@ -122,7 +122,7 @@ Choose the narrowest write tool:
 | One raw conversation event | `memory_store_message` |
 | Ordered conversation batch | `memory_store_messages` |
 | Source text requiring citations | `document_ingest_text` |
-| Local PDF, Office, HTML, or text file | `document_ingest_file` |
+| Local PDF, Office, HTML, or text file | `document_ingest_file`, then poll `document_ingest_status` |
 
 Store the user's statement or confirmed outcome, not speculative assistant language. For
 bulk ingest, call `memory_store_messages` with `refresh_communities=false`, then invoke
@@ -131,7 +131,9 @@ bulk ingest, call `memory_store_messages` with `refresh_communities=false`, then
 ### 6. Verify mutations
 
 Inspect the returned ID and scope. For high-value writes, use `memory_get` or a narrow
-`memory_search` to verify the canonical record. Never retry a write blindly after an
+`memory_search` to verify the canonical record. `document_ingest_file` returns a durable
+job, not a completed document: poll with the same tenant until a terminal state, then
+verify cited retrieval from `result.document_id`. Never retry a write blindly after an
 ambiguous transport failure; first search by stable ID or source metadata.
 
 ## Conflict, Correction, and Forgetting
@@ -191,6 +193,7 @@ multiple active records and the intended target cannot be established safely.
 | Durable preference | search for conflict | `memory_add_preference` or `memory_update` |
 | Durable fact | search for conflict | `memory_add_fact` or `memory_update` |
 | Cited knowledge | `document_search` | inspect chunk citation fields |
+| File ingest | `document_ingest_file` | poll `document_ingest_status`, then search |
 | Runtime anomaly | `memory_runtime_status` | approved repair workflow |
 | Bulk import | `memory_store_messages` | one `memory_rebuild_communities` |
 
@@ -206,6 +209,7 @@ multiple active records and the intended target cannot be established safely.
 | Projection degraded | Continue only with reported healthy channels; disclose uncertainty |
 | User requests deletion | Delete the exact record and confirm, never add an "ignore" memory |
 | Wrong deletion argument | `memory_delete` requires `memory_id`; `document_id` is invalid |
+| File ingest still running | Poll job status; do not repeat the upload or invent success |
 
 ## Verification Lock
 

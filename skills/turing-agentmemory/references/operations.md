@@ -9,6 +9,7 @@ At a healthy cadence, record:
 - `memory_runtime_status` stages and projection degradation counts;
 - embedding, graph query, fusion, and rerank latency;
 - GPU utilization and memory for enabled model sidecars;
+- document queue counts, lease heartbeat, stage progress, attempts, and errors;
 - ingest/search progress and error counts for long benchmark jobs.
 
 Use bounded request deadlines to prevent a single hung provider call. A request deadline is
@@ -67,4 +68,3 @@ Require all of the following before rollout:
 - direct MCP end-to-end ingest, retrieve, correct, and forget flow;
 - measured retrieval quality and latency against a pinned baseline;
 - backup and restore rehearsal.
-

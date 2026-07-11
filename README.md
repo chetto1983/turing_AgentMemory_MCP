@@ -4,6 +4,39 @@ TuringDB-backed Agent Memory MCP server with provider-agnostic embedding and
 rerank integrations, memory lifecycle tools, document ingest, and cited
 retrieval.
 
+> **Status:** pre-1.0. The core pipeline is tested end to end, but production
+> deployments must provide TLS and bind authenticated principals to allowed
+> `user_identifier` values. Review [known limitations](docs/limitations.md)
+> before deployment.
+
+## Quick Start
+
+The reference Compose stack uses local CUDA embedding and rerank sidecars. It
+requires an NVIDIA GPU visible to Docker.
+
+```powershell
+git clone https://github.com/chetto1983/turing_AgentMemory_MCP.git
+Set-Location turing_AgentMemory_MCP
+Copy-Item .env.example .env
+docker compose up -d turing-agentmemory-mcp
+docker compose ps
+Invoke-RestMethod http://127.0.0.1:8095/health
+```
+
+The MCP endpoint is `http://127.0.0.1:8095/mcp/`. The first start downloads
+revision-pinned model files; later starts reuse Docker model-cache volumes.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Deployment](docs/deployment.md)
+- [Configuration](docs/configuration.md)
+- [MCP API](docs/mcp-api.md)
+- [Operations](docs/operations.md)
+- [Security](docs/security.md)
+- [Performance](docs/performance.md)
+- [Documentation index](docs/README.md)
+
 - Agent memory tools:
   `memory_search`, `memory_get_context`, `memory_store_message`,
   `memory_store_messages`,
@@ -42,12 +75,11 @@ Neo4j-style memory packages and TuringDB expose different graph/vector behavior.
 This repo is a clean TuringDB-native MCP instead of a compatibility shim for one
 upstream memory implementation or one model provider.
 
-## Run With Docker
+## Verify With Docker
 
 ```powershell
 docker compose build
 docker compose run --rm e2e
-docker compose up turing-agentmemory-mcp
 ```
 
 The MCP service expects a TuringDB daemon reachable at `TURINGDB_URL` and a
