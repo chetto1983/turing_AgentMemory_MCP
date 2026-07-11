@@ -79,7 +79,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 ### CI & Git Hooks (CI) — Thrust 3
 
 - [x] **CI-01**: lefthook `pre-commit` (ruff format --check, ruff check, file-size cap enforcing ≤600 LOC across all tracked `*.py` with NO allowlist — `store.py` is decomposed into ≤600-LOC modules to comply, not exempted; CLAUDE.md's store.py-exception language is removed)
-- [ ] **CI-02**: lefthook `pre-push` (import/compile smoke, fast pytest subset, `docker compose config --quiet`)
+- [x] **CI-02**: lefthook `pre-push` (import/compile smoke, fast pytest subset, `docker compose config --quiet`)
 - [ ] **CI-03**: GitHub Actions lint job (ruff; pin bumped from stale `>=0.9` to `0.15.x`)
 - [ ] **CI-04**: GitHub Actions unit-test job (pytest, `pythonpath=src`)
 - [ ] **CI-05**: GitHub Actions dockerized-integration job running the E2E score gate + real-document E2E
@@ -169,7 +169,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | DEP-01 | Phase 7 | Pending |
 | DEP-02 | Phase 7 | Pending |
 | CI-01 | Phase 1 | Complete |
-| CI-02 | Phase 1 | Pending |
+| CI-02 | Phase 1 | Complete |
 | CI-03 | Phase 1 | Pending |
 | CI-04 | Phase 1 | Pending |
 | CI-05 | Phase 1 | Pending |
