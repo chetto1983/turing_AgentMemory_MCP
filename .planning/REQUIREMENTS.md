@@ -80,13 +80,13 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 
 - [x] **CI-01**: lefthook `pre-commit` (ruff format --check, ruff check, file-size cap enforcing ≤600 LOC across all tracked `*.py` with NO allowlist — `store.py` is decomposed into ≤600-LOC modules to comply, not exempted; CLAUDE.md's store.py-exception language is removed)
 - [x] **CI-02**: lefthook `pre-push` (import/compile smoke, fast pytest subset, `docker compose config --quiet`)
-- [ ] **CI-03**: GitHub Actions lint job (ruff; pin bumped from stale `>=0.9` to `0.15.x`)
-- [ ] **CI-04**: GitHub Actions unit-test job (pytest, `pythonpath=src`)
-- [ ] **CI-05**: GitHub Actions dockerized-integration job running the E2E score gate + real-document E2E
-- [ ] **CI-06**: GitHub Actions compose-validation + supply-chain scan (pip-audit `2.10.1`)
+- [x] **CI-03**: GitHub Actions lint job (ruff; pin bumped from stale `>=0.9` to `0.15.x`)
+- [x] **CI-04**: GitHub Actions unit-test job (pytest, `pythonpath=src`)
+- [x] **CI-05**: GitHub Actions dockerized-integration job running the E2E score gate + real-document E2E
+- [x] **CI-06**: GitHub Actions compose-validation + supply-chain scan (pip-audit `2.10.1`)
 - [x] **CI-07**: No-skip-as-green — a skipped GPU/integration tier FAILS under CI rather than passing green
-- [ ] **CI-08**: GPU-less CI degrades GPU tiers to a compile/stub floor (never silent green)
-- [ ] **CI-09**: Coverage gate with a floor measured against the actual current suite (not guessed)
+- [x] **CI-08**: GPU-less CI degrades GPU tiers to a compile/stub floor (never silent green)
+- [x] **CI-09**: Coverage gate with a floor measured against the actual current suite (not guessed)
 
 ### UTCP Spike (UTCP) — Thrust 4
 
@@ -170,13 +170,13 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | DEP-02 | Phase 7 | Pending |
 | CI-01 | Phase 1 | Complete |
 | CI-02 | Phase 1 | Complete |
-| CI-03 | Phase 1 | Pending |
-| CI-04 | Phase 1 | Pending |
-| CI-05 | Phase 1 | Pending |
-| CI-06 | Phase 1 | Pending |
+| CI-03 | Phase 1 | Complete |
+| CI-04 | Phase 1 | Complete |
+| CI-05 | Phase 1 | Complete |
+| CI-06 | Phase 1 | Complete |
 | CI-07 | Phase 1 | Complete |
-| CI-08 | Phase 1 | Pending |
-| CI-09 | Phase 1 | Pending |
+| CI-08 | Phase 1 | Complete |
+| CI-09 | Phase 1 | Complete |
 | UTCP-01 | Phase 2 | Pending |
 
 **Coverage:**
