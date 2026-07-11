@@ -67,6 +67,11 @@ correctness or tenant isolation is a failure, not progress.
 - [ ] No-skip-as-green discipline: a skipped test tier fails the gate rather than passing it green
 - [ ] Heavy gates (full E2E, real-doc E2E, coverage) live in CI; hooks stay fast enough not to be habitually bypassed
 
+**Thrust 4 — UTCP spike (early de-risk)**
+
+- [ ] Early roadmap phase: spike deeper UTCP (Universal Tool Calling Protocol) support — native serving over UTCP alongside MCP vs the current manual export (`utcp.py` / `utcp-manual`), validated against real UTCP clients/spec (https://github.com/universal-tool-calling-protocol)
+- [ ] Spike produces a findings verdict; any resulting UTCP build work is gated on that verdict, not assumed
+
 ### Out of Scope
 
 - New product features unrelated to the audited concerns — [this is a stabilization milestone, not a feature milestone]
