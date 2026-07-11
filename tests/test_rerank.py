@@ -228,6 +228,47 @@ def test_reranker_retries_embedded_provider_overload(monkeypatch) -> None:
     assert calls == 2
 
 
+def test_reranker_retries_transient_read_timeout(monkeypatch) -> None:
+    calls = 0
+
+    class Response:
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "results": [
+                        {"index": 1, "relevance_score": 0.9},
+                        {"index": 0, "relevance_score": 0.1},
+                    ]
+                }
+            ).encode("utf-8")
+
+    def flaky_urlopen(*args: object, **kwargs: object) -> Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise TimeoutError("private provider timeout detail")
+        return Response()
+
+    monkeypatch.setattr("turing_agentmemory_mcp.rerank.urlopen", flaky_urlopen)
+    reranker = OpenAICompatibleReranker(
+        base_url="http://provider",
+        max_attempts=2,
+        retry_base_s=0,
+    )
+
+    result = reranker.rerank_with_status("query", ["one", "two"])
+
+    assert result.status == "applied"
+    assert [item.index for item in result.scores] == [1, 0]
+    assert calls == 2
+
+
 def test_lexical_rerank_prioritizes_query_overlap() -> None:
     scored = lexical_rerank(
         "blue key interlock",

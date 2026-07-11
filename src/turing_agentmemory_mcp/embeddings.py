@@ -144,9 +144,12 @@ class OpenAICompatibleEmbedder:
                     time.sleep(self.retry_base_s * (2**attempt))
                     continue
                 raise RuntimeError(f"embedding provider HTTP {exc.code}") from exc
-            except URLError as exc:
+            except (URLError, TimeoutError, OSError) as exc:
+                if attempt + 1 < self.max_attempts:
+                    time.sleep(self.retry_base_s * (2**attempt))
+                    continue
                 raise RuntimeError(
-                    f"embedding provider unavailable at {self.base_url}: {exc.reason}"
+                    f"embedding provider unavailable at {self.base_url}"
                 ) from exc
             error_code = provider_error_code(decoded)
             if error_code and retryable_provider_code(error_code) and attempt + 1 < self.max_attempts:

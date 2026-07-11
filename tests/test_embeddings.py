@@ -233,3 +233,37 @@ def test_openai_compatible_embedder_retries_embedded_provider_overload() -> None
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def test_openai_compatible_embedder_retries_transient_read_timeout(monkeypatch) -> None:
+    calls = 0
+
+    class Response:
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(
+                {"data": [{"index": 0, "embedding": [1.0, 0.0]}]}
+            ).encode("utf-8")
+
+    def flaky_urlopen(*args: object, **kwargs: object) -> Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise TimeoutError("private provider timeout detail")
+        return Response()
+
+    monkeypatch.setattr("turing_agentmemory_mcp.embeddings.urlopen", flaky_urlopen)
+    embedder = OpenAICompatibleEmbedder(
+        base_url="http://provider",
+        dimensions=2,
+        max_attempts=2,
+        retry_base_s=0,
+    )
+
+    assert embedder.embed("retry timeout") == [1.0, 0.0]
+    assert calls == 2

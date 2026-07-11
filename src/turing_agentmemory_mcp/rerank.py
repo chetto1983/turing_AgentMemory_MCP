@@ -177,7 +177,12 @@ class OpenAICompatibleReranker:
                     time.sleep(self.retry_base_s * (2**attempt))
                     continue
                 return self._result(identity(documents), "provider_error", bounded_documents)
-            except (URLError, json.JSONDecodeError, TimeoutError, OSError):
+            except (URLError, TimeoutError, OSError):
+                if attempt + 1 < self.max_attempts:
+                    time.sleep(self.retry_base_s * (2**attempt))
+                    continue
+                return self._result(identity(documents), "provider_error", bounded_documents)
+            except json.JSONDecodeError:
                 return self._result(identity(documents), "provider_error", bounded_documents)
             error_code = provider_error_code(decoded)
             if error_code and retryable_provider_code(error_code) and attempt + 1 < self.max_attempts:
