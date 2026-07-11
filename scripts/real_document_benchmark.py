@@ -26,6 +26,10 @@ from turing_agentmemory_mcp.document_processing import convert_document_to_markd
 QUESTION_COUNT = 10
 DEFAULT_TOP_K = 20
 DEFAULT_CUTOFFS = (1, 3, 5, 10, 20)
+MIN_EVIDENCE_CHARS = 12
+MAX_EVIDENCE_CHARS = 320
+MIN_ANSWER_COVERAGE = 0.5
+_UNIT_PATTERN = re.compile(r".+?(?:[.!?。！？]+|$)", re.UNICODE)
 SUPPORTED_SUFFIXES = {
     ".docx",
     ".epub",
@@ -91,6 +95,89 @@ def normalize_text(value: object) -> str:
     text = unicodedata.normalize("NFKC", str(value or "")).casefold()
     text = "".join(" " if unicodedata.category(char).startswith("C") else char for char in text)
     return re.sub(r"[^\w]+", " ", text, flags=re.UNICODE).strip()
+
+
+def normalized_tokens(value: object) -> list[str]:
+    normalized = normalize_text(value)
+    return normalized.split(" ") if normalized else []
+
+
+def source_units(text: str) -> list[tuple[int, int]]:
+    """Return exact (start, end) spans for each sentence or table row in ``text``.
+
+    Lines are split first so spreadsheet/markdown-table rows stay whole; each line
+    is then split on sentence-ending punctuation. Spans index the original string
+    verbatim so any selected slice is guaranteed to be an exact source substring.
+    """
+
+    units: list[tuple[int, int]] = []
+    for line_match in re.finditer(r"[^\n]+", text):
+        line = line_match.group()
+        base = line_match.start()
+        for segment in _UNIT_PATTERN.finditer(line):
+            raw = segment.group()
+            lead = len(raw) - len(raw.lstrip())
+            trail = len(raw) - len(raw.rstrip())
+            start = base + segment.start() + lead
+            end = base + segment.end() - trail
+            if end > start:
+                units.append((start, end))
+    return units
+
+
+def select_evidence(passage: str, *, question: str, answer: str) -> str:
+    """Deterministically pick the exact source span that grounds a generated answer.
+
+    Scores every contiguous window of source units by token overlap with the answer
+    (weighted) and the question, prefers the shortest highest-scoring window, and
+    rejects paraphrases whose answer overlap is too weak to serve as retrieval gold.
+    """
+
+    units = source_units(passage)
+    if not units:
+        raise ValueError("source passage has no usable text for evidence grounding")
+    unit_tokens = [set(normalized_tokens(passage[start:end])) for start, end in units]
+    answer_all = normalized_tokens(answer)
+    question_all = normalized_tokens(question)
+    answer_set = {token for token in answer_all if len(token) >= 2} or set(answer_all)
+    question_set = {token for token in question_all if len(token) >= 2}
+
+    # Rank by answer coverage first, then the tightest span, then question overlap
+    # as a tie-breaker only, so incidental question words never widen the evidence.
+    best_key: tuple[int, int, int, int] | None = None
+    best: tuple[int, int, int, int] | None = None
+    for i in range(len(units)):
+        span_tokens: set[str] = set()
+        for j in range(i, len(units)):
+            span_tokens |= unit_tokens[j]
+            start = units[i][0]
+            end = units[j][1]
+            length = end - start
+            if j > i and length > MAX_EVIDENCE_CHARS:
+                break
+            if len(normalize_text(passage[start:end])) < MIN_EVIDENCE_CHARS:
+                continue
+            answer_hits = len(answer_set & span_tokens)
+            question_hits = len(question_set & span_tokens)
+            key = (answer_hits, -length, question_hits, -start)
+            if best_key is None or key > best_key:
+                best_key = key
+                best = (start, end, answer_hits, question_hits)
+
+    if best is None:
+        raise ValueError("no contiguous source span met the minimum evidence length")
+    start, end, answer_hits, question_hits = best
+    if answer_set:
+        coverage = answer_hits / len(answer_set)
+        if answer_hits < 1 or coverage < MIN_ANSWER_COVERAGE:
+            raise ValueError("selected evidence has weak token overlap with the generated answer")
+    elif question_hits < 2:
+        raise ValueError("selected evidence has weak token overlap with the generated question")
+
+    evidence = passage[start:end].strip()
+    if normalize_text(evidence) not in normalize_text(passage):
+        raise ValueError("derived evidence is not an exact substring of its source passage")
+    return evidence
 
 
 def file_digest(path: Path) -> tuple[int, str]:
@@ -161,18 +248,18 @@ def parse_generated_questions(
         source_id = str(row.get("source_id") or "").strip()
         question = str(row.get("question") or "").strip()
         answer = str(row.get("answer") or "").strip()
-        evidence = str(row.get("evidence_quote") or "").strip()
         if source_id not in passage_by_id:
             raise ValueError(f"unknown question source_id {source_id}")
-        if not question or not answer or not evidence:
+        if not question or not answer:
             raise ValueError("generated question fields must be non-empty")
         normalized_question = normalize_text(question)
         if normalized_question in seen:
             raise ValueError("generated questions must be distinct")
-        if normalize_text(evidence) not in normalize_text(passage_by_id[source_id]):
-            raise ValueError("evidence_quote must be an exact substring of its source passage")
-        if len(normalize_text(evidence)) < 12:
-            raise ValueError("evidence_quote is too short for grounded retrieval scoring")
+        evidence = select_evidence(
+            passage_by_id[source_id],
+            question=question,
+            answer=answer,
+        )
         seen.add(normalized_question)
         questions.append(
             {
@@ -204,13 +291,13 @@ class QuestionGenerator:
         system = (
             "Create a grounded document-retrieval evaluation. Return only one JSON object "
             'with key "questions". Produce exactly one question for each labeled source. '
-            "Every row must contain source_id, question, answer, and evidence_quote. "
-            "The answer must be supported only by that source. evidence_quote must be copied "
-            "verbatim as one contiguous 12-160 character substring from the source. Questions "
-            "must be distinct, natural, specific, and answerable without saying 'the passage'. "
-            "Use the source language. Avoid asking for personal names, contact details, account "
-            "identifiers, or other personal data; for tabular customer material ask about schema "
-            "or operational concepts instead. Do not use outside knowledge."
+            "Every row must contain source_id, question, and answer. The answer must be a short, "
+            "specific value that is stated in that source, phrased using the source's own wording "
+            "so it can be located verbatim in the text. Questions must be distinct, natural, "
+            "specific, and answerable without saying 'the passage'. Use the source language. Avoid "
+            "asking for personal names, contact details, account identifiers, or other personal "
+            "data; for tabular customer material ask about schema or operational concepts instead. "
+            "Do not use outside knowledge."
         )
         user = json.dumps(
             {"filename": filename, "required_count": count, "sources": passages},
