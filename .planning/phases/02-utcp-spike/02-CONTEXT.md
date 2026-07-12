@@ -69,11 +69,26 @@ No native serving code is merged by this phase. The verdict *authorizes* or
   embed/rerank is acceptable, as E2E does), and run `UtcpClient` / `utcp-agent`
   from the host against it — over the mcp call-template, plus the throwaway native
   http prototype.
-- **D-08:** Driving the *full* `utcp-agent` chat loop requires an LLM provider
-  key (OpenAI/Anthropic). The tool **registration + call** can be proven through
-  the underlying `UtcpClient` directly **without an LLM** — prefer that for the
-  deterministic evidence, and treat a full LLM-driven agent chat as optional
-  color if a key is readily available.
+- **D-08:** The tool **registration + call** can be proven through the underlying
+  `UtcpClient` directly **without an LLM** — this is the deterministic core evidence.
+  A full LLM-driven `utcp-agent` chat loop is **optional color**.
+- **D-08a:** When the optional full-agent chat is run, drive the LLM with a
+  **local llama.cpp server hosting the Gemma GGUF**, not a cloud key:
+  - Model: `unsloth/gemma-4-12B-it-qat-GGUF`, file
+    `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`
+    (`https://huggingface.co/unsloth/gemma-4-12B-it-qat-GGUF`).
+  - Serve it via the repo's **existing llama.cpp sidecar pattern**
+    (`docker/llama-provider.Dockerfile` → `ghcr.io/ggml-org/llama.cpp:server-cuda`,
+    GGUF pulled through `LLAMA_CACHE`), exposing the OpenAI-compatible
+    `/v1/chat/completions` endpoint.
+  - Point `utcp-agent`'s `openai` extra (`langchain-openai`) at that local
+    endpoint (`base_url` = the llama.cpp server, dummy API key). No OpenAI/Anthropic
+    account is required. Keep this a throwaway spike sidecar — do not add a
+    permanent chat-LLM service to `compose.yaml` (SC#3: no build work committed).
+  - **GPU dependency:** this sidecar is CUDA/GPU-mandatory like the embed/rerank
+    ones; if no GPU is available for the spike, fall back to the LLM-free
+    `UtcpClient` round-trip (D-08) and record that the full-agent chat was not
+    exercised — never silently skip it.
 
 ### Deliverable + gate mechanism
 - **D-09:** Write a phase **`FINDINGS.md`** in the phase directory containing:
@@ -111,6 +126,10 @@ No native serving code is merged by this phase. The verdict *authorizes* or
   - `d:/tmp/utcp-agent/src/utcp_agent/utcp_agent.py` — `UtcpAgent` / `UtcpAgentConfig`; registers tools via `utcp_config.manual_call_templates`.
   - `d:/tmp/utcp-agent/examples/` — `basic_anthropic.py`, `basic_openai.py`, `streaming_example.py` — reference registration + call usage.
   - `d:/tmp/utcp-agent/pyproject.toml` — confirms bundled plugins (`utcp-http`, `utcp-mcp`, `utcp-text`, `utcp-cli`) and optional LLM extras.
+
+### LLM for the optional full-agent chat (D-08a)
+- `https://huggingface.co/unsloth/gemma-4-12B-it-qat-GGUF` — Gemma GGUF model repo; use file `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`. Serve via the repo's existing llama.cpp sidecar pattern for an OpenAI-compatible chat endpoint; point `utcp-agent`'s `langchain-openai` at it. Throwaway spike sidecar only.
+- `docker/llama-provider.Dockerfile` — existing `ghcr.io/ggml-org/llama.cpp:server-cuda` sidecar pattern (GGUF via `LLAMA_CACHE`) to reuse for hosting the Gemma model.
 
 ### The artifact under test (this repo)
 - `src/turing_agentmemory_mcp/utcp.py` — current manual builder: `build_utcp_manual()`, `utcp_manual_from_env()`, hand-maintained `AGENTMEMORY_TOOL_SPECS`; emits `utcp_version 1.0.2`, `call_template_type "mcp"`.
