@@ -92,13 +92,26 @@ jobs:
       CI: "true" # arms the no-skip-as-green guard for this job too
     steps:
       - uses: actions/checkout@v7
+      - name: Build the E2E image
+        # `docker compose run` does NOT build on its own; on a clean runner it would
+        # try to PULL turing-agentmemory-mcp:local (a local-only tag with no registry)
+        # and fail with "pull access denied". Build the image (deps + turingdb, Linux)
+        # up front so the run step has it locally.
+        run: docker compose build e2e
       - name: "E2E score gate — GPU-less stub floor (D-05/D-06): score >= 9.4, all 19 checks executed, never a silent skip"
         run: |
           # The script's own exit code asserts VALIDATED_10_10 (score>=9.8, 19/19
           # checks) — a GPU/real-embed-tier bar this stub-mode runner cannot reach.
           # `|| true` keeps this step alive past that non-zero exit so the floor
-          # assertion below runs against the captured result instead.
-          docker compose run --rm e2e > e2e-stub-result.json || true
+          # assertion below runs against the captured result instead. Container stdout
+          # is pure JSON; compose orchestration noise goes to stderr (kept for debug).
+          docker compose run --rm e2e > e2e-stub-result.json 2> e2e-run.log || true
+          if ! jq -e . e2e-stub-result.json >/dev/null 2>&1; then
+            echo "FAIL: E2E produced no valid JSON result (image build or container run failed)."
+            echo "--- compose/run stderr ---"; cat e2e-run.log || true
+            echo "--- captured stdout ---"; cat e2e-stub-result.json || true
+            exit 1
+          fi
           score=$(jq '.score' e2e-stub-result.json)
           check_count=$(jq '.check_count' e2e-stub-result.json)
           verdict=$(jq -r '.verdict' e2e-stub-result.json)
