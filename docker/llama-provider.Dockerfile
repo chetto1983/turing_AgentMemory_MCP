@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:502fde462776339020cec39425525e9ce78f17cd9f7b14123f55f5197b1da00a
+FROM ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:8d1e8ddc42585632d7bd625c2285eba891ed2ed4428e9eda25ca71ce2f6cce27
 
 ENV HOME=/models \
     XDG_CACHE_HOME=/models/.cache \
