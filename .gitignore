@@ -17,3 +17,5 @@ run.log
 .worktrees/
 test/*
 .planning/research/.cache/*
+.coverage
+.claude/skills/
