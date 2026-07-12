@@ -4,17 +4,17 @@ milestone: v2.2.0
 milestone_name: milestone
 current_phase: 02
 current_phase_name: utcp-spike
-status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-07-12T17:21:18.134Z"
+status: verifying
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-07-12T17:30:01.532Z"
 last_activity: 2026-07-12
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 12
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 12
-  completed_plans: 11
-  percent: 8
+  completed_plans: 12
+  percent: 17
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 
 Phase: 02 (utcp-spike) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-12 — Phase 02 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -66,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P09 | 25min | 2 tasks | 1 files |
 | Phase 02 P01 | 25min | 2 tasks | 3 files |
 | Phase 02 P02 | 35min | 3 tasks | 3 files |
+| Phase 02 P03 | 30min | - tasks | - files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 02-02: Ran the live GPU-backed mcp round-trip end-to-end this session (register_manual discovered 26 live tools vs 19 in AGENTMEMORY_TOOL_SPECS; memory_store_message + memory_search succeeded with real fusion/rerank scoring).
 - [Phase ?]: 02-02: Fixed a Rule-1 bug found only by running the live round-trip -- call_tool() derives the actual tool-name prefix from the registered manual (UTCP sanitizes hyphens to underscores AND FastMCP's live tool names are already pre-namespaced; real prefix: turing_agentmemory_mcp.turing-agentmemory-mcp).
 - [Phase ?]: 02-02: Deferred the optional D-08a full-agent Gemma chat (would require a ~7-8GB one-off GGUF download); full_agent_chat.py correctly recorded the required non-silent-skip fallback message instead.
+- [Phase ?]: UTCP verdict: stay-manual -- utcp-agent already consumes our tools end-to-end via the existing mcp call-template (02-FINDINGS.md); no gated ROADMAP entry added since verdict is not build.
+- [Phase ?]: 02-03: SC#3 Check 3's literal compose.yaml grep printed a false positive against the pre-existing AGENTMEMORY_UTCP_SERVER_NAME env var (2026-07-09, predates the phase) -- investigated via git blame + zero-diff git diff --stat and confirmed the hard gate holds.
 
 ### Pending Todos
 
@@ -124,6 +127,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-12T17:20:32.244Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-07-12T17:30:01.522Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None

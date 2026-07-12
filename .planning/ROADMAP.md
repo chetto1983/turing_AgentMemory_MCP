@@ -16,7 +16,7 @@ This milestone hardens an already-built TuringDB-backed Agent Memory MCP server 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: CI + Git-Hook Discipline** - lefthook hooks + GitHub Actions with no-skip-as-green, guarding every downstream change (completed 2026-07-11)
-- [ ] **Phase 2: UTCP Spike** - Early findings-gated verdict on deeper UTCP support; no build commitment
+- [x] **Phase 2: UTCP Spike** - Early findings-gated verdict on deeper UTCP support; no build commitment (completed 2026-07-12)
 - [ ] **Phase 3: TuringDB Retrieval Baseline** - Recorded, versioned baseline snapshot before any ArcadeDB work
 - [ ] **Phase 4: ArcadeDB Direct Port** - `store.py` on ArcadeDB graph + native vector + native full-text, stable IDs preserved
 - [ ] **Phase 5: Per-Tenant ArcadeDB Isolation** - One database per tenant with mandatory `user_identifier` scoping still enforced
@@ -82,7 +82,7 @@ Plans:
   2. A written verdict recommends native UTCP serving, staying on manual export, or deferring — with rationale.
   3. No UTCP build work is committed by this phase; any follow-on work is explicitly gated on the verdict.
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 
 **Wave 1**
@@ -95,7 +95,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 — needs captured evidence)*
 
-- [ ] 02-03-PLAN.md — Verdict deliverable: `02-FINDINGS.md` (SC#1 gaps + SC#2 verdict), SC#3 no-build-work guard, and D-10 gating (PROJECT.md decision + conditional gated ROADMAP entry)
+- [x] 02-03-PLAN.md — Verdict deliverable: `02-FINDINGS.md` (SC#1 gaps + SC#2 verdict), SC#3 no-build-work guard, and D-10 gating (PROJECT.md decision + conditional gated ROADMAP entry)
 
 ### Phase 3: TuringDB Retrieval Baseline
 
@@ -242,7 +242,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
-| 2. UTCP Spike | 2/3 | In Progress|  |
+| 2. UTCP Spike | 3/3 | Complete   | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 0/TBD | Not started | - |
 | 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |

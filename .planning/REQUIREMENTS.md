@@ -90,7 +90,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 
 ### UTCP Spike (UTCP) — Thrust 4
 
-- [ ] **UTCP-01**: Early findings-gated spike on deeper UTCP support (native serving over UTCP vs the current `utcp.py` manual export), validated against real UTCP clients/spec; produces a verdict — any build work is gated on it
+- [x] **UTCP-01**: Early findings-gated spike on deeper UTCP support (native serving over UTCP vs the current `utcp.py` manual export), validated against real UTCP clients/spec; produces a verdict — any build work is gated on it
 
 ## v2 Requirements
 
@@ -177,7 +177,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | CI-07 | Phase 1 | Complete |
 | CI-08 | Phase 1 | Complete |
 | CI-09 | Phase 1 | Complete |
-| UTCP-01 | Phase 2 | Pending |
+| UTCP-01 | Phase 2 | Complete |
 
 **Coverage:**
 
