@@ -6,14 +6,14 @@ current_phase: 02
 current_phase_name: utcp-spike
 status: executing
 stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-07-12T17:02:00.899Z"
+last_updated: "2026-07-12T17:21:18.134Z"
 last_activity: 2026-07-12
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
   percent: 8
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 02 (utcp-spike) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-12 — Phase 02 execution started
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P08 | 5min | 2 tasks | 2 files |
 | Phase 01 P09 | 25min | 2 tasks | 1 files |
 | Phase 02 P01 | 25min | 2 tasks | 3 files |
+| Phase 02 P02 | 35min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-09: Redesigned dockerized-integration CI job to assert a measured GPU-less stub floor (score>=9.4, all 19 checks executed via jq/awk) instead of docker compose run --rm e2e's own exit code, because that script's VALIDATED_10_10 gate (score>=9.8, 19/19) is unreachable with the in-process HashingEmbedder stub (measured baseline: 9.474, 18/19) and would make CI permanently red on every GPU-less run
 - [Phase 01]: 01-09: Coverage floor measured at 78.12% (364 tests, e2e_score.py omitted) and wired as --cov-fail-under=78 in ci.yml's unit-tests job
 - [Phase ?]: Pinned langchain-openai to >=0.3,<1.0 (not >=1.0.0 as drafted) -- utcp-mcp transitively caps langchain-core<1.0.0, unresolvable against langchain-openai>=1.0.0's langchain-core>=1.4.9 requirement.
+- [Phase ?]: 02-02: Ran the live GPU-backed mcp round-trip end-to-end this session (register_manual discovered 26 live tools vs 19 in AGENTMEMORY_TOOL_SPECS; memory_store_message + memory_search succeeded with real fusion/rerank scoring).
+- [Phase ?]: 02-02: Fixed a Rule-1 bug found only by running the live round-trip -- call_tool() derives the actual tool-name prefix from the registered manual (UTCP sanitizes hyphens to underscores AND FastMCP's live tool names are already pre-namespaced; real prefix: turing_agentmemory_mcp.turing-agentmemory-mcp).
+- [Phase ?]: 02-02: Deferred the optional D-08a full-agent Gemma chat (would require a ~7-8GB one-off GGUF download); full_agent_chat.py correctly recorded the required non-silent-skip fallback message instead.
 
 ### Pending Todos
 
@@ -120,6 +124,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-12T17:02:00.889Z
+Last session: 2026-07-12T17:20:32.244Z
 Stopped at: Completed 02-01-PLAN.md
 Resume file: None

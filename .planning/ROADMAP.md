@@ -82,7 +82,7 @@ Plans:
   2. A written verdict recommends native UTCP serving, staying on manual export, or deferring — with rationale.
   3. No UTCP build work is committed by this phase; any follow-on work is explicitly gated on the verdict.
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 
 **Wave 1**
@@ -91,7 +91,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — needs spike deps installed)*
 
-- [ ] 02-02-PLAN.md — Live evidence harnesses: mcp round-trip (D-01/02/07/08), throwaway native-http prototype (D-06), optional utcp-agent + llama.cpp chat (D-08a)
+- [x] 02-02-PLAN.md — Live evidence harnesses: mcp round-trip (D-01/02/07/08), throwaway native-http prototype (D-06), optional utcp-agent + llama.cpp chat (D-08a)
 
 **Wave 3** *(blocked on Wave 2 — needs captured evidence)*
 
@@ -242,7 +242,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
-| 2. UTCP Spike | 1/3 | In Progress|  |
+| 2. UTCP Spike | 2/3 | In Progress|  |
 | 3. TuringDB Retrieval Baseline | 0/TBD | Not started | - |
 | 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
