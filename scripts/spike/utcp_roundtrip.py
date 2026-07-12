@@ -118,11 +118,30 @@ async def _run_round_trip() -> int:
         f"Live-discovered tool count (via session.list_tools(), not AGENTMEMORY_TOOL_SPECS): {live_tool_count}"
     )
 
+    # OBSERVED SC#1 gap (not in 02-RESEARCH.md, found empirically during this run):
+    # UtcpClientImplementation.register_manual() sanitizes the manual name with
+    # re.sub(r'[^\w]', '_', name) BEFORE prefixing tool names -- so registering with
+    # name="turing-agentmemory-mcp" (hyphens) yields tool names prefixed with
+    # "turing_agentmemory_mcp." (underscores), NOT the original hyphenated SERVER_NAME. A
+    # caller that naively prefixes call_tool() with the server's own hyphenated name (as a
+    # first-time integrator reading utcp.py's server_name="turing-agentmemory-mcp" would)
+    # gets "Tool not found". Derive the REAL prefix from the registered manual instead of
+    # assuming it equals SERVER_NAME.
+    live_prefix = (
+        result.manual.tools[0].name.rsplit(".", 1)[0] if result.manual.tools else SERVER_NAME
+    )
+    if live_prefix != SERVER_NAME:
+        print(
+            f"OBSERVED SC#1 gap: registered tool prefix is {live_prefix!r}, not the hyphenated "
+            f"SERVER_NAME {SERVER_NAME!r} -- UTCP sanitizes non-word chars in manual names "
+            "(re.sub(r'[^\\w]', '_', name)) before prefixing tool names."
+        )
+
     write_result: object = None
     search_result: object = None
     try:
         write_result = await client.call_tool(
-            f"{SERVER_NAME}.memory_store_message",
+            f"{live_prefix}.memory_store_message",
             {
                 "session_id": "utcp-spike",
                 "role": "user",
@@ -133,7 +152,7 @@ async def _run_round_trip() -> int:
         print(f"memory_store_message call_tool result: {write_result}")
 
         search_result = await client.call_tool(
-            f"{SERVER_NAME}.memory_search",
+            f"{live_prefix}.memory_search",
             {"query": "UTCP round-trip probe", "user_identifier": "utcp-spike-tenant"},
         )
         print(f"memory_search call_tool result: {search_result}")
