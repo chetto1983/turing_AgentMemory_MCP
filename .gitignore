@@ -19,3 +19,8 @@ test/*
 .planning/research/.cache/*
 .coverage
 .claude/skills/
+
+# Phase 2 UTCP spike (throwaway)
+scripts/spike/*.gguf
+scripts/spike/.env
+scripts/spike/*.local
