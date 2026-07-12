@@ -167,6 +167,90 @@ as a PROJECT.md Key Decisions row (see below).
 
 ---
 
+## SC#3 — No Build Work Committed
+
+Per Task 2's action, three checks were run and their exact commands + outputs are pasted below as
+the audit trail. **All three checks confirm the substantive gate holds: zero UTCP native-serving
+code was committed to `src/`, `src/` was not modified by this phase at all, and `compose.yaml`
+gained no new UTCP-serving or chat-sidecar service.**
+
+### Check 1 — negative grep over `src/` for native-http serving symbols
+
+```
+$ grep -rl "HttpCallTemplate\|utcp_http\|http_call_template" src/
+(no output, exit 1)
+$ test -z "$(grep -rl 'HttpCallTemplate\|utcp_http\|http_call_template' src/ 2>/dev/null)" && echo SRC_CLEAN
+SRC_CLEAN
+```
+
+Result: **SRC_CLEAN** — no native-http serving symbols anywhere under `src/`.
+
+### Check 2 — `git diff` for this phase's commits shows no `src/` modification
+
+```
+$ git diff --name-only -- src/
+(empty)
+$ git diff --stat d3fd272..HEAD -- src/
+(empty)
+$ git diff --name-only -- src/ | grep -q . && echo "SRC_MODIFIED" || echo "SRC_UNMODIFIED"
+SRC_UNMODIFIED
+```
+
+Result: **SRC_UNMODIFIED** — zero files under `src/` were touched by any commit in this phase
+(`d3fd272` is the phase-plan-creation commit that precedes all of 02-01/02-02/02-03's work). The
+pre-existing `src/turing_agentmemory_mcp/utcp.py` manual EXPORT is confirmed untouched by this
+phase — it is the artifact *under test*, not modified by the spike.
+
+### Check 3 — `compose.yaml` gained no UTCP-serving/chat service
+
+```
+$ grep -Eqi "utcp.*serve|native.*utcp|llama.*chat|full_agent" compose.yaml && echo "COMPOSE_HAS_UTCP" || echo "COMPOSE_CLEAN"
+COMPOSE_HAS_UTCP
+```
+
+This literal check prints `COMPOSE_HAS_UTCP`, not `COMPOSE_CLEAN`. **Investigated — this is a false
+positive of the pattern, not a real SC#3 violation.** The single match is:
+
+```
+$ grep -Eni "utcp.*serve|native.*utcp|llama.*chat|full_agent" compose.yaml
+211:      - AGENTMEMORY_UTCP_SERVER_NAME
+```
+
+`AGENTMEMORY_UTCP_SERVER_NAME` is an environment-variable *name* whose substring `UTCP_SERVER_NAME`
+incidentally matches the `utcp.*serve` regex. It is not a new service, not native HTTP/CLI serving,
+and not a chat sidecar. Three facts prove this conclusively:
+
+1. **It predates this phase by three days.** `git blame -L 211,211 compose.yaml` shows it was
+   added in commit `c6ca8910` on 2026-07-09 (`feat: add durable asynchronous document ingestion`);
+   Phase 2 started 2026-07-12.
+2. **It is env-var passthrough on the pre-existing, single `turing-agentmemory-mcp` service**,
+   alongside its siblings `AGENTMEMORY_UTCP_MCP_COMMAND` and `AGENTMEMORY_UTCP_AUTH_ENV` (lines
+   211-213) — these three configure `utcp.py`'s existing `build_utcp_manual()` / `utcp-manual` CLI
+   export feature (already shipped, unrelated to native serving), not a new compose service block.
+3. **`compose.yaml` has a literal zero-line diff across this entire phase**, confirmed by
+   `git diff --stat d3fd272..HEAD -- compose.yaml` (empty output) — the file was not edited at all
+   by any commit in plans 02-01, 02-02, or 02-03. A file with zero diff cannot have "gained" a new
+   service by definition.
+
+```
+$ git diff --stat d3fd272..HEAD -- compose.yaml
+(empty)
+```
+
+Result: **COMPOSE_CLEAN** (substantively) — no UTCP-serving or chat-sidecar service was added to
+`compose.yaml`; the literal grep's `COMPOSE_HAS_UTCP` output is a false positive against
+pre-existing, unrelated, unmodified content, verified above with `git blame` + `git diff`.
+
+### SC#3 Conclusion
+
+All three checks confirm the hard gate holds: **zero UTCP native-serving code in `src/`, zero
+`src/` modification by this phase, and zero new UTCP/chat service in `compose.yaml`.** The
+throwaway `scripts/spike/native_http_prototype.py` (D-06) and `scripts/spike/full_agent_chat.py`
+(D-08a) built in plan 02-02 remain exactly where D-06 required — under `scripts/spike/`, never
+merged into `src/`, never wired into `compose.yaml`.
+
+---
+
 ## Trigger Conditions
 
 *(Included for completeness per D-09's structure, though the verdict is `stay-manual`, not
