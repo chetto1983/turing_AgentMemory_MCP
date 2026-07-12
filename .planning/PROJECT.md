@@ -111,6 +111,7 @@ correctness or tenant isolation is a failure, not progress.
 | One-command Docker stack as the deployment target, verified by the E2E gate | User chose "Reliable one-command stack" | — Pending |
 | Done = green gate (pytest + ruff + E2E score) + healthy compose + real-document E2E | User chose "Above + real doc E2E" | — Pending |
 | CI + pre-commit + pre-push modeled on Aura (lefthook + GitHub Actions, no-skip-as-green) | User: "install also all ci precommit and prepush look D:\Repo\Aura" | — Pending |
+| UTCP: stay-manual (keep mcp-call-template manual export; no native http/cli serving build) | Phase 2 spike's live round-trip (02-FINDINGS.md verdict) proved `utcp-agent` already consumes our tools end-to-end via the existing mcp call-template — the D-04 evidence showed the gaps found (auth type, command/args shape, tool-name prefix) are fixable emission bugs, not architectural blockers, while the D-06 native-http prototype demonstrated nonzero build cost not currently justified by any observed consumer failure | Verdict recorded; follow-on UTCP build work gated on 02-FINDINGS.md — no ROADMAP entry added (verdict is not "build") |
 
 ## Evolution
 
