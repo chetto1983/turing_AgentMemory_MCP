@@ -115,6 +115,7 @@ None yet.
 ### Roadmap Evolution
 
 - Phase 1 edited: SC#1 dropped file-size allowlist (no exemptions); added SC#5 store.py decomposition; REQUIREMENTS CI-01 updated to match
+- Phase 13 added: Harden UTCP support (follow-up to Phase 2 stay-manual verdict; scope open, to be set in plan-phase)
 
 ## Deferred Items
 

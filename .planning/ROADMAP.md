@@ -254,6 +254,17 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 11. Graph Projection Robustness | 0/TBD | Not started | - |
 | 12. Docker One-Command Stack + Real-Doc E2E | 0/TBD | Not started | - |
 
+### Phase 13: Harden UTCP support
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 12
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 13 to break down)
+
 ---
 *Roadmap created: 2026-07-11*
 *Coverage: 55/55 v1 requirements mapped to phases (no orphans, no duplicates)*
