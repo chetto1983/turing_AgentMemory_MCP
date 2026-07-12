@@ -147,3 +147,12 @@ None beyond the dependency-resolution fix documented above.
 ---
 *Phase: 02-utcp-spike*
 *Completed: 2026-07-12*
+
+## Self-Check: PASSED
+
+- FOUND: scripts/spike/requirements.txt
+- FOUND: tests/test_utcp_conformance.py
+- FOUND: .planning/phases/02-utcp-spike/02-01-SUMMARY.md
+- FOUND commit: 2d5bd1d
+- FOUND commit: 40600bd
+- FOUND commit: f19b3ec

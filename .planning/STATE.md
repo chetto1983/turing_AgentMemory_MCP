@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 2
-current_phase_name: UTCP Spike
+current_phase: 02
+current_phase_name: utcp-spike
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-07-12T16:49:26.660Z"
-last_activity: 2026-07-11
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-07-12T17:02:00.899Z"
+last_activity: 2026-07-12
+last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 12
   completed_phases: 1
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 12
+  completed_plans: 10
   percent: 8
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 01 — ci-git-hook-discipline
+**Current focus:** Phase 02 — utcp-spike
 
 ## Current Position
 
-Phase: 2 — UTCP Spike
-Plan: Not started
+Phase: 02 (utcp-spike) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-07-11 — Phase 01 complete, transitioned to Phase 2
+Last activity: 2026-07-12 — Phase 02 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P07 | 40min | 3 tasks | 7 files |
 | Phase 01 P08 | 5min | 2 tasks | 2 files |
 | Phase 01 P09 | 25min | 2 tasks | 1 files |
+| Phase 02 P01 | 25min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 01-08: no-skip-as-green guard (conftest.py hookwrapper) and its pytester negative self-test written verbatim from RESEARCH.md D-03/D-04 (no in-repo analog existed); RED test committed before GREEN implementation per TDD task order
 - [Phase 01]: 01-09: Redesigned dockerized-integration CI job to assert a measured GPU-less stub floor (score>=9.4, all 19 checks executed via jq/awk) instead of docker compose run --rm e2e's own exit code, because that script's VALIDATED_10_10 gate (score>=9.8, 19/19) is unreachable with the in-process HashingEmbedder stub (measured baseline: 9.474, 18/19) and would make CI permanently red on every GPU-less run
 - [Phase 01]: 01-09: Coverage floor measured at 78.12% (364 tests, e2e_score.py omitted) and wired as --cov-fail-under=78 in ci.yml's unit-tests job
+- [Phase ?]: Pinned langchain-openai to >=0.3,<1.0 (not >=1.0.0 as drafted) -- utcp-mcp transitively caps langchain-core<1.0.0, unresolvable against langchain-openai>=1.0.0's langchain-core>=1.4.9 requirement.
 
 ### Pending Todos
 
@@ -118,6 +120,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-12T16:08:55.451Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-utcp-spike/02-CONTEXT.md
+Last session: 2026-07-12T17:02:00.889Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
