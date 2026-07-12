@@ -8,18 +8,16 @@ name: CI
 # integration/gpu-marked tier sets `env: { CI: "true" }` to arm the tests/conftest.py
 # hookwrapper guard, converting a marked skip into a hard failure.
 #
-# GPU-less stub floor (D-05/D-06/CI-08): this repo has no GPU runner. The
+# E2E score gate (D-05/D-06/CI-08): this repo has no GPU runner. The
 # dockerized-integration job runs the deterministic E2E score gate against the
-# in-process stub embed/rerank endpoints scripts/e2e_score.py already spins up. The
-# HashingEmbedder stub cannot do semantic ranking, so this run cannot reach the
-# script's own internal 10/10 gate (currently 18/19 checks, score 9.474 — the script
-# itself reports "FAILED_SCORE_GATE" in stub mode; that is expected, not a
-# regression). Because of this, the CI job below does NOT assert the script's own
-# exit code — it asserts the measured stub floor instead (score >= 9.4, all 19
-# checks executed, never fewer — a real pass/fail signal, never a silent skip). A
-# full 19/19 VALIDATED_10_10 run requires real embed/rerank providers
-# (E2E_USE_EXTERNAL_EMBED=1/E2E_USE_EXTERNAL_RERANK=1 + GPU sidecars) and belongs to
-# a future GPU/real-embed CI tier, not this stub-only runner.
+# in-process stub embed/rerank endpoints scripts/e2e_score.py already spins up. Every
+# scenario check is decided by exact-token/lexical matching over deterministic test
+# fixtures, so the HashingEmbedder stub reaches the script's own VALIDATED_10_10 bar
+# (19/19 checks, score 10.0). The CI job below asserts that verdict directly: all 19
+# checks executed (never a silent skip), valid JSON, and VALIDATED_10_10
+# (check_count == 19 AND score >= 9.8). Real embed/rerank providers
+# (E2E_USE_EXTERNAL_EMBED=1/E2E_USE_EXTERNAL_RERANK=1 + GPU sidecars) exercise the
+# same checks with semantic ranking and belong to a future GPU/real-embed CI tier.
 #
 # CI-05 (real-document E2E): satisfied by the deterministic in-process real-file path
 # (D-10) — scripts/e2e_score.py's document flow plus the existing deterministic
@@ -98,30 +96,34 @@ jobs:
         # and fail with "pull access denied". Build the image (deps + turingdb, Linux)
         # up front so the run step has it locally.
         run: docker compose build e2e
-      - name: "E2E score gate — GPU-less stub floor (D-05/D-06): score >= 9.4, all 19 checks executed, never a silent skip"
+      - name: "E2E score gate — VALIDATED_10_10 (D-05/D-06): 19/19 checks executed, score >= 9.8, never a silent skip"
         run: |
-          # The script's own exit code asserts VALIDATED_10_10 (score>=9.8, 19/19
-          # checks) — a GPU/real-embed-tier bar this stub-mode runner cannot reach.
-          # `|| true` keeps this step alive past that non-zero exit so the floor
-          # assertion below runs against the captured result instead. Container stdout
-          # is pure JSON; compose orchestration noise goes to stderr (kept for debug).
-          docker compose run --rm e2e > e2e-stub-result.json 2> e2e-run.log || true
-          if ! jq -e . e2e-stub-result.json >/dev/null 2>&1; then
+          # The script's own exit code already asserts VALIDATED_10_10 (score>=9.8,
+          # 19/19 checks). `|| true` keeps this step alive so the explicit assertions
+          # below can report a precise diagnostic (which guard failed) instead of a
+          # bare non-zero exit. Container stdout is pure JSON; compose orchestration
+          # noise goes to stderr (kept for debug).
+          docker compose run --rm e2e > e2e-result.json 2> e2e-run.log || true
+          if ! jq -e . e2e-result.json >/dev/null 2>&1; then
             echo "FAIL: E2E produced no valid JSON result (image build or container run failed)."
             echo "--- compose/run stderr ---"; cat e2e-run.log || true
-            echo "--- captured stdout ---"; cat e2e-stub-result.json || true
+            echo "--- captured stdout ---"; cat e2e-result.json || true
             exit 1
           fi
-          score=$(jq '.score' e2e-stub-result.json)
-          check_count=$(jq '.check_count' e2e-stub-result.json)
-          verdict=$(jq -r '.verdict' e2e-stub-result.json)
-          echo "stub-mode E2E: score=$score check_count=$check_count verdict=$verdict"
+          score=$(jq '.score' e2e-result.json)
+          check_count=$(jq '.check_count' e2e-result.json)
+          verdict=$(jq -r '.verdict' e2e-result.json)
+          echo "E2E: score=$score check_count=$check_count verdict=$verdict"
           if [ "$check_count" != "19" ]; then
             echo "FAIL: expected 19 executed checks, got $check_count (a check may have been skipped — never a silent skip)"
             exit 1
           fi
-          if ! awk -v s="$score" 'BEGIN { exit !(s >= 9.4) }'; then
-            echo "FAIL: stub-mode score $score dropped below the measured 9.4 floor"
+          if ! awk -v s="$score" 'BEGIN { exit !(s >= 9.8) }'; then
+            echo "FAIL: score $score is below the VALIDATED_10_10 bar of 9.8"
             exit 1
           fi
-          echo "PASS: GPU-less stub floor met (this is NOT VALIDATED_10_10 — that requires real embed/rerank + GPU)"
+          if [ "$verdict" != "VALIDATED_10_10" ]; then
+            echo "FAIL: verdict is $verdict, expected VALIDATED_10_10"
+            exit 1
+          fi
+          echo "PASS: VALIDATED_10_10 (19/19 checks, score $score)"

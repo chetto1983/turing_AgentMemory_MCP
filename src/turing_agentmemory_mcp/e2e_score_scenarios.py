@@ -43,7 +43,7 @@ def check(checks: list[dict[str, Any]], name: str, fn: Callable[[], Any]) -> Non
         checks.append(
             {
                 "name": name,
-                "ok": True,
+                "ok": bool(detail),
                 "points": 1.0,
                 "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
                 "detail": detail,
@@ -336,9 +336,15 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
         )
 
         document_text = (
-            "Emergency stop reset requires the blue key and a safety guard interlock check.\n"
-            "After reset, verify guard interlock lights before restarting the conveyor.\n"
-            "Monthly maintenance records include oil inspection and checklist logging."
+            "Emergency stop reset requires the blue key and a safety guard interlock check "
+            "before power is restored to the conveyor line. Only certified operators may "
+            "perform the reset, and the guard interlock status must read green on the panel.\n"
+            "After the reset completes, verify that all guard interlock lights are illuminated "
+            "and steady before restarting the conveyor motor. If any interlock light flickers, "
+            "stop immediately and file a fault ticket with the maintenance supervisor on shift.\n"
+            "Monthly maintenance records include oil inspection, belt tension measurement, and "
+            "a signed checklist logged in the plant register. Keep completed log sheets for at "
+            "least twelve months to satisfy the annual safety audit requirements."
         )
         doc = payload(
             await client.call_tool(
@@ -385,9 +391,14 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
                     "document_id": "doc-incident-runbook",
                     "title": "Incident Runbook",
                     "text": (
-                        "Runbook RBK-4412 maps incident INC-7781 to C:\\ops\\delta\\router.yml "
-                        "and error E42-ALPHA.\n"
-                        "Escalation requires the NOC bridge and postmortem timeline capture."
+                        "Runbook RBK-4412 maps incident INC-7781 to the affected configuration "
+                        "file C:\\ops\\delta\\router.yml and the reported error E42-ALPHA. "
+                        "Operators should snapshot the current router.yml before applying any "
+                        "hotfix or rollback to the gateway.\n"
+                        "Escalation requires paging the on-call NOC bridge and capturing a full "
+                        "postmortem timeline within the first hour of the incident. Attach packet "
+                        "captures and the relevant service logs so the review board can "
+                        "reconstruct the failure sequence."
                     ),
                 },
             )
@@ -464,8 +475,14 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
                     "document_id": "doc-machine-safety",
                     "title": "Machine Safety Manual v2",
                     "text": (
-                        "Reindexed procedure now uses a green reset token and verified lockout.\n"
-                        "The previous blue key wording is obsolete after the safety retrofit."
+                        "Reindexed procedure now uses a green reset token and a verified lockout "
+                        "sequence before any energy source is restored to the machine. The "
+                        "operator scans the green token at the panel and confirms the lockout "
+                        "tags remain in place on every isolation point.\n"
+                        "The previous blue key wording is obsolete after the recent safety "
+                        "retrofit and must be struck from all printed copies of the manual. "
+                        "Update the training deck and the laminated line-side card so crews stop "
+                        "referencing the retired blue key entirely."
                     ),
                     "source": "e2e-reindex",
                     "tags": ["manual", "reindexed"],
