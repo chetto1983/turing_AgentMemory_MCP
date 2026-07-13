@@ -6,14 +6,13 @@ current_phase: 03
 current_phase_name: turingdb-retrieval-baseline
 status: executing
 stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-07-13T12:20:57.494Z"
+last_updated: "2026-07-13T15:20:09.441Z"
 last_activity: 2026-07-13
-last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 13
   completed_phases: 2
   total_plans: 16
-  completed_plans: 13
+  completed_plans: 15
   percent: 15
 ---
 
@@ -29,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 03 (turingdb-retrieval-baseline) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
-Last activity: 2026-07-13 -- Phase 03 execution started
+Last activity: 2026-07-13
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -69,6 +68,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P02 | 35min | 3 tasks | 3 files |
 | Phase 02 P03 | 30min | - tasks | - files |
 | Phase 03 P01 | 25min | 2 tasks | 3 files |
+| Phase 03-turingdb-retrieval-baseline P03 | 30min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -99,6 +99,8 @@ Recent decisions affecting current work:
 - [Phase ?]: UTCP verdict: stay-manual -- utcp-agent already consumes our tools end-to-end via the existing mcp call-template (02-FINDINGS.md); no gated ROADMAP entry added since verdict is not build.
 - [Phase ?]: 02-03: SC#3 Check 3's literal compose.yaml grep printed a false positive against the pre-existing AGENTMEMORY_UTCP_SERVER_NAME env var (2026-07-09, predates the phase) -- investigated via git blame + zero-diff git diff --stat and confirmed the hard gate holds.
 - [Phase 03]: 03-01: Wrapped the entire per-file generate closure (select_passages + generator.generate) in a single asyncio.to_thread(resolve_questions, ...) call per the plan's designed minimal-diff shape; used a nested def with default-parameter loop-variable capture instead of a lambda to satisfy ruff B023 while keeping real_document_benchmark.py at 587/600 LOC
+- [Phase ?]: BASELINE.md documents the ACTUAL captured stack (BGE reranker, granite embedder, real run params, SHA ab7abd0) not the plan's original assumed config
+- [Phase ?]: AS-OBSERVED D-07 confirmation: 4 e2e checks report ok=true with detail=false, independently confirming ~14/19 true-pass estimate, superseding RESEARCH.md ASSUMED candidate list
 
 ### Pending Todos
 
@@ -137,6 +139,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T12:20:57.471Z
+Last session: 2026-07-13T15:19:01.437Z
 Stopped at: Completed 03-01-PLAN.md
 Resume file: None

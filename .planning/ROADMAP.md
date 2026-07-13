@@ -108,7 +108,7 @@ Plans:
   2. The baseline artifact records provider config, corpus, and run parameters so it is reproducible and directly comparable later.
   3. The baseline is committed before any ArcadeDB code touches the stack.
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 
@@ -122,7 +122,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 — needs the captured raw JSONs)*
 
-- [ ] 03-03-PLAN.md — Assemble `baseline/03-turingdb/` (corpus-manifest, frozen-questions, BASELINE.md with D-11 metadata + as-observed D-07 caveats); force-add + commit
+- [x] 03-03-PLAN.md — Assemble `baseline/03-turingdb/` (corpus-manifest, frozen-questions, BASELINE.md with D-11 metadata + as-observed D-07 caveats); force-add + commit
 - [ ] 03-04-PLAN.md — D-12 supplemental hands-on validation (install MCP in Claude Code, verify ingest + cited tenant-scoped retrieval on the Italian corpus)
 
 ### Phase 4: ArcadeDB Direct Port
@@ -258,7 +258,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 |-------|----------------|--------|-----------|
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
-| 3. TuringDB Retrieval Baseline | 2/4 | In Progress|  |
+| 3. TuringDB Retrieval Baseline | 3/4 | In Progress|  |
 | 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
