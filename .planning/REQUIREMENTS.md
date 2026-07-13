@@ -22,7 +22,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [x] **ARC-01**: Snapshot the current TuringDB retrieval baseline (`e2e_score.py` + `real_document_benchmark.py`) before any backend change — the yardstick for the correctness gate
 - [x] **ARC-02**: ArcadeDB stood up as a Compose service (`arcadedata/arcadedb:26.7.1`) with its own persistent data volume
 - [x] **ARC-03**: Thin `arcadedb_client.py` over ArcadeDB's HTTP/JSON API using stdlib `urllib` (matching `embeddings.py`/`rerank.py`; evaluate the `postgresw` Postgres-wire path as an alternative)
-- [ ] **ARC-04**: `store.py` graph CRUD ported to ArcadeDB SQL (memories, documents, chunks, entities, facts, communities, and all edges) — direct port, no abstraction layer
+- [x] **ARC-04**: `store.py` graph CRUD ported to ArcadeDB SQL (memories, documents, chunks, entities, facts, communities, and all edges) — direct port, no abstraction layer
 - [x] **ARC-05**: Vector search ported to ArcadeDB native `LSM_VECTOR` (HNSW); the TuringDB `vector_id` int-join is deleted, not ported
 - [x] **ARC-06**: Full-text ported to ArcadeDB native Lucene; analyzer/tokenizer validated against golden queries; the SQLite-FTS5 outbox prepare/commit/replay path retired
 - [ ] **ARC-07**: One ArcadeDB database per tenant for physical isolation, with app-layer `user_identifier` scoping still mandatory on every query (invariant #1)
@@ -133,7 +133,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | ARC-01 | Phase 3 | Complete |
 | ARC-02 | Phase 4 | Complete |
 | ARC-03 | Phase 4 | Complete |
-| ARC-04 | Phase 4 | Pending |
+| ARC-04 | Phase 4 | Complete |
 | ARC-05 | Phase 4 | Complete |
 | ARC-06 | Phase 4 | Complete |
 | ARC-07 | Phase 5 | Pending |

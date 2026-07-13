@@ -137,7 +137,7 @@ Plans:
   3. Vector search runs on ArcadeDB native `LSM_VECTOR` (HNSW) with the TuringDB `vector_id` int-join deleted (not ported), built on a versioned/namespaced index foundation; full-text runs on native Lucene with the analyzer validated against golden queries and the SQLite-FTS5 outbox retired.
   4. `stable_id()` remains the sole cross-record identifier, stored as an indexed ArcadeDB property (never ArcadeDB's native RID); no vector-ID drift across the port.
 
-**Plans:** 3/9 plans executed
+**Plans:** 4/9 plans executed
 
 Plans:
 
@@ -152,7 +152,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 04-04-PLAN.md — store_core seam port: single-transaction writes (D-08) + probe-driven readiness (D-10) + store_from_env/compose env wiring; FTS5-outbox bootstrap retired (ARC-04, ARC-02, ARC-06)
+- [x] 04-04-PLAN.md — store_core seam port: single-transaction writes (D-08) + probe-driven readiness (D-10) + store_from_env/compose env wiring; FTS5-outbox bootstrap retired (ARC-04, ARC-02, ARC-06)
 
 **Wave 4** *(blocked on Wave 3 — parallel mixin ports, distinct files)*
 
@@ -287,7 +287,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
-| 4. ArcadeDB Direct Port | 3/9 | In Progress|  |
+| 4. ArcadeDB Direct Port | 4/9 | In Progress|  |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
