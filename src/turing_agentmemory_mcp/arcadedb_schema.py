@@ -1,12 +1,19 @@
 """Idempotent ArcadeDB schema bootstrap (D-09).
 
 Creates the canonical vertex/edge types, one full-precision COSINE `LSM_VECTOR`
-dense-vector channel and one native `LSM_SPARSE_VECTOR` lexical channel per
-content-bearing record type (D-04 spike decision -- native sparse-vector BM25
-beat Lucene `SEARCH_INDEX` on every primary-yardstick metric, see
-`.planning/phases/04-arcadedb-direct-port/04-SPIKE-FINDINGS.md`), and a UNIQUE
-index on the `id` property (the value `ids.stable_id()` produces) for every
-record type whose identity is not the raw tenant `user_identifier` (ARC-08).
+dense-vector channel, and BOTH lexical channels per content-bearing record
+type: a native `LSM_SPARSE_VECTOR` channel (the D-04 spike's higher-scoring
+candidate on the primary yardstick) and a native Lucene `FULL_TEXT` channel on
+the record's raw text property (`content`, or `text` for `Chunk`). This
+supersedes this module's original D-04-only framing: a later user decision
+reconciled the D-04 spike finding with pre-spike plans that already assumed a
+Lucene channel, landing on running BOTH channels through the existing Python
+RRF (`retrieval_fusion.py`, unchanged) rather than picking one. See
+`.planning/phases/04-arcadedb-direct-port/04-SPIKE-FINDINGS.md` for the D-04
+bake-off data and `04-03-SUMMARY.md`'s Amendment note for the both-channels
+decision. Also creates a UNIQUE index on the `id` property (the value
+`ids.stable_id()` produces) for every record type whose identity is not the
+raw tenant `user_identifier` (ARC-08).
 
 Every DDL form below was empirically verified against a live
 `arcadedata/arcadedb:26.7.1` container as part of this plan (04-03), not
@@ -83,6 +90,20 @@ STABLE_ID_TYPES: tuple[str, ...] = (
 _EMBEDDING_PROPERTY = "embedding"
 _LEXICAL_TOKENS_PROPERTY = "lexical_tokens"
 _LEXICAL_WEIGHTS_PROPERTY = "lexical_weights"
+# The raw text property each VECTOR_TYPE stores its content-bearing text
+# under, for the Lucene FULL_TEXT channel to index directly -- unlike the
+# derived lexical_tokens/lexical_weights sparse-vector channel (computed
+# application-side from arbitrary source text), Lucene must index the actual
+# stored property. Mirrors store_rebuild.py's `_canonical_vector_records`
+# text_property mapping: every type uses `content` except `Chunk`, which
+# stores its chunk body under `text`.
+_FULL_TEXT_PROPERTY_BY_TYPE: dict[str, str] = {
+    "Memory": "content",
+    "Chunk": "text",
+    "Entity": "content",
+    "Fact": "content",
+    "Community": "content",
+}
 _ALREADY_EXISTS_MARKER = "already exists"
 _INDEX_REF_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\[([A-Za-z_][A-Za-z0-9_]*)\]$")
 
@@ -192,6 +213,7 @@ def bootstrap(client: SchemaClient, *, dimensions: int, version: int = 1) -> Sch
     for type_name in VECTOR_TYPES:
         _bootstrap_vector_channel(client, type_name, config)
         _bootstrap_lexical_channel(client, type_name)
+        _bootstrap_full_text_channel(client, type_name)
 
     return config
 
@@ -234,6 +256,21 @@ def _bootstrap_lexical_channel(client: SchemaClient, type_name: str) -> None:
         f"CREATE INDEX ON {type_name} ({_LEXICAL_TOKENS_PROPERTY}, "
         f"{_LEXICAL_WEIGHTS_PROPERTY}) LSM_SPARSE_VECTOR",
     )
+
+
+def _bootstrap_full_text_channel(client: SchemaClient, type_name: str) -> None:
+    """Native Lucene `FULL_TEXT` index on the type's raw text property.
+
+    DDL form (`CREATE INDEX ON <type> (<property>) FULL_TEXT`, no `METADATA`
+    analyzer block -- default `StandardAnalyzer`) was empirically verified
+    live against `arcadedata/arcadedb:26.7.1` for this amendment, matching the
+    form `scripts/arcadedb_spike.py` already proved for its `SEARCH_INDEX`
+    bake-off channel. Feeds the same Python RRF as `LSM_SPARSE_VECTOR`
+    (both-channels decision -- see module docstring).
+    """
+    property_name = _FULL_TEXT_PROPERTY_BY_TYPE[type_name]
+    _create_property_if_missing(client, type_name, property_name, "STRING")
+    _create_index_idempotent(client, f"CREATE INDEX ON {type_name} ({property_name}) FULL_TEXT")
 
 
 def _create_type_if_missing(client: SchemaClient, kind: str, name: str) -> None:

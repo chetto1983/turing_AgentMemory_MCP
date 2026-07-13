@@ -13,7 +13,9 @@ from __future__ import annotations
 import re
 
 import pytest
+
 from turing_agentmemory_mcp.arcadedb_schema import (
+    _FULL_TEXT_PROPERTY_BY_TYPE,
     EDGE_TYPES,
     STABLE_ID_TYPES,
     VECTOR_TYPES,
@@ -95,6 +97,10 @@ def test_bootstrap_creates_full_schema_and_is_idempotent_on_rerun() -> None:
             f"CREATE INDEX ON {type_name} (lexical_tokens, lexical_weights) LSM_SPARSE_VECTOR" in s
             for s in statements
         )
+    for type_name, text_property in _FULL_TEXT_PROPERTY_BY_TYPE.items():
+        assert any(
+            f"CREATE INDEX ON {type_name} ({text_property}) FULL_TEXT" in s for s in statements
+        )
     for type_name in STABLE_ID_TYPES:
         assert any(f"CREATE INDEX ON {type_name} (id) UNIQUE" in s for s in statements)
 
@@ -155,6 +161,45 @@ def test_unique_index_is_on_stable_id_property_no_rid_reference() -> None:
 
     assert "getIdentity" not in joined
     assert "@rid" not in joined.lower()
+
+
+def test_bootstrap_creates_lucene_full_text_index_alongside_sparse_vector() -> None:
+    """Both-channels decision (user decision reconciling D-04 spike with
+    pre-spike plans): every VECTOR_TYPE gets a Lucene FULL_TEXT index on its
+    raw text property, in addition to the LSM_SPARSE_VECTOR channel -- not
+    instead of it. Chunk uses `text`; every other type uses `content`."""
+    client = _FakeArcadeDBClient()
+
+    bootstrap(client, dimensions=768, version=1)
+    statements = [entry[0] for entry in client.commands]
+
+    assert _FULL_TEXT_PROPERTY_BY_TYPE == {
+        "Memory": "content",
+        "Chunk": "text",
+        "Entity": "content",
+        "Fact": "content",
+        "Community": "content",
+    }
+    for type_name in VECTOR_TYPES:
+        text_property = _FULL_TEXT_PROPERTY_BY_TYPE[type_name]
+        assert any(
+            f"CREATE PROPERTY {type_name}.{text_property} IF NOT EXISTS STRING" in s
+            for s in statements
+        )
+        assert any(
+            f"CREATE INDEX ON {type_name} ({text_property}) FULL_TEXT" in s for s in statements
+        )
+        # still present -- FULL_TEXT is additive, not a replacement
+        assert any(
+            f"CREATE INDEX ON {type_name} (lexical_tokens, lexical_weights) LSM_SPARSE_VECTOR" in s
+            for s in statements
+        )
+
+    joined = "\n".join(statements).lower()
+    assert "search_index" not in joined  # bootstrap only creates the index, never queries it
+
+    # Re-run must not raise despite the fake's non-idempotent CREATE INDEX behavior.
+    bootstrap(client, dimensions=768, version=1)
 
 
 def test_introspect_vector_dimension_returns_none_when_no_sample_exists() -> None:
