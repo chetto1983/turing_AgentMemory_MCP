@@ -6,7 +6,7 @@ current_phase: 04
 current_phase_name: arcadedb-direct-port
 status: executing
 stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-07-13T20:23:39.950Z"
+last_updated: "2026-07-13T20:39:04.175Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 04 execution started
 progress:
@@ -117,6 +117,7 @@ Recent decisions affecting current work:
 - [Phase ?]: store_core seam ported to ArcadeDB (D-08/D-10/ARC-06): single managed transactions with read-your-writes, bound-param scoping, probe-driven readiness
 - [Phase ?]: _write_many signature changed from list[str] to list[tuple[str, params]] as the Wave 4 forward contract
 - [Phase ?]: load_graph_after_restart renamed to reconnect() per the grep-gate; benchmark_stages.py/e2e_score.py callers flagged as follow-up debt
+- [Phase ?]: Phase 4: lexical channel = BOTH LSM_SPARSE_VECTOR + Lucene FULL_TEXT on content, both feed Python RRF (user decision reconciling spike D-04 with pre-spike plans)
 
 ### Pending Todos
 

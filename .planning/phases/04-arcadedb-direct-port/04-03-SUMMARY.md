@@ -228,3 +228,42 @@ honored).
   (`f15fe49`) — confirmed passing (7/7 tests) after commit.
 - No REFACTOR commit was needed — the implementation was written directly
   against the test spec with no post-GREEN cleanup required.
+
+## Amendment (post-completion)
+
+A user decision this session reconciled the D-04 spike finding above with
+pre-spike plans that already assumed a Lucene channel: the lexical
+retrieval channel is now **BOTH** native `LSM_SPARSE_VECTOR` (this plan's
+original choice) **AND** a native Lucene `FULL_TEXT` index on the record's
+raw text property — both feed the existing Python RRF
+(`retrieval_fusion.py`, unchanged). This directly reverses the "Not
+Lucene — do not add a `SEARCH_INDEX`/`FULL_TEXT` call site" guidance
+recorded earlier in this summary; that guidance is superseded.
+
+`bootstrap()` now also creates, per `VECTOR_TYPES` (Memory, Chunk, Entity,
+Fact, Community):
+
+- `CREATE PROPERTY <Type>.<text_property> IF NOT EXISTS STRING`
+- `CREATE INDEX ON <Type> (<text_property>) FULL_TEXT`
+
+where `<text_property>` is `content` for every type except `Chunk`, which
+uses `text` (matching `store_rebuild.py`'s `_canonical_vector_records`
+text_property mapping — Chunk's raw text field is not named `content`).
+No `METADATA` analyzer block — default `StandardAnalyzer`, matching
+`scripts/arcadedb_spike.py`'s already-proven `SEARCH_INDEX` bake-off form.
+DDL verified live against the running `arcadedb` container (26.7.1) before
+landing, including idempotent re-create ("already exists" absorbed) and a
+`SEARCH_INDEX(...) ORDER BY $score` query against inserted data.
+
+The Lucene `SEARCH_INDEX`/`?`/`*` query-string escaping fragility
+documented above under `04-SPIKE-FINDINGS.md` Unknown 4 still applies and
+is now load-bearing (not moot): any future query builder that calls
+`SEARCH_INDEX` against this new index must escape Lucene special
+characters first.
+
+Landed as `feat(04-03): add Lucene full-text index to schema bootstrap
+(both-channels decision)` (commit `357fd6a`), extending
+`src/turing_agentmemory_mcp/arcadedb_schema.py` and
+`tests/test_arcadedb_schema.py` only. All 8 schema tests green (7 prior +
+1 new), ruff clean, file 293 LOC (< 600-LOC cap). This must land before
+Wave 4's write plans so Lucene indexes content as it is written.
