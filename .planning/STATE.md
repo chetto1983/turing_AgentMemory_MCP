@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 Phase: 3 — TuringDB Retrieval Baseline
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-07-12 — Phase 02 complete, transitioned to Phase 3
+Last activity: 2026-07-13 - Completed quick task 260713-i13: Fix flaky CI test test_server_drops_connections_above_worker_cap
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -111,6 +111,12 @@ None yet.
 - **Hard ordering (non-negotiable):** ARC-01 baseline (Phase 3) MUST be captured before any ArcadeDB code touches the stack; the ARC-09 migration-correctness gate (Phase 6) MUST pass before TuringDB is removed (Phase 7).
 - **Load-bearing MEDIUM-confidence assumption:** ArcadeDB adequacy as sole backend. Treat the filtered-ANN + Lucene-analyzer validation spike in Phase 4 as mandatory, not optional — there is no coexisting fallback backend.
 - Phases 8–11 parallelize off the port (each depends only on Phase 7); Phase 12 (Docker closing) needs the ArcadeDB, Garage, and Keycloak compose services all present.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260713-i13 | Fix flaky CI test test_server_drops_connections_above_worker_cap: broaden except to OSError to catch the ENOTCONN race from a server-dropped over-cap connection | 2026-07-13 | 432132a | [260713-i13-fix-flaky-test-test-server-drops-connect](./quick/260713-i13-fix-flaky-test-test-server-drops-connect/) |
 
 ### Roadmap Evolution
 
