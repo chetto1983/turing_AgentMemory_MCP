@@ -19,10 +19,14 @@ siblings.
 
 from __future__ import annotations
 
+import asyncio
+import re
 import sys
 import types
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 if "turingdb" not in sys.modules:
     sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
@@ -37,6 +41,25 @@ _STORE_CORE_PATH = (
 
 class _StubEmbedder:
     dimensions = 3
+
+
+class _TrackingSparseIndex:
+    """Fake `SparseIndex` -- proves `bootstrap()` no longer replays the FTS5
+    outbox (ARC-06: ArcadeDB's native Lucene/LSM_SPARSE_VECTOR is ACID, no
+    crash-recovery replay step needed)."""
+
+    def __init__(self) -> None:
+        self.initialize_called = False
+        self.replay_called = False
+
+    def initialize(self) -> None:
+        self.initialize_called = True
+
+    def replay(self) -> None:
+        self.replay_called = True
+
+    def status(self) -> dict[str, object]:
+        return {"status": "ready"}
 
 
 class _FakeArcadeDBClient:
@@ -290,3 +313,95 @@ def test_records_accepts_plain_list_of_dicts_not_a_dataframe() -> None:
 
     assert cleaned[0] == {"id": "a", "score": 1.0}
     assert cleaned[1]["score"] is None
+
+
+# -- Task 2, Test 1: bootstrap() sets the graph stage from a live probe --
+
+
+def test_bootstrap_sets_graph_ready_when_probe_succeeds(tmp_path: Path) -> None:
+    client = _FakeArcadeDBClient(probe_sequence=[True])
+    store = _make_store(client, tmp_path)
+
+    store.bootstrap()
+
+    assert store.runtime_signals.snapshot()["stages"]["graph"]["ready"] is True
+    ddl = "\n".join(stmt for stmt, _, _ in client.commands)
+    assert "CREATE VERTEX TYPE User IF NOT EXISTS" in ddl
+    assert "CREATE INDEX ON Memory (embedding) LSM_VECTOR" in ddl
+
+
+def test_bootstrap_leaves_graph_not_ready_when_probe_fails(tmp_path: Path) -> None:
+    client = _FakeArcadeDBClient(probe_sequence=[False])
+    store = _make_store(client, tmp_path)
+
+    store.bootstrap()
+
+    assert store.runtime_signals.snapshot()["stages"]["graph"]["ready"] is False
+
+
+# -- Task 2, Test 2: reconnect is a re-probe, no manual load step --
+
+
+def test_reconnect_reprobe_recovers_readiness_after_transient_failure(tmp_path: Path) -> None:
+    client = _FakeArcadeDBClient(probe_sequence=[False])
+    store = _make_store(client, tmp_path)
+    store.bootstrap()
+    assert store.runtime_signals.snapshot()["stages"]["graph"]["ready"] is False
+
+    client._probe_sequence = [True]
+
+    assert store.reconnect() is True
+    assert store.runtime_signals.snapshot()["stages"]["graph"]["ready"] is True
+
+
+# -- Task 2, Test 3: /health gates on a live probe, not a boot-time latch --
+
+
+def test_health_returns_503_when_not_ready_and_200_once_probe_recovers(tmp_path: Path) -> None:
+    from turing_agentmemory_mcp.server import create_mcp_app
+
+    client = _FakeArcadeDBClient(probe_sequence=[False])
+    store = _make_store(client, tmp_path)
+    store.bootstrap()
+    app = create_mcp_app(store)  # type: ignore[arg-type]
+
+    async def _get_health() -> httpx.Response:
+        transport = httpx.ASGITransport(app=app.http_app())
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as ac:
+            return await ac.get("/health")
+
+    response = asyncio.run(_get_health())
+    assert response.status_code == 503
+    assert response.json()["status"] == "degraded"
+
+    client._probe_sequence = [True]
+    response = asyncio.run(_get_health())
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+# -- Task 2, Test 4: bootstrap() no longer replays the FTS5 outbox (ARC-06) --
+
+
+def test_bootstrap_does_not_replay_fts5_outbox(tmp_path: Path) -> None:
+    client = _FakeArcadeDBClient(probe_sequence=[True])
+    sparse = _TrackingSparseIndex()
+    store = _make_store(client, tmp_path, sparse_index=sparse)
+
+    store.bootstrap()
+
+    assert sparse.initialize_called is False
+    assert sparse.replay_called is False
+
+
+def test_readiness_path_has_no_load_graph_or_bare_exception_swallow() -> None:
+    source = _STORE_CORE_PATH.read_text(encoding="utf-8")
+    assert "load_graph" not in source
+    assert "list_loaded_graphs" not in source
+    assert re.search(r"except Exception:\s*$", source, flags=re.MULTILINE) is None
+
+
+def test_sparse_outbox_replay_calls_absent_from_source() -> None:
+    source = _STORE_CORE_PATH.read_text(encoding="utf-8")
+    assert "sparse_index.initialize" not in source
+    assert "sparse_index.replay" not in source
