@@ -1,4 +1,4 @@
-"""Thin stdlib-`urllib` HTTP/JSON client for ArcadeDB (D-02 spike, spike-minimal scope).
+"""Thin stdlib-`urllib` HTTP/JSON client for ArcadeDB (D-02 spike, grown in 04-02).
 
 Mirrors the `OpenAICompatibleEmbedder`/`OpenAICompatibleReranker` convention
 (`embeddings.py`/`rerank.py`): a frozen dataclass config, a `from_env()` factory,
@@ -13,11 +13,28 @@ Do not change the endpoint prefix, session-header transaction model, or the
 `vectorNeighbors`/`SEARCH_INDEX` function spellings without re-running
 `tests/test_arcadedb_client.py` against a live container.
 
-Spike-minimal method surface only: `query`/`command`/`begin`/`commit`/`rollback`,
-`is_ready`/`probe`, and `ensure_database` (bootstrap glue the smoke test needs;
-the full idempotent schema bootstrap is D-09, a later wave). ArcadeDB's native
-record identity is never captured or returned as an identifier by this client --
-callers pass/receive only the `id`/`stable_id()` property values they supply.
+Full method surface (04-02): `query`/`command`/`sqlscript`/`begin`/`commit`/
+`rollback`, `run_in_transaction` (D-08 managed-transaction + bounded MVCC
+commit-retry-N wrapper), `is_ready`/`probe` (D-10 readiness), and
+`ensure_database` (bootstrap glue the smoke test needs; the full idempotent
+schema bootstrap is D-09, a later wave). ArcadeDB's native record identity is
+never captured or returned as an identifier by this client -- callers
+pass/receive only the `id`/`stable_id()` property values they supply.
+
+MVCC conflict signal (04-02 follow-up spike, empirically confirmed live, not
+in 04-SPIKE-FINDINGS.md which deferred it): a commit that loses an optimistic-
+concurrency race returns HTTP 503 with a JSON body whose `exception` field is
+`com.arcadedb.exception.ConcurrentModificationException`. Retrying that exact
+commit call again does NOT recover -- ArcadeDB invalidates the session on any
+failure, so the next call on the same session (commit, rollback, or command)
+returns a *different* error (`com.arcadedb.exception.TransactionException`,
+"Transaction not begun"). Two consequences drive this module's design:
+1. `_request`'s generic transport retry loop must skip retrying when the
+   error body is this conflict signal -- otherwise it silently retries into
+   the masking "Transaction not begun" error and the real conflict is lost.
+2. Recovering from a conflict requires redoing the *whole* begin -> body ->
+   commit cycle from a fresh session, not just re-POSTing `commit` -- this is
+   what `run_in_transaction` does, bounded by `ARCADEDB_COMMIT_RETRIES`.
 """
 
 from __future__ import annotations
@@ -25,8 +42,9 @@ from __future__ import annotations
 import base64
 import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeVar
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -35,6 +53,23 @@ from turing_agentmemory_mcp.provider_config import provider_env
 DEFAULT_BASE_URL = "http://127.0.0.1:2480"
 _RETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})
 _SESSION_HEADER = "arcadedb-session-id"
+_MVCC_CONFLICT_MARKER = "com.arcadedb.exception.ConcurrentModificationException"
+
+T = TypeVar("T")
+
+
+def is_mvcc_conflict(detail: str) -> bool:
+    """True when an ArcadeDB HTTP error body is the MVCC optimistic-concurrency
+    conflict signal (`ConcurrentModificationException`), not some other error.
+
+    Empirically confirmed live (04-02, see module docstring): this is the ONE
+    signal `_request`'s generic transport retry must not blindly retry past,
+    and the ONE signal `run_in_transaction`'s commit-retry-N wrapper redoes
+    the whole transaction for. Any other error (including a same-coded but
+    differently-caused HTTP 500/503) is not a conflict and must not trigger
+    either retry path.
+    """
+    return _MVCC_CONFLICT_MARKER in detail
 
 
 @dataclass(frozen=True)
@@ -52,6 +87,7 @@ class ArcadeDBClient:
     timeout_s: float = 30.0
     max_attempts: int = 3
     retry_base_s: float = 0.5
+    commit_retries: int = 3
 
     def __post_init__(self) -> None:
         if not self.base_url.strip():
@@ -62,6 +98,8 @@ class ArcadeDBClient:
             raise ValueError("ArcadeDB max attempts must be positive")
         if self.retry_base_s < 0:
             raise ValueError("ArcadeDB retry base seconds must not be negative")
+        if isinstance(self.commit_retries, bool) or self.commit_retries <= 0:
+            raise ValueError("ArcadeDB commit retries must be positive")
 
     @classmethod
     def from_env(cls) -> ArcadeDBClient:
@@ -73,9 +111,10 @@ class ArcadeDBClient:
             timeout_s=float(provider_env("ARCADEDB_TIMEOUT_SECONDS", default="30")),
             max_attempts=int(provider_env("ARCADEDB_MAX_ATTEMPTS", default="3")),
             retry_base_s=float(provider_env("ARCADEDB_RETRY_BASE_SECONDS", default="0.5")),
+            commit_retries=int(provider_env("ARCADEDB_COMMIT_RETRIES", default="3")),
         )
 
-    # -- transaction control (D-08 groundwork; the session header is the
+    # -- transaction control (D-08; the session header is the
     # empirically-confirmed read-your-writes mechanism -- see SPIKE-FINDINGS §3) --
 
     def begin(self) -> str:
@@ -89,6 +128,44 @@ class ArcadeDBClient:
 
     def rollback(self, session_id: str) -> None:
         self._request("POST", f"/api/v1/rollback/{self.database}", session_id=session_id)
+
+    def run_in_transaction(
+        self,
+        body: Callable[[str], T],
+        *,
+        commit_retries: int | None = None,
+    ) -> T:
+        """Run `body(session_id)` inside one managed begin/commit transaction
+        (D-08), retrying the WHOLE begin -> body -> commit cycle up to
+        `commit_retries` times when commit loses an MVCC conflict.
+
+        Empirically confirmed live (04-02, see module docstring): retrying
+        `commit` alone on the same session after a conflict does NOT recover
+        -- the session is invalidated server-side, so the entire transaction
+        must be redone from a fresh `begin()`. Any non-conflict failure from
+        `body` or `commit` propagates immediately after a best-effort
+        `rollback` -- this wrapper only retries the one MVCC signal.
+        """
+        attempts = commit_retries if commit_retries is not None else self.commit_retries
+        if isinstance(attempts, bool) or attempts <= 0:
+            raise ValueError("ArcadeDB commit retries must be positive")
+        last_exc: RuntimeError | None = None
+        for attempt in range(attempts):
+            session_id = self.begin()
+            try:
+                result = body(session_id)
+                self.commit(session_id)
+                return result
+            except RuntimeError as exc:
+                try:
+                    self.rollback(session_id)
+                except RuntimeError:
+                    pass  # session already invalidated by the failure above
+                if is_mvcc_conflict(str(exc)) and attempt + 1 < attempts:
+                    last_exc = exc
+                    continue
+                raise
+        raise last_exc or RuntimeError("ArcadeDB managed transaction exhausted commit retries")
 
     # -- query/command --
 
@@ -114,6 +191,22 @@ class ArcadeDBClient:
     ) -> list[dict[str, Any]]:
         return self._execute(
             "command", statement, params=params, language=language, session_id=session_id
+        )
+
+    def sqlscript(
+        self,
+        body: str,
+        *,
+        params: dict[str, object] | None = None,
+        session_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Multi-statement `BEGIN;...;COMMIT;` batch submitted in ONE call
+        (Pattern 1 / SPIKE-FINDINGS §3) -- a distinct, self-contained
+        mechanism from the session-header transaction model above; no
+        cross-call session is created or required.
+        """
+        return self._execute(
+            "command", body, params=params, language="sqlscript", session_id=session_id
         )
 
     def _execute(
@@ -193,10 +286,18 @@ class ArcadeDBClient:
                         raise RuntimeError(f"ArcadeDB {path} returned a non-object response")
                     return decoded, returned_session
             except HTTPError as exc:
-                if exc.code in _RETRYABLE_HTTP_CODES and attempt + 1 < self.max_attempts:
+                detail = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
+                # An MVCC conflict must never be blindly retried at this transport
+                # layer: retrying the identical request masks it behind a later,
+                # unrelated "Transaction not begun" error (see module docstring).
+                # `run_in_transaction` owns retry policy for that ONE signal.
+                if (
+                    exc.code in _RETRYABLE_HTTP_CODES
+                    and not is_mvcc_conflict(detail)
+                    and attempt + 1 < self.max_attempts
+                ):
                     time.sleep(self.retry_base_s * (2**attempt))
                     continue
-                detail = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
                 raise RuntimeError(f"ArcadeDB HTTP {exc.code} at {path}: {detail}") from exc
             except (URLError, TimeoutError, OSError) as exc:
                 if attempt + 1 < self.max_attempts:
