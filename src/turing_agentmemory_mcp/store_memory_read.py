@@ -323,7 +323,7 @@ class _MemoryReadMixin:
         self,
         row: dict[str, Any],
         *,
-        prefix: str,
+        prefix: str = "",
         source: str = "",
         required_tags: set[str] | None = None,
         created_after: datetime | None = None,
@@ -331,19 +331,26 @@ class _MemoryReadMixin:
         updated_after: datetime | None = None,
         updated_before: datetime | None = None,
     ) -> bool:
-        if source and str(row.get(f"{prefix}.source", "")) != source:
+        # `prefix=""` (the default, ArcadeDB's bare unqualified row-key
+        # convention -- store_documents.py, 04-06) reads e.g. "source"
+        # directly; a non-empty `prefix` (the retired Cypher `RETURN c.source`
+        # alias shape) reads "c.source" -- kept for any still-unported caller.
+        def key(name: str) -> str:
+            return f"{prefix}.{name}" if prefix else name
+
+        if source and str(row.get(key("source"), "")) != source:
             return False
-        tags = self._json_loads(row.get(f"{prefix}.tags_json"), [])
+        tags = self._json_loads(row.get(key("tags_json")), [])
         if required_tags and not required_tags <= set(tags if isinstance(tags, list) else []):
             return False
         if not self._timestamp_in_range(
-            str(row.get(f"{prefix}.created_at") or ""),
+            str(row.get(key("created_at")) or ""),
             after=created_after,
             before=created_before,
         ):
             return False
         return self._timestamp_in_range(
-            str(row.get(f"{prefix}.updated_at") or ""),
+            str(row.get(key("updated_at")) or ""),
             after=updated_after,
             before=updated_before,
         )

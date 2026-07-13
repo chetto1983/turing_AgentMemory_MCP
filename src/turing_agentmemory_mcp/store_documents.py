@@ -4,15 +4,30 @@ Split out of store.py (D-08/D-09, phase 01-02). `_active_chunk_rows` and
 `_document_chunk_batch_query` live in store_chunking.py (moved there in 01-01 per
 the RESEARCH.md sub-split note); `_rerank_documents`/`_reranked_score_details`
 live in store_search.py — both keep this module under the 600-LOC cap.
+
+Ported to ArcadeDB (04-06, ARC-04/ARC-05/ARC-06/PERF-01): document + chunk
+ingest builds a flat list of bound-param `Statement`s (`store_documents_queries.py`)
+committed in ONE managed transaction via `store_core.py`'s `_write_many` (D-08)
+-- the old TuringDB-shaped byte-budget batch splitter (`_document_graph_queries`/
+`_document_chunk_batch_query`) is retired along with it, since D-08's single
+managed transaction has no submit-before-match visibility gap to work around
+(store_core.py's docstring). Every Chunk's `id` is `ids.stable_id()` (ARC-08);
+the dense `embedding` and both lexical channels (`lexical_tokens`/
+`lexical_weights`, the both-channels decision) are inline record properties --
+no legacy synthetic-integer join property, no separate CSV vector-load step
+(ARC-05). Document search runs native HNSW (`vectorNeighbors`) plus native
+Lucene full-text (`SEARCH_INDEX`) as two bound, `user_identifier`-scoped
+channels, replacing the old full active-chunk-rows table scan this module's
+docstring used to fall back on for lexical matching -- the §1.3 full-scan the
+port fixes for free.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from turing_agentmemory_mcp.hybrid import blend_hybrid_score, lexical_score
-from turing_agentmemory_mcp.ids import cypher_var, quote, stable_id
+from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.models import DocumentHit, IngestedDocument
 from turing_agentmemory_mcp.search_controls import (
     build_score_details,
@@ -20,17 +35,21 @@ from turing_agentmemory_mcp.search_controls import (
     validate_search_query,
     validate_threshold,
 )
-
-
-@dataclass(frozen=True)
-class _DocumentChunkGraphUnit:
-    chunk_id: str
-    chunk_var: str
-    node: str
-    has_chunk_edge: str
-    previous_chunk_id: str = ""
-    previous_var: str = ""
-    next_chunk_edge: str = ""
+from turing_agentmemory_mcp.sparse_encoder import sparse_vector
+from turing_agentmemory_mcp.store_documents_queries import (
+    chunk_create_statement,
+    chunk_delete_statement,
+    chunk_lucene_search_statement,
+    chunk_metadata_update_statement,
+    chunk_vector_search_statement,
+    document_create_statement,
+    document_delete_statement,
+    document_edge_statement,
+    document_select_statement,
+    document_update_statement,
+    has_chunk_edge_statement,
+    next_chunk_edge_statement,
+)
 
 
 class _DocumentMixin:
@@ -143,28 +162,12 @@ class _DocumentMixin:
         self._require_user(user_identifier)
         if not document_id.strip():
             raise ValueError("document_id is required")
-        try:
-            rows = self._records(
-                self._query(
-                    f'MATCH (d:Document) WHERE d.id = "{quote(document_id)}" '
-                    f'AND d.user_identifier = "{quote(user_identifier)}" AND d.status = "searchable" '
-                    "RETURN d.id, d.user_identifier, d.title, d.chunk_count, d.created_at, "
-                    "d.updated_at, d.expires_at, d.source, d.tags_json, d.metadata_json, "
-                    "d.text_hash, d.chunk_chars",
-                    operation="document.get",
-                )
-            )
-        except Exception as exc:
-            if "Unknown label: Document" not in str(exc):
-                raise
-            return None
-        matching_rows = [
-            row
-            for row in rows
-            if str(row.get("d.id", "")) == document_id
-            and not self._row_is_expired(row, "d.expires_at")
-        ]
-        return self._document_from_row(matching_rows[0]) if matching_rows else None
+        statement, params = document_select_statement(
+            document_id=document_id, user_identifier=user_identifier
+        )
+        rows = self._records(self._query(statement, operation="document.get", params=params))
+        active_rows = [row for row in rows if not self._row_is_expired(row, "expires_at")]
+        return self._document_from_row(active_rows[0]) if active_rows else None
 
     def reindex_document_text(
         self,
@@ -226,15 +229,15 @@ class _DocumentMixin:
         if existing is None:
             return {"document_id": document_id, "deleted": False}
         updated_at = self._now_iso()
-        self._write(
-            f'MATCH (d:Document) WHERE d.id = "{quote(document_id)}" '
-            f'AND d.user_identifier = "{quote(user_identifier)}" '
-            f'SET d.status = "deleted", d.updated_at = "{quote(updated_at)}"'
-        )
-        self._write(
-            f'MATCH (c:Chunk) WHERE c.document_id = "{quote(document_id)}" '
-            f'AND c.user_identifier = "{quote(user_identifier)}" '
-            f'SET c.status = "deleted", c.updated_at = "{quote(updated_at)}"'
+        self._write_many(
+            [
+                document_delete_statement(
+                    document_id=document_id, user_identifier=user_identifier, updated_at=updated_at
+                ),
+                chunk_delete_statement(
+                    document_id=document_id, user_identifier=user_identifier, updated_at=updated_at
+                ),
+            ]
         )
         self._audit(
             operation="document.delete",
@@ -261,75 +264,73 @@ class _DocumentMixin:
         created_at: str | None = None,
     ) -> IngestedDocument:
         self._ensure_user(user_identifier)
-        doc_var = cypher_var(document_id)
         created_at = created_at or self._now_iso()
         updated_at = self._now_iso()
         clean_tags = self._clean_tags(tags)
         clean_metadata = dict(metadata or {})
-        document_node = (
-            f'({doc_var}:Document {{id: "{quote(document_id)}", user_identifier: "{quote(user_identifier)}", '
-            f'title: "{quote(title)}", chunk_count: {len(chunks)}, chunk_chars: {chunk_chars}, '
-            f'text_hash: "{quote(text_hash)}", source: "{quote(source)}", '
-            f'tags_json: "{quote(self._json_dumps(clean_tags))}", '
-            f'metadata_json: "{quote(self._json_dumps(clean_metadata))}", '
-            f'created_at: "{quote(created_at)}", updated_at: "{quote(updated_at)}", '
-            f'expires_at: "{quote(expires_at)}", status: "searchable"}})'
-        )
-        user_document_edge = f"(u)-[:HAS_DOCUMENT]->({doc_var})"
-        chunk_units: list[_DocumentChunkGraphUnit] = []
-        vector_rows: list[tuple[int, list[float]]] = []
+        # PERF-01: one batched embedding round-trip for every chunk.
         vectors = self._embed_many(chunks)
+
+        statements: list[tuple[str, dict[str, object]]] = [
+            document_create_statement(
+                document_id=document_id,
+                user_identifier=user_identifier,
+                title=title,
+                chunk_count=len(chunks),
+                chunk_chars=chunk_chars,
+                text_hash=text_hash,
+                source=source,
+                tags_json=self._json_dumps(clean_tags),
+                metadata_json=self._json_dumps(clean_metadata),
+                created_at=created_at,
+                updated_at=updated_at,
+                expires_at=expires_at,
+            ),
+            document_edge_statement(user_identifier=user_identifier, document_id=document_id),
+        ]
         previous_chunk_id = ""
-        previous_var = ""
         for idx, (chunk_text, vector) in enumerate(zip(chunks, vectors, strict=True), start=1):
-            chunk_id = f"{document_id}#{idx}"
-            chunk_var = cypher_var(chunk_id)
-            vid = self._document_vector_id(user_identifier, chunk_id)
+            # ARC-08: stable_id() is the sole chunk identifier -- no legacy
+            # synthetic-integer join property.
+            chunk_id = stable_id("chunk", user_identifier, document_id, str(idx))
             locator = f"chunk={idx}"
-            node = (
-                f'({chunk_var}:Chunk {{chunk_id: "{quote(chunk_id)}", vector_id: {vid}, '
-                f'document_id: "{quote(document_id)}", user_identifier: "{quote(user_identifier)}", '
-                f'title: "{quote(title)}", ordinal: {idx}, locator: "{locator}", '
-                f'source: "{quote(source)}", tags_json: "{quote(self._json_dumps(clean_tags))}", '
-                f'metadata_json: "{quote(self._json_dumps(clean_metadata))}", '
-                f'created_at: "{quote(created_at)}", updated_at: "{quote(updated_at)}", '
-                f'expires_at: "{quote(expires_at)}", status: "active", text: "{quote(chunk_text)}"}})'
-            )
-            has_chunk_edge = f"({doc_var})-[:HAS_CHUNK {{ordinal: {idx}}}]->({chunk_var})"
-            next_chunk_edge = (
-                f"({previous_var})-[:NEXT_CHUNK]->({chunk_var})" if previous_var else ""
-            )
-            chunk_units.append(
-                _DocumentChunkGraphUnit(
+            lexical_tokens, lexical_weights = sparse_vector(chunk_text)
+            statements.append(
+                chunk_create_statement(
                     chunk_id=chunk_id,
-                    chunk_var=chunk_var,
-                    node=node,
-                    has_chunk_edge=has_chunk_edge,
-                    previous_chunk_id=previous_chunk_id,
-                    previous_var=previous_var,
-                    next_chunk_edge=next_chunk_edge,
+                    document_id=document_id,
+                    user_identifier=user_identifier,
+                    title=title,
+                    ordinal=idx,
+                    locator=locator,
+                    source=source,
+                    tags_json=self._json_dumps(clean_tags),
+                    metadata_json=self._json_dumps(clean_metadata),
+                    created_at=created_at,
+                    updated_at=updated_at,
+                    expires_at=expires_at,
+                    text=chunk_text,
+                    embedding=vector,
+                    lexical_tokens=lexical_tokens,
+                    lexical_weights=lexical_weights,
                 )
             )
+            statements.append(
+                has_chunk_edge_statement(document_id=document_id, chunk_id=chunk_id, ordinal=idx)
+            )
+            if previous_chunk_id:
+                statements.append(
+                    next_chunk_edge_statement(
+                        previous_chunk_id=previous_chunk_id, chunk_id=chunk_id
+                    )
+                )
             previous_chunk_id = chunk_id
-            previous_var = chunk_var
-            vector_rows.append((vid, vector))
-        graph_queries = self._document_graph_queries(
-            user_identifier=user_identifier,
-            document_id=document_id,
-            doc_var=doc_var,
-            document_node=document_node,
-            user_document_edge=user_document_edge,
-            chunk_units=chunk_units,
-        )
-        if len(graph_queries) == 1:
-            self._write(graph_queries[0])
-        else:
-            self._write_many(graph_queries)
-        self._load_vectors(
-            self._tenant_vector_index(self.document_index, user_identifier),
-            vector_rows,
-            f"document_{document_id}",
-        )
+
+        # D-08: the whole document + every chunk + every edge is ONE managed
+        # transaction -- no byte-budget batch splitter is needed (that solved
+        # TuringDB's submit-before-match visibility gap, which does not exist
+        # under ArcadeDB's session-header read-your-writes model).
+        self._write_many(statements)
         return IngestedDocument(
             document_id=document_id,
             title=title,
@@ -344,75 +345,6 @@ class _DocumentMixin:
             text_hash=text_hash,
             chunk_chars=chunk_chars,
         )
-
-    def _document_graph_queries(
-        self,
-        *,
-        user_identifier: str,
-        document_id: str,
-        doc_var: str,
-        document_node: str,
-        user_document_edge: str,
-        chunk_units: list[_DocumentChunkGraphUnit],
-    ) -> list[str]:
-        user_match = f'MATCH (u:User) WHERE u.identifier = "{quote(user_identifier)}"'
-        all_literals = [document_node, *(unit.node for unit in chunk_units), user_document_edge]
-        for unit in chunk_units:
-            all_literals.append(unit.has_chunk_edge)
-            if unit.next_chunk_edge:
-                all_literals.append(unit.next_chunk_edge)
-        combined = f"{user_match} CREATE " + ", ".join(all_literals)
-        if len(combined.encode("utf-8")) <= self.document_graph_batch_bytes:
-            return [combined]
-
-        document_query = f"{user_match} CREATE {document_node}, {user_document_edge}"
-        if len(document_query.encode("utf-8")) > self.document_graph_batch_bytes:
-            raise ValueError("document metadata exceeds AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES")
-
-        queries = [document_query]
-        batch: list[_DocumentChunkGraphUnit] = []
-        for unit in chunk_units:
-            candidate = [*batch, unit]
-            candidate_query = self._document_chunk_batch_query(
-                user_identifier=user_identifier,
-                document_id=document_id,
-                doc_var=doc_var,
-                units=candidate,
-            )
-            exceeds_limit = len(candidate_query.encode("utf-8")) > self.document_graph_batch_bytes
-            exceeds_count = len(candidate) > self.document_graph_batch_chunks
-            if batch and (exceeds_limit or exceeds_count):
-                queries.append(
-                    self._document_chunk_batch_query(
-                        user_identifier=user_identifier,
-                        document_id=document_id,
-                        doc_var=doc_var,
-                        units=batch,
-                    )
-                )
-                batch = [unit]
-                candidate_query = self._document_chunk_batch_query(
-                    user_identifier=user_identifier,
-                    document_id=document_id,
-                    doc_var=doc_var,
-                    units=batch,
-                )
-            else:
-                batch = candidate
-            if len(candidate_query.encode("utf-8")) > self.document_graph_batch_bytes:
-                raise ValueError(
-                    f"document chunk {unit.chunk_id} exceeds AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES"
-                )
-        if batch:
-            queries.append(
-                self._document_chunk_batch_query(
-                    user_identifier=user_identifier,
-                    document_id=document_id,
-                    doc_var=doc_var,
-                    units=batch,
-                )
-            )
-        return queries
 
     def _update_document_metadata(
         self,
@@ -434,23 +366,29 @@ class _DocumentMixin:
         next_metadata = existing.metadata if metadata is None else dict(metadata)
         next_expires_at = existing.expires_at if expires_at is None else expires_at
         updated_at = existing.updated_at if preserve_updated_at else self._now_iso()
-        self._write(
-            f'MATCH (d:Document) WHERE d.id = "{quote(document_id)}" '
-            f'AND d.user_identifier = "{quote(user_identifier)}" AND d.status = "searchable" '
-            f'SET d.title = "{quote(title)}", d.source = "{quote(next_source)}", '
-            f'd.tags_json = "{quote(self._json_dumps(next_tags))}", '
-            f'd.metadata_json = "{quote(self._json_dumps(next_metadata))}", '
-            f'd.expires_at = "{quote(next_expires_at)}", '
-            f'd.updated_at = "{quote(updated_at)}"'
-        )
-        self._write(
-            f'MATCH (c:Chunk) WHERE c.document_id = "{quote(document_id)}" '
-            f'AND c.user_identifier = "{quote(user_identifier)}" AND c.status = "active" '
-            f'SET c.title = "{quote(title)}", c.source = "{quote(next_source)}", '
-            f'c.tags_json = "{quote(self._json_dumps(next_tags))}", '
-            f'c.metadata_json = "{quote(self._json_dumps(next_metadata))}", '
-            f'c.expires_at = "{quote(next_expires_at)}", '
-            f'c.updated_at = "{quote(updated_at)}"'
+        self._write_many(
+            [
+                document_update_statement(
+                    document_id=document_id,
+                    user_identifier=user_identifier,
+                    title=title,
+                    source=next_source,
+                    tags_json=self._json_dumps(next_tags),
+                    metadata_json=self._json_dumps(next_metadata),
+                    expires_at=next_expires_at,
+                    updated_at=updated_at,
+                ),
+                chunk_metadata_update_statement(
+                    document_id=document_id,
+                    user_identifier=user_identifier,
+                    title=title,
+                    source=next_source,
+                    tags_json=self._json_dumps(next_tags),
+                    metadata_json=self._json_dumps(next_metadata),
+                    expires_at=next_expires_at,
+                    updated_at=updated_at,
+                ),
+            ]
         )
         return IngestedDocument(
             document_id=document_id,
@@ -496,53 +434,61 @@ class _DocumentMixin:
             created_before_dt = self._parse_filter_datetime(created_before, "created_before")
             updated_after_dt = self._parse_filter_datetime(updated_after, "updated_after")
             updated_before_dt = self._parse_filter_datetime(updated_before, "updated_before")
-            literal = self._vector_literal(self._embed_text(query, operation="document.search"))
-            document_filter = ""
-            if document_id:
-                document_filter = f' AND c.document_id = "{quote(document_id)}"'
-            document_index = self._ensure_tenant_vector_index(self.document_index, user_identifier)
-            try:
-                vector_rows = self._records(
-                    self._query(
-                        f"VECTOR SEARCH IN {document_index} FOR {max(limit * 4, limit)} {literal} "
-                        f"YIELD ids, score MATCH (c:Chunk) "
-                        f'WHERE c.vector_id = ids AND c.user_identifier = "{quote(user_identifier)}" '
-                        f'AND c.status = "active"{document_filter} '
-                        "RETURN c.chunk_id, c.document_id, c.title, c.locator, c.text, c.vector_id, "
-                        "c.created_at, c.updated_at, c.expires_at, c.source, "
-                        "c.tags_json, c.metadata_json, score",
-                        operation="document.vector_search",
-                    )
-                )
-            except Exception as exc:
-                if "Unknown label: Chunk" not in str(exc):
-                    raise
-                return []
+            embedding = self._embed_text(query, operation="document.search")
+            # D-03: adaptive over-fetch-then-filter default -- filtered ANN
+            # k-underfills post-filter (spike-confirmed), so both channels
+            # over-fetch before the tenant/status/document/metadata filters run.
+            over_fetch = max(limit * 4, limit)
+
             rows_by_id: dict[str, dict[str, Any]] = {}
             semantic_by_id: dict[str, float] = {}
-            for row in vector_rows:
-                if self._row_is_expired(row, "c.expires_at"):
+
+            vector_statement, vector_params = chunk_vector_search_statement(
+                embedding=embedding,
+                k=over_fetch,
+                user_identifier=user_identifier,
+                document_id=document_id,
+            )
+            for row in self._records(
+                self._query(
+                    vector_statement, operation="document.vector_search", params=vector_params
+                )
+            ):
+                if self._row_is_expired(row, "expires_at"):
                     continue
-                chunk_id = str(row.get("c.chunk_id", ""))
+                chunk_id = str(row.get("id", ""))
                 if not chunk_id:
                     continue
-                semantic_by_id[chunk_id] = max(
-                    semantic_by_id.get(chunk_id, 0.0),
-                    float(row.get("score") or 0.0),
-                )
+                # vectorNeighbors returns a cosine distance (0 = identical);
+                # convert to a similarity-style score for blend_hybrid_score.
+                semantic_score = max(0.0, 1.0 - float(row.get("distance") or 0.0))
+                semantic_by_id[chunk_id] = max(semantic_by_id.get(chunk_id, 0.0), semantic_score)
                 rows_by_id[chunk_id] = row
-            for row in self._active_chunk_rows(user_identifier, document_id=document_id):
-                chunk_id = str(row.get("c.chunk_id", ""))
+
+            # Native Lucene full-text channel replaces the old full
+            # active-chunk-rows table scan this module used to fall back on
+            # for lexical matching (the §1.3 full-scan the port fixes for free).
+            lucene_statement, lucene_params = chunk_lucene_search_statement(
+                query=query,
+                limit=over_fetch,
+                user_identifier=user_identifier,
+                document_id=document_id,
+            )
+            for row in self._records(
+                self._query(
+                    lucene_statement, operation="document.lexical_search", params=lucene_params
+                )
+            ):
+                chunk_id = str(row.get("id", ""))
                 if chunk_id and chunk_id not in rows_by_id:
                     rows_by_id[chunk_id] = row
 
             seeds: list[DocumentHit] = []
             for chunk_id, row in rows_by_id.items():
-                if self._row_is_expired(row, "c.expires_at"):
+                if self._row_is_expired(row, "expires_at"):
                     continue
                 if not self._row_matches_metadata_filters(
                     row,
-                    prefix="c",
                     source=source,
                     required_tags=required_tags,
                     created_after=created_after_dt,
@@ -554,7 +500,7 @@ class _DocumentMixin:
                 semantic_score = semantic_by_id.get(chunk_id, 0.0)
                 lexical = lexical_score(
                     query,
-                    self._row_search_text(row, text_key="c.text", metadata_key="c.metadata_json"),
+                    self._row_search_text(row, text_key="text", metadata_key="metadata_json"),
                 )
                 final_score = blend_hybrid_score(
                     semantic_score=semantic_score, lexical_score=lexical
@@ -563,22 +509,22 @@ class _DocumentMixin:
                     continue
                 if not passes_threshold(final_score, threshold):
                     continue
-                context = self._chunk_context(int(row.get("c.vector_id") or 0))
-                tags = self._json_loads(row.get("c.tags_json"), [])
-                metadata = self._json_loads(row.get("c.metadata_json"), {})
+                context = self._chunk_context(chunk_id)
+                tags_value = self._json_loads(row.get("tags_json"), [])
+                metadata_value = self._json_loads(row.get("metadata_json"), {})
                 seeds.append(
                     DocumentHit(
-                        chunk_id=str(row.get("c.chunk_id", "")),
-                        document_id=str(row.get("c.document_id", "")),
-                        title=str(row.get("c.title", "")),
-                        locator=str(row.get("c.locator", "")),
-                        text=str(row.get("c.text", "")),
+                        chunk_id=chunk_id,
+                        document_id=str(row.get("document_id", "")),
+                        title=str(row.get("title", "")),
+                        locator=str(row.get("locator", "")),
+                        text=str(row.get("text", "")),
                         score=final_score,
                         context=context,
-                        expires_at=str(row.get("c.expires_at") or ""),
-                        source=str(row.get("c.source", "")),
-                        tags=tags if isinstance(tags, list) else [],
-                        metadata=metadata if isinstance(metadata, dict) else {},
+                        expires_at=str(row.get("expires_at") or ""),
+                        source=str(row.get("source", "")),
+                        tags=tags_value if isinstance(tags_value, list) else [],
+                        metadata=metadata_value if isinstance(metadata_value, dict) else {},
                         score_details=(
                             build_score_details(
                                 semantic_score=semantic_score,
