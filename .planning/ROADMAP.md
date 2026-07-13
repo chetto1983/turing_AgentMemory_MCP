@@ -129,7 +129,7 @@ Plans:
 
 **Goal**: `store.py` runs entirely on ArcadeDB — graph, vector, and full-text — with stable IDs preserved, replacing every TuringDB query in place with no abstraction layer.
 **Depends on**: Phase 3 (baseline must be captured before ArcadeDB code touches the stack)
-**Requirements**: ARC-02, ARC-03, ARC-04, ARC-05, ARC-06, ARC-08
+**Requirements**: ARC-02, ARC-03, ARC-04, ARC-05, ARC-06, ARC-08 — plus **pulled forward by user decision (CONTEXT.md D-07/D-08): PERF-01, PERF-02, INFRA-03** (batched embedding/extraction + single-transaction write path; versioned vector index + atomic swap). These are officially mapped to Phase 9; Phase 4 delivers them.
 **Success Criteria** (what must be TRUE):
 
   1. An `arcadedb` Compose service (`arcadedata/arcadedb:26.7.1`) with a persistent data volume starts healthy, and a thin `arcadedb_client.py` (stdlib `urllib` over the HTTP/JSON API) performs graph, vector, and full-text ops in a smoke test — with filtered-ANN and Lucene-analyzer behavior validated empirically first.
@@ -137,7 +137,33 @@ Plans:
   3. Vector search runs on ArcadeDB native `LSM_VECTOR` (HNSW) with the TuringDB `vector_id` int-join deleted (not ported), built on a versioned/namespaced index foundation; full-text runs on native Lucene with the analyzer validated against golden queries and the SQLite-FTS5 outbox retired.
   4. `stable_id()` remains the sole cross-record identifier, stored as an indexed ArcadeDB property (never ArcadeDB's native RID); no vector-ID drift across the port.
 
-**Plans**: TBD
+**Plans:** 9 plans
+
+Plans:
+
+**Wave 1** *(hard gate — D-02 spike alone; blocks every other plan)*
+
+- [ ] 04-01-PLAN.md — D-02 spike: stand up arcadedb 26.7.1 service + minimal urllib client + committed smoke test resolving the 5 §3 unknowns + D-04/D-05 bake-off vs the Phase-3 yardstick (ARC-02, ARC-03)
+
+**Wave 2** *(blocked on Wave 1 — consumes the spike's resolved syntax)*
+
+- [ ] 04-02-PLAN.md — Full ArcadeDBClient surface: transaction + commit-retry-N (D-08) + readiness probe (D-10) (ARC-03)
+- [ ] 04-03-PLAN.md — Idempotent schema bootstrap: versioned LSM_VECTOR + Lucene + UNIQUE stable_id, dimension-mismatch ValueError (D-09/D-07) (ARC-08, ARC-05, ARC-06, INFRA-03)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 04-04-PLAN.md — store_core seam port: single-transaction writes (D-08) + probe-driven readiness (D-10) + store_from_env/compose env wiring; FTS5-outbox bootstrap retired (ARC-04, ARC-02, ARC-06)
+
+**Wave 4** *(blocked on Wave 3 — parallel mixin ports, distinct files)*
+
+- [ ] 04-05-PLAN.md — Memory write/read port: inline vectors on stable_id, batched embed/extract (PERF-01/02), no vector_id (ARC-04, ARC-05, ARC-08, PERF-01, PERF-02)
+- [ ] 04-06-PLAN.md — Document ingest/chunking/search port: sqlscript+LET, native HNSW + Lucene, adaptive over-fetch (ARC-04, ARC-05, ARC-06, PERF-01)
+- [ ] 04-07-PLAN.md — Fused memory search + evidence traversal: HNSW dense + Lucene lexical + D-05 graph surface, RRF unchanged (ARC-04, ARC-05, ARC-06)
+- [ ] 04-08-PLAN.md — Rebuild + D-07 versioned-index atomic swap (no stale) + community-graph sqlscript (ARC-04, ARC-05, INFRA-03)
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 04-09-PLAN.md — Delete vector_id dead code + ID-drift/tenant-isolation/chaos-restart guards (D-10) + parity-comparable ArcadeDB capture (ARC-05, ARC-08)
 
 ### Phase 5: Per-Tenant ArcadeDB Isolation
 
@@ -197,6 +223,7 @@ Plans:
 **Goal**: Embedding, extraction, and vector retrieval are batched and tuned, and vector indexes are versioned with stale entries cleaned up.
 **Depends on**: Phase 7 (parallelizable off the port; touches the ArcadeDB vector index — may run alongside Phases 8, 10, 11)
 **Requirements**: PERF-01, PERF-02, PERF-03, FIX-06, INFRA-03, TEST-07, TEST-08
+> **Pulled forward into Phase 4 (CONTEXT.md D-07/D-08):** PERF-01, PERF-02 (batched embedding/extraction), and INFRA-03 (versioned vector index + atomic swap, which also subsumes the FIX-06 stale-vector fix on the new backend) are DELIVERED in Phase 4. Phase 9's remainder: PERF-03 adaptive-fetch tuning, A/B embedding-model swap/canary/rollback *using* the D-07 foundation, and TEST-07/TEST-08 (rebuild-under-active-queries + extraction failure-mode tests).
 **Success Criteria** (what must be TRUE):
 
   1. Embedding and memory-extraction calls are batched (single round-trip per batch), eliminating per-item HTTP calls for memories and document chunks.
@@ -237,6 +264,7 @@ Plans:
 
 **Goal**: `docker compose up` brings the whole ArcadeDB + Garage + Keycloak stack up healthy from a clean checkout, and a real document verifies end-to-end through the dockerized MCP.
 **Depends on**: Phases 8, 9, 10, 11 (final integration/verification pass — needs the ArcadeDB, Garage, and Keycloak compose services and all concern work landed)
+> **Pulled forward into Phase 4 (CONTEXT.md D-10):** the ArcadeDB reconnect/readiness/chaos-restart work is DELIVERED in Phase 4. Phase 12's remainder: the full one-command stack, real-doc E2E, GPU-visibility, and the Garage/Keycloak services.
 **Requirements**: DOCK-01, DOCK-02, DOCK-03, DOCK-04, DOCK-05, DOCK-06, DOCK-07
 **Success Criteria** (what must be TRUE):
 
@@ -259,7 +287,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
-| 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
+| 4. ArcadeDB Direct Port | 0/9 | Not started | - |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
