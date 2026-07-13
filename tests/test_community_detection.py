@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 import sys
 import types
@@ -163,21 +164,30 @@ class CommunityEmbedder:
         return [self.embed(text) for text in texts]
 
 
+class _ReadyClient:
+    """Minimal ArcadeDB-client stand-in exposing only what `runtime_status()`/
+    `_refresh_graph_readiness()` needs (04-08: `CommunityStore` overrides
+    `_replace_community_graph`/`_active_community_ids`/`_community_graph_inputs`
+    directly and never issues a real query/command through this client)."""
+
+    def is_ready(self) -> bool:
+        return True
+
+
 class CommunityStore(TuringAgentMemory):
     def __init__(self, tmp_path: Path) -> None:
         self.community_embedder = CommunityEmbedder()
         self.sparse = SparseIndex(tmp_path / "communities.sqlite3")
         self.sparse.initialize()
         super().__init__(
-            client=object(),  # type: ignore[arg-type]
+            client=_ReadyClient(),  # type: ignore[arg-type]
             turing_home=tmp_path,
             embedder=self.community_embedder,
             reranker=None,
             sparse_index=self.sparse,
             community_detector=NativeLeidenDetector(seed=42, max_cluster_size=10),
         )
-        self.replacements: list[object] = []
-        self.vector_loads: list[tuple[str, list[tuple[int, list[float]]]]] = []
+        self.replacements: list[dict[str, object]] = []
 
     def _community_graph_inputs(
         self,
@@ -204,19 +214,16 @@ class CommunityStore(TuringAgentMemory):
             {"m1": ("a", "b"), "m2": ("isolated",)},
         )
 
-    def _replace_community_graph(self, user_identifier: str, projections: list[object]) -> None:
-        self.replacements = list(projections)
+    def _replace_community_graph(
+        self,
+        user_identifier: str,
+        prepared: list[dict[str, object]],
+        existing_ids: set[str],
+    ) -> None:
+        self.replacements = list(prepared)
 
     def _active_community_ids(self, user_identifier: str) -> set[str]:
         return set()
-
-    def _load_vectors(
-        self,
-        index_name: str,
-        rows: list[tuple[int, list[float]]],
-        stem: str,
-    ) -> None:
-        self.vector_loads.append((index_name, rows))
 
 
 def test_store_rebuilds_embeds_and_sparse_indexes_grounded_communities(
@@ -230,19 +237,21 @@ def test_store_rebuilds_embeds_and_sparse_indexes_grounded_communities(
     assert result["isolate_count"] == 1
     assert len(store.replacements) == 1
     projection = store.replacements[0]
-    assert projection.member_ids == ("a", "b")
-    assert projection.source_memory_ids == ("m1",)
-    assert store.community_embedder.calls == [[projection.content]]
-    assert [name for name, _ in store.vector_loads] == [
-        store._tenant_vector_index(store.community_index, "alice")
-    ]
+    assert projection["member_ids"] == ["a", "b"]
+    assert json.loads(str(projection["source_memory_ids_json"])) == ["m1"]
+    assert store.community_embedder.calls == [[projection["content"]]]
+    # D-07/04-08: the community embedding + both lexical channels are inline
+    # in the prepared payload `_replace_community_graph` writes -- no more
+    # separate `_load_vectors`/tenant-vector-index CSV step to assert against.
+    assert isinstance(projection["embedding"], list) and projection["embedding"]
+    assert projection["lexical_tokens"], "both lexical channels populated via shared sparse_encoder"
     hits = store.sparse.search(
         user_identifier="alice",
         query="Alice Hiking",
         kinds=["community"],
         limit=10,
     )
-    assert [hit.source_id for hit in hits] == [projection.id]
+    assert [hit.source_id for hit in hits] == [projection["id"]]
 
 
 def test_batch_community_refresh_records_degradation_without_failing_ingest(

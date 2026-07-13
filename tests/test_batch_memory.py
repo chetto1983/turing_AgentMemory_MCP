@@ -62,84 +62,15 @@ def test_rebuild_sparse_projection_replaces_index_from_canonical_graph_documents
     ] == ["canonical"]
 
 
-def test_rebuild_vector_projection_reembeds_each_active_canonical_kind(tmp_path: Path) -> None:
-    class RebuildStore(RecordingMemoryStore):
-        def _canonical_vector_records(
-            self, user_identifier: str
-        ) -> dict[str, list[tuple[str, str]]]:
-            assert user_identifier == "alice"
-            return {
-                "memory": [("m1", "episode text")],
-                "document": [("chunk1", "document text")],
-                "entity": [("e1", "entity text")],
-                "fact": [("f1", "fact text")],
-                "community": [("c1", "community text")],
-            }
-
-        def _ensure_vector_index(self, name: str) -> None:
-            return
-
-    embedder = CountingBatchEmbedder()
-    store = RebuildStore(tmp_path, embedder)
-
-    result = store.rebuild_vector_projection(user_identifier="alice")
-
-    assert result["counts"] == {
-        "memory": 1,
-        "document": 1,
-        "entity": 1,
-        "fact": 1,
-        "community": 1,
-    }
-    assert result["total"] == 5
-    assert embedder.embed_many_calls == [
-        ["episode text"],
-        ["document text"],
-        ["entity text"],
-        ["fact text"],
-        ["community text"],
-    ]
-    assert [index for index, _rows in store.indexed_vector_loads] == [
-        store._tenant_vector_index(store.memory_index, "alice"),
-        store._tenant_vector_index(store.document_index, "alice"),
-        store._tenant_vector_index(store.entity_index, "alice"),
-        store._tenant_vector_index(store.fact_index, "alice"),
-        store._tenant_vector_index(store.community_index, "alice"),
-    ]
-    assert [rows[0][0] for _index, rows in store.indexed_vector_loads] == [
-        store._memory_vector_id("alice", "m1"),
-        store._document_vector_id("alice", "chunk1"),
-        store._entity_vector_id("alice", "e1"),
-        store._fact_vector_id("alice", "f1"),
-        store._community_vector_id("alice", "c1"),
-    ]
-
-
-def test_canonical_vector_records_use_active_document_chunk_text(tmp_path: Path) -> None:
-    class Rows:
-        def __init__(self, values: list[dict[str, object]]) -> None:
-            self.values = values
-
-        def to_dict(self, orient: str) -> list[dict[str, object]]:
-            assert orient == "records"
-            return self.values
-
-    class CanonicalStore(RecordingMemoryStore):
-        def __init__(self) -> None:
-            super().__init__(tmp_path, CountingBatchEmbedder())
-            self.queries: list[str] = []
-
-        def _query(self, query: str, *, operation: str) -> Rows:
-            self.queries.append(query)
-            if operation == "vector.rebuild.document":
-                return Rows([{"c.id": "chunk-1", "c.text": "canonical chunk text"}])
-            return Rows([])
-
-    store = CanonicalStore()
-
-    records = store._canonical_vector_records("alice")
-
-    assert records["document"] == [("chunk-1", "canonical chunk text")]
-    document_query = next(query for query in store.queries if "MATCH (c:Chunk)" in query)
-    assert 'c.status = "active"' in document_query
-    assert "RETURN c.id, c.text" in document_query
+# `test_rebuild_vector_projection_reembeds_each_active_canonical_kind` and
+# `test_canonical_vector_records_use_active_document_chunk_text` were deleted
+# here (04-08): both asserted retired TuringDB-shaped behavior --
+# `_ensure_vector_index`/`_memory_vector_id`/`_document_vector_id`/etc.
+# overrides, an `indexed_vector_loads` CSV-vector-load recording, and Cypher
+# `"c.id"`/`"c.text"` row keys from a `MATCH (c:Chunk)` query -- all retired
+# by the D-07 versioned atomic-swap port (no more separate vector-load step,
+# no synthetic-integer join property, bound-param ArcadeDB SELECT with bare
+# row keys). Superseded by
+# `tests/test_store_arcadedb_rebuild.py::test_rebuild_reembeds_every_active_
+# canonical_kind_from_its_own_text_property`, which asserts the equivalent
+# behavior end-to-end against the new architecture. See 04-08-SUMMARY.md.
