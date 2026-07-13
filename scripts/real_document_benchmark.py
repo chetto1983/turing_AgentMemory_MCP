@@ -473,9 +473,13 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             passages = select_passages(
                 _converted.text, count=args.question_count, passage_chars=args.passage_chars
             )
-            return generator.generate(filename=_path.name, passages=passages, count=args.question_count)
+            return generator.generate(
+                filename=_path.name, passages=passages, count=args.question_count
+            )
 
-        questions, usage = await asyncio.to_thread(resolve_questions, frozen, path.name, generate=generate)
+        questions, usage = await asyncio.to_thread(
+            resolve_questions, frozen, path.name, generate=generate
+        )
         total_bytes, sha256 = file_digest(path)
         document = {
             "path": str(path),
