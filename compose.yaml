@@ -77,6 +77,37 @@ services:
           cpus: "0.25"
           memory: 256m
 
+  arcadedb:
+    image: arcadedata/arcadedb:26.7.1
+    environment:
+      - JAVA_OPTS=-Darcadedb.server.rootPassword=${ARCADEDB_PASSWORD:-agentmemory-arcadedb-dev}
+    ports:
+      - "127.0.0.1:2480:2480"
+    volumes:
+      - arcadedb-data:/home/arcadedb/databases
+    user: "1000:1000"
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:2480/api/v1/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 80
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4g
+        reservations:
+          cpus: "0.5"
+          memory: 512m
+
   agentmemory-gliner:
     build:
       context: .
@@ -599,3 +630,4 @@ volumes:
   turing-data:
   agentmemory-llama-cache:
   agentmemory-gliner-cache:
+  arcadedb-data:
