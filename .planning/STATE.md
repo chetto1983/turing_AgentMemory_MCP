@@ -6,14 +6,14 @@ current_phase: 04
 current_phase_name: arcadedb-direct-port
 status: executing
 stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-07-13T22:21:16.526Z"
+last_updated: "2026-07-13T23:01:46.799Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 25
-  completed_plans: 22
+  completed_plans: 23
   percent: 23
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 04 (arcadedb-direct-port) — EXECUTING
-Plan: 3 of 9
+Plan: 4 of 9
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 04 execution started
 
@@ -77,6 +77,7 @@ Progress: [█████████░] 94%
 | Phase 04 P04 | 35min | 3 tasks | 4 files |
 | Phase 04 P05 | 53min | 2 tasks | 10 files |
 | Phase 04 P06 | 45min | 2 tasks | 8 files |
+| Phase 04 P07 | 95min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,8 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-06: _write_many (flat Statement list), not sqlscript+LET, is the document-ingest batch mechanism -- deleted the TuringDB byte-budget batch splitter entirely (no submit-before-match gap under D-08)
 - [Phase 04]: 04-06: document search runs native vectorNeighbors (HNSW) + native SEARCH_INDEX (Lucene) as two bound tenant-scoped channels merged by chunk_id, replacing the old full active-chunk-rows table scan lexical fallback
 - [Phase 04]: 04-06: Chunk id = stable_id('chunk', user_identifier, document_id, ordinal); the second both-channels lexical channel (LSM_SPARSE_VECTOR) stays reserved for 04-07's full RRF fusion, not consumed by this plan's simpler document-search blend
+- [Phase 04]: 04-07: BOTH-channels lexical decision resolved by merging vector.sparseNeighbors + SEARCH_INDEX into ONE bm25 RRF channel (not two new fusion_weights keys), keeping store_core.py's fusion schema untouched
+- [Phase 04]: 04-07: D-05 graph surface uses ONLY the object-notation MATCH {type:...,as:...,where:(...)}.out(){as:...} form (the ONLY form the spike empirically confirmed live for 26.7.1), not the simplified Cypher-like literal some generic docs show
 
 ### Pending Todos
 
@@ -164,6 +167,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T22:21:16.516Z
+Last session: 2026-07-13T23:00:58.270Z
 Stopped at: Completed 04-06-PLAN.md
 Resume file: None
