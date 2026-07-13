@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 3
-current_phase_name: TuringDB Retrieval Baseline
+current_phase: 03
+current_phase_name: turingdb-retrieval-baseline
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-07-13T11:55:42.018Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-07-13T12:20:57.494Z"
 last_activity: 2026-07-13
-last_activity_desc: "Completed quick task 260713-i13: Fix flaky CI test test_server_drops_connections_above_worker_cap"
+last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 13
   completed_phases: 2
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 16
+  completed_plans: 13
   percent: 15
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 02 — utcp-spike
+**Current focus:** Phase 03 — turingdb-retrieval-baseline
 
 ## Current Position
 
-Phase: 3 — TuringDB Retrieval Baseline
-Plan: Not started
+Phase: 03 (turingdb-retrieval-baseline) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-07-13 - Completed quick task 260713-i13: Fix flaky CI test test_server_drops_connections_above_worker_cap
+Last activity: 2026-07-13 -- Phase 03 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -68,6 +68,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P01 | 25min | 2 tasks | 3 files |
 | Phase 02 P02 | 35min | 3 tasks | 3 files |
 | Phase 02 P03 | 30min | - tasks | - files |
+| Phase 03 P01 | 25min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 02-02: Deferred the optional D-08a full-agent Gemma chat (would require a ~7-8GB one-off GGUF download); full_agent_chat.py correctly recorded the required non-silent-skip fallback message instead.
 - [Phase ?]: UTCP verdict: stay-manual -- utcp-agent already consumes our tools end-to-end via the existing mcp call-template (02-FINDINGS.md); no gated ROADMAP entry added since verdict is not build.
 - [Phase ?]: 02-03: SC#3 Check 3's literal compose.yaml grep printed a false positive against the pre-existing AGENTMEMORY_UTCP_SERVER_NAME env var (2026-07-09, predates the phase) -- investigated via git blame + zero-diff git diff --stat and confirmed the hard gate holds.
+- [Phase 03]: 03-01: Wrapped the entire per-file generate closure (select_passages + generator.generate) in a single asyncio.to_thread(resolve_questions, ...) call per the plan's designed minimal-diff shape; used a nested def with default-parameter loop-variable capture instead of a lambda to satisfy ruff B023 while keeping real_document_benchmark.py at 587/600 LOC
 
 ### Pending Todos
 
@@ -135,6 +137,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-12T18:00:12.463Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-turingdb-retrieval-baseline/03-CONTEXT.md
+Last session: 2026-07-13T12:20:57.471Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: None
