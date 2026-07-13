@@ -12,15 +12,6 @@ if "turingdb" not in sys.modules:
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
 
-class Rows:
-    def __init__(self, rows: list[dict[str, object]]) -> None:
-        self.rows = rows
-
-    def to_dict(self, orient: str) -> list[dict[str, object]]:
-        assert orient == "records"
-        return self.rows
-
-
 class NullEmbedder:
     dimensions = 3
 
@@ -43,13 +34,15 @@ class FilterStore(TuringAgentMemory):
         )
         self.memory_rows = memory_rows or []
 
-    def _query(self, query: str, *, operation: str) -> Rows:
+    def _query(
+        self, query: str, *, operation: str, params: dict[str, object] | None = None
+    ) -> list[dict[str, object]]:
         if operation == "memory.vector_search":
-            return Rows(self.memory_rows)
-        return Rows([])
+            return list(self.memory_rows)
+        return []
 
     def _active_memory_rows(self, user_identifier: str) -> list[dict[str, Any]]:
-        return [row for row in self.memory_rows if row["m.user_identifier"] == user_identifier]
+        return [row for row in self.memory_rows if row["user_identifier"] == user_identifier]
 
 
 class DocumentFilterStore(TuringAgentMemory):
@@ -92,22 +85,22 @@ def _memory_row(
     tags: list[str],
     created_at: str,
     updated_at: str | None = None,
-    score: float = 0.7,
+    distance: float = 0.3,
 ) -> dict[str, object]:
     return {
-        "m.id": memory_id,
-        "m.user_identifier": "alice",
-        "m.kind": kind,
-        "m.content": content,
-        "m.session_id": session_id,
-        "m.role": "user",
-        "m.created_at": created_at,
-        "m.updated_at": updated_at or created_at,
-        "m.expires_at": "",
-        "m.source": source,
-        "m.tags_json": json.dumps(tags),
-        "m.metadata_json": "{}",
-        "score": score,
+        "id": memory_id,
+        "user_identifier": "alice",
+        "kind": kind,
+        "content": content,
+        "session_id": session_id,
+        "role": "user",
+        "created_at": created_at,
+        "updated_at": updated_at or created_at,
+        "expires_at": "",
+        "source": source,
+        "tags_json": json.dumps(tags),
+        "metadata_json": "{}",
+        "distance": distance,
     }
 
 

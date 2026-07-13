@@ -61,8 +61,21 @@ class QueryClient:
         self.queries.append((query, params))
         upper = query.upper()
         if "MEMORY" in upper or "CHUNK" in upper:
-            return list(self.rows)
+            return self._filtered(params)
         return []
+
+    def _filtered(self, params: dict[str, object] | None) -> list[dict[str, object]]:
+        # Bound-param names mirror the row's own property name (04-05
+        # convention) -- narrow by any param key the row actually carries
+        # (e.g. `id`/`user_identifier`), skipping vector/limit-only params
+        # (`vec`/`k`/`qi`/`qv`) that don't correspond to a row property.
+        if not params:
+            return list(self.rows)
+        return [
+            row
+            for row in self.rows
+            if all(row.get(key) == value for key, value in params.items() if key in row)
+        ]
 
     def command(
         self,
@@ -216,26 +229,26 @@ def test_store_message_applies_redaction_before_embedding_and_audits_without_con
 
 def test_expired_memory_is_hidden_from_get_list_and_search(tmp_path: Path) -> None:
     expired_row = {
-        "m.id": "expired",
-        "m.user_identifier": "alice",
-        "m.kind": "message",
-        "m.content": "expired memory",
-        "m.session_id": "s1",
-        "m.role": "user",
-        "m.created_at": "2026-01-01T00:00:00Z",
-        "m.updated_at": "2026-01-01T00:00:00Z",
-        "m.expires_at": "2020-01-01T00:00:00Z",
-        "m.source": "test",
-        "m.tags_json": "[]",
-        "m.metadata_json": "{}",
-        "score": 0.99,
+        "id": "expired",
+        "user_identifier": "alice",
+        "kind": "message",
+        "content": "expired memory",
+        "session_id": "s1",
+        "role": "user",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "expires_at": "2020-01-01T00:00:00Z",
+        "source": "test",
+        "tags_json": "[]",
+        "metadata_json": "{}",
+        "distance": 0.01,
     }
     active_row = {
         **expired_row,
-        "m.id": "active",
-        "m.content": "active memory",
-        "m.expires_at": "2099-01-01T00:00:00Z",
-        "score": 0.98,
+        "id": "active",
+        "content": "active memory",
+        "expires_at": "2099-01-01T00:00:00Z",
+        "distance": 0.02,
     }
     client = QueryClient([expired_row, active_row])
     store = TuringAgentMemory(

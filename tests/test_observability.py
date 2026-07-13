@@ -60,7 +60,7 @@ class QueryRecordingClient:
         session_id: str | None = None,
     ) -> list[dict[str, object]]:
         self.queries.append((query, params))
-        if query.startswith("VECTOR SEARCH IN agent_memory_vectors"):
+        if 'vectorNeighbors("Memory[embedding]"' in query:
             return list(self.vector_rows)
         return []
 
@@ -126,20 +126,20 @@ class RecordingObserver:
         return [event for event in self.events if event["name"] == name]
 
 
-def _memory_row(memory_id: str, content: str, score: float) -> dict[str, object]:
+def _memory_row(memory_id: str, content: str, distance: float) -> dict[str, object]:
     return {
-        "m.id": memory_id,
-        "m.user_identifier": "alice",
-        "m.kind": "message",
-        "m.content": content,
-        "m.session_id": "s1",
-        "m.role": "user",
-        "m.created_at": "2026-07-09T00:00:00Z",
-        "m.updated_at": "2026-07-09T00:00:00Z",
-        "m.source": "test",
-        "m.tags_json": "[]",
-        "m.metadata_json": "{}",
-        "score": score,
+        "id": memory_id,
+        "user_identifier": "alice",
+        "kind": "message",
+        "content": content,
+        "session_id": "s1",
+        "role": "user",
+        "created_at": "2026-07-09T00:00:00Z",
+        "updated_at": "2026-07-09T00:00:00Z",
+        "source": "test",
+        "tags_json": "[]",
+        "metadata_json": "{}",
+        "distance": distance,
     }
 
 
@@ -165,11 +165,13 @@ def test_store_message_records_embed_query_and_vector_load_spans(tmp_path: Path)
     assert item.content == "observability memory marker"
     assert "memory.store_message" in observer.names()
     assert "embed" in observer.names()
-    assert "turingdb.query" in observer.names()
-    assert "turingdb.write_transaction" in observer.names()
-    assert "vector.load" in observer.names()
+    assert "arcadedb.query" in observer.names()
+    assert "arcadedb.write_batch" in observer.names()
+    # ARC-05: the dense embedding is an inline `CREATE VERTEX Memory` property
+    # -- no separate CSV vector-load span/step remains (matches this file's
+    # already-ported `test_ingest_document_text_records_chunk_and_embed_spans`).
+    assert "vector.load" not in observer.names()
     assert observer.by_name("embed")[0]["attributes"]["count"] == 1
-    assert observer.by_name("vector.load")[0]["attributes"]["rows"] == 1
     assert all(event["success"] is True for event in observer.events)
 
 
@@ -178,8 +180,8 @@ def test_search_memory_records_embed_query_and_rerank_spans(tmp_path: Path) -> N
     reranker = RecordingReranker()
     client = QueryRecordingClient(
         vector_rows=[
-            _memory_row("m1", "first memory about latency", 0.71),
-            _memory_row("m2", "second memory about spans", 0.69),
+            _memory_row("m1", "first memory about latency", 0.29),
+            _memory_row("m2", "second memory about spans", 0.31),
         ]
     )
     store = TuringAgentMemory(
@@ -195,7 +197,7 @@ def test_search_memory_records_embed_query_and_rerank_spans(tmp_path: Path) -> N
     assert [hit.id for hit in hits] == ["m2", "m1"]
     assert "memory.search" in observer.names()
     assert "embed" in observer.names()
-    assert "turingdb.query" in observer.names()
+    assert "arcadedb.query" in observer.names()
     assert "rerank" in observer.names()
     assert observer.by_name("rerank")[0]["attributes"]["kind"] == "memory"
     assert observer.by_name("rerank")[0]["attributes"]["count"] == 2

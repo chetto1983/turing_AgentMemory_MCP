@@ -17,7 +17,6 @@ from turing_agentmemory_mcp.memory_extraction import (
 )
 from turing_agentmemory_mcp.models import RetrievalEvidence
 from turing_agentmemory_mcp.rerank import RerankResult, Scored
-from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseIndex
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
 
@@ -28,9 +27,18 @@ class NullEmbedder:
         return [1.0, 0.0, 0.0]
 
 
+class ReadyOnlyClient:
+    """Minimal ArcadeDB-shaped stub for tests that only exercise
+    `runtime_status()`'s readiness probe (04-04's seam), never issuing an
+    actual query/command."""
+
+    def is_ready(self) -> bool:
+        return True
+
+
 def test_default_fusion_weights_prioritize_direct_evidence(tmp_path: Path) -> None:
     store = TuringAgentMemory(
-        client=object(),  # type: ignore[arg-type]
+        client=ReadyOnlyClient(),  # type: ignore[arg-type]
         turing_home=tmp_path,
         embedder=NullEmbedder(),
         fusion_enabled=True,
@@ -59,18 +67,18 @@ def memory_row(
     user_identifier: str = "alice",
 ) -> dict[str, object]:
     return {
-        "m.id": memory_id,
-        "m.user_identifier": user_identifier,
-        "m.kind": "message",
-        "m.content": f"source content {memory_id}",
-        "m.session_id": session_id,
-        "m.role": "user",
-        "m.created_at": "2026-07-10T10:00:00Z",
-        "m.updated_at": "2026-07-10T10:00:00Z",
-        "m.expires_at": "",
-        "m.source": source,
-        "m.tags_json": json.dumps(tags),
-        "m.metadata_json": "{}",
+        "id": memory_id,
+        "user_identifier": user_identifier,
+        "kind": "message",
+        "content": f"source content {memory_id}",
+        "session_id": session_id,
+        "role": "user",
+        "created_at": "2026-07-10T10:00:00Z",
+        "updated_at": "2026-07-10T10:00:00Z",
+        "expires_at": "",
+        "source": source,
+        "tags_json": json.dumps(tags),
+        "metadata_json": "{}",
     }
 
 
@@ -85,7 +93,7 @@ class FusedStore(TuringAgentMemory):
         reranker: object | None = None,
     ) -> None:
         super().__init__(
-            client=object(),  # type: ignore[arg-type]
+            client=ReadyOnlyClient(),  # type: ignore[arg-type]
             turing_home=tmp_path,
             embedder=NullEmbedder(),
             reranker=reranker,  # type: ignore[arg-type]
@@ -118,9 +126,9 @@ class FusedStore(TuringAgentMemory):
     ) -> dict[str, dict[str, Any]]:
         allowed = set(memory_ids)
         return {
-            str(row["m.id"]): row
+            str(row["id"]): row
             for row in self.rows
-            if row["m.id"] in allowed and row["m.user_identifier"] == user_identifier
+            if row["id"] in allowed and row["user_identifier"] == user_identifier
         }
 
 
@@ -248,15 +256,6 @@ def test_fused_search_returns_empty_when_all_evidence_sources_are_missing(
     assert store.search_memory(user_identifier="alice", query="memory", limit=5) == []
 
 
-class Rows:
-    def __init__(self, rows: list[dict[str, object]]) -> None:
-        self.rows = rows
-
-    def to_dict(self, orient: str) -> list[dict[str, object]]:
-        assert orient == "records"
-        return self.rows
-
-
 class QueryExtractor:
     def __init__(self, *, fail: bool = False) -> None:
         self.fail = fail
@@ -280,6 +279,17 @@ class QueryExtractor:
 
 
 class CollectorStore(TuringAgentMemory):
+    """ArcadeDB-shaped fixture (04-07): canned per-`operation` rows using the
+    ported bare-key convention (`"id"`, `"distance"`/`"score"`), replacing the
+    retired SQLite `SparseIndex` fixture -- the BOTH-channels lexical decision
+    reads native `vector.sparseNeighbors`/`SEARCH_INDEX` (here: canned
+    `*.lexical_search.sparse`/`*.lexical_search.lucene` rows), never the FTS5
+    outbox (ARC-06). `alice_entity_id`'s single Lucene episode hit on `m3`
+    plus its entity-lexical hit (expanded via the SAME
+    `graph.entity_direct_subject` traversal rows the `graph` channel test
+    also exercises) reproduce the old fixture's `{"m2", "m3"}` bm25 outcome.
+    """
+
     def __init__(
         self,
         tmp_path: Path,
@@ -287,71 +297,55 @@ class CollectorStore(TuringAgentMemory):
         extractor: QueryExtractor,
         fail_operation: str = "",
     ) -> None:
-        sparse = SparseIndex(tmp_path / "collector.sqlite3")
-        sparse.initialize()
         alice_entity_id = stable_id("ent", "alice", "person", "alice")
-        sparse.upsert_many(
-            [
-                SparseDocument("alice:episode:m3", "alice", "m3", "episode", "Alice trip"),
-                SparseDocument("alice:fact:f3", "alice", "f3", "fact", "Alice prefers tea"),
-                SparseDocument(
-                    f"alice:entity:{alice_entity_id}",
-                    "alice",
-                    alice_entity_id,
-                    "entity",
-                    "Alice (person)",
-                ),
-            ]
-        )
         super().__init__(
-            client=object(),  # type: ignore[arg-type]
+            client=ReadyOnlyClient(),  # type: ignore[arg-type]
             turing_home=tmp_path,
             embedder=NullEmbedder(),
             reranker=None,
             memory_extractor=extractor,
-            sparse_index=sparse,
             fusion_enabled=True,
         )
         self.fail_operation = fail_operation
         self.alice_entity_id = alice_entity_id
 
-    def _query(self, query: str, *, operation: str) -> Rows:
+    def _query(
+        self, query: str, *, operation: str, params: dict[str, object] | None = None
+    ) -> list[dict[str, object]]:
         if operation == self.fail_operation:
             raise RuntimeError("channel failed with private query")
-        rows = {
+        return {
             "memory.vector_search.fused": [
-                {"m.id": "m-low", "score": 0.1},
-                {"m.id": "m1", "score": 0.8},
+                {"id": "m-low", "distance": 0.9},
+                {"id": "m1", "distance": 0.2},
             ],
             "fact.vector_search": [
-                {"f.id": "f1", "f.source_memory_id": "m1", "score": 0.9},
+                {"id": "f1", "source_memory_id": "m1", "distance": 0.1},
             ],
             "entity.vector_search": [
-                {"e.id": self.alice_entity_id, "score": 0.7},
+                {"id": self.alice_entity_id, "distance": 0.3},
             ],
             "community.vector_search": [
                 {
-                    "c.id": "community-1",
-                    "c.source_memory_ids_json": '["m1", "m2"]',
-                    "score": 0.65,
+                    "id": "community-1",
+                    "source_memory_ids_json": '["m1", "m2"]',
+                    "distance": 0.35,
                 }
             ],
-            "fact.source_lookup": [
-                {"f.id": "f3", "f.source_memory_id": "m3", "f.confidence": 0.75},
-            ],
+            "memory.lexical_search.lucene": [{"id": "m3", "score": 5.0}],
+            "entity.lexical_search.lucene": [{"id": self.alice_entity_id, "score": 3.0}],
             "graph.entity_direct_subject": [
                 {
-                    "m.id": "m2",
-                    "f.id": "f2",
-                    "f.confidence": 0.85,
-                    "e.id": self.alice_entity_id,
+                    "memory_id": "m2",
+                    "fact_id": "f2",
+                    "confidence": 0.85,
+                    "entity_id": self.alice_entity_id,
                 }
             ],
             "graph.entity_direct_object": [],
             "graph.entity_two_hop_subject": [],
             "graph.entity_two_hop_object": [],
         }.get(operation, [])
-        return Rows(rows)
 
 
 def test_collectors_build_independent_dense_sparse_and_graph_channels(
