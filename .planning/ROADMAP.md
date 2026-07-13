@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: CI + Git-Hook Discipline** - lefthook hooks + GitHub Actions with no-skip-as-green, guarding every downstream change (completed 2026-07-11)
 - [x] **Phase 2: UTCP Spike** - Early findings-gated verdict on deeper UTCP support; no build commitment (completed 2026-07-12)
-- [ ] **Phase 3: TuringDB Retrieval Baseline** - Recorded, versioned baseline snapshot before any ArcadeDB work
+- [x] **Phase 3: TuringDB Retrieval Baseline** - Recorded, versioned baseline snapshot before any ArcadeDB work (completed 2026-07-13)
 - [ ] **Phase 4: ArcadeDB Direct Port** - `store.py` on ArcadeDB graph + native vector + native full-text, stable IDs preserved
 - [ ] **Phase 5: Per-Tenant ArcadeDB Isolation** - One database per tenant with mandatory `user_identifier` scoping still enforced
 - [ ] **Phase 6: Migration-Correctness Gate** - Ported stack provably meets-or-exceeds the baseline (hard exit criterion)
@@ -108,7 +108,7 @@ Plans:
   2. The baseline artifact records provider config, corpus, and run parameters so it is reproducible and directly comparable later.
   3. The baseline is committed before any ArcadeDB code touches the stack.
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 
@@ -123,7 +123,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 — needs the captured raw JSONs)*
 
 - [x] 03-03-PLAN.md — Assemble `baseline/03-turingdb/` (corpus-manifest, frozen-questions, BASELINE.md with D-11 metadata + as-observed D-07 caveats); force-add + commit
-- [ ] 03-04-PLAN.md — D-12 supplemental hands-on validation (install MCP in Claude Code, verify ingest + cited tenant-scoped retrieval on the Italian corpus)
+- [x] 03-04-PLAN.md — D-12 supplemental hands-on validation (install MCP in Claude Code, verify ingest + cited tenant-scoped retrieval on the Italian corpus)
 
 ### Phase 4: ArcadeDB Direct Port
 
@@ -258,7 +258,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 |-------|----------------|--------|-----------|
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
-| 3. TuringDB Retrieval Baseline | 3/4 | In Progress|  |
+| 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
 | 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
