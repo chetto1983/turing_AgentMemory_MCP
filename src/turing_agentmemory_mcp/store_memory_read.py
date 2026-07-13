@@ -3,6 +3,19 @@
 Split out of store.py (D-08/D-09, phase 01-01). `_row_is_expired`/`_active_memory_rows`/
 `_memory_matches_filters` are also consumed by `store_search.py`'s fused search path and
 `store_memory_write.py`'s write path, resolved via the TuringAgentMemory MRO at runtime.
+
+Ported to ArcadeDB (04-05, ARC-04/ARC-05): every query is a bound-param ArcadeDB
+SQL `SELECT`/`UPDATE` built in `store_memory_queries.py`; rows come back keyed
+by their bare (unqualified) property name (`"id"`, `"expires_at"`, ...) --
+ArcadeDB's own projection convention, not the retired Cypher `RETURN m.id`
+alias shape (`"m.id"`). `store_search.py`/`store_evidence.py` still read the
+old `"m."`-prefixed convention from `_active_memory_rows`/`_memory_from_row`
+until their own Wave-4 port (04-07) updates their call sites to match.
+`update_memory`'s kind-update no longer sets the legacy synthetic-integer join
+property -- the dense `embedding` and both lexical channels
+(`lexical_tokens`/`lexical_weights`) are inline record properties updated in
+the same bound-param `UPDATE` statement (ARC-05; no separate CSV vector-load
+step remains).
 """
 
 from __future__ import annotations
@@ -10,9 +23,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from turing_agentmemory_mcp.ids import cypher_var, quote
 from turing_agentmemory_mcp.models import MemoryItem
+from turing_agentmemory_mcp.sparse_encoder import sparse_vector
 from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseMutation
+from turing_agentmemory_mcp.store_memory_queries import (
+    memory_delete_statements,
+    memory_list_statement,
+    memory_select_statement,
+    memory_update_statement,
+)
 
 
 class _MemoryReadMixin:
@@ -20,27 +39,12 @@ class _MemoryReadMixin:
         self._require_user(user_identifier)
         if not memory_id.strip():
             raise ValueError("memory_id is required")
-        try:
-            rows = self._records(
-                self._query(
-                    f'MATCH (m:Memory) WHERE m.id = "{quote(memory_id)}" '
-                    f'AND m.user_identifier = "{quote(user_identifier)}" AND m.status = "active" '
-                    "RETURN m.id, m.user_identifier, m.kind, m.content, m.session_id, m.role, "
-                    "m.created_at, m.updated_at, m.expires_at, m.source, m.tags_json, m.metadata_json",
-                    operation="memory.get",
-                )
-            )
-        except Exception as exc:
-            if "Unknown label: Memory" not in str(exc):
-                raise
-            return None
-        matching_rows = [
-            row
-            for row in rows
-            if str(row.get("m.id", "")) == memory_id
-            and not self._row_is_expired(row, "m.expires_at")
-        ]
-        return self._memory_from_row(matching_rows[0]) if matching_rows else None
+        statement, params = memory_select_statement(
+            memory_id=memory_id, user_identifier=user_identifier
+        )
+        rows = self._records(self._query(statement, operation="memory.get", params=params))
+        active_rows = [row for row in rows if not self._row_is_expired(row, "expires_at")]
+        return self._memory_from_row(active_rows[0]) if active_rows else None
 
     def list_memories(
         self,
@@ -62,24 +66,11 @@ class _MemoryReadMixin:
         created_before_dt = self._parse_filter_datetime(created_before, "created_before")
         updated_after_dt = self._parse_filter_datetime(updated_after, "updated_after")
         updated_before_dt = self._parse_filter_datetime(updated_before, "updated_before")
-        try:
-            rows = self._records(
-                self._query(
-                    f'MATCH (m:Memory) WHERE m.user_identifier = "{quote(user_identifier)}" '
-                    'AND m.status = "active" '
-                    "RETURN m.id, m.user_identifier, m.kind, m.content, m.session_id, m.role, "
-                    "m.created_at, m.updated_at, m.expires_at, m.source, m.tags_json, m.metadata_json",
-                    operation="memory.list",
-                )
-            )
-        except Exception as exc:
-            if "Unknown label: Memory" not in str(exc):
-                raise
-            return []
+        rows = self._active_memory_rows(user_identifier)
         items = [
             self._memory_from_row(row)
             for row in rows
-            if not self._row_is_expired(row, "m.expires_at")
+            if not self._row_is_expired(row, "expires_at")
         ]
         items = [
             item
@@ -146,7 +137,15 @@ class _MemoryReadMixin:
                 next_content, next_metadata
             )
         updated_at = self._now_iso()
-        vid = self._memory_vector_id(user_identifier, memory_id)
+        content_changed = next_content != existing.content
+        embedding = None
+        if load_vector and content_changed:
+            embedding = (
+                vector
+                if vector is not None
+                else self._embed_text(next_content, operation="memory.update")
+            )
+        lexical_tokens, lexical_weights = sparse_vector(next_content)
         sparse_batch_id = None
         if self.sparse_index is not None:
             sparse_batch_id = self.sparse_index.prepare(
@@ -170,18 +169,24 @@ class _MemoryReadMixin:
                     )
                 ]
             )
+        statement = memory_update_statement(
+            memory_id=memory_id,
+            user_identifier=user_identifier,
+            kind=next_kind,
+            content=next_content,
+            session_id=next_session_id,
+            role=next_role,
+            source=next_source,
+            tags_json=self._json_dumps(next_tags),
+            metadata_json=self._json_dumps(next_metadata),
+            expires_at=next_expires_at,
+            updated_at=updated_at,
+            lexical_tokens=lexical_tokens,
+            lexical_weights=lexical_weights,
+            embedding=embedding,
+        )
         try:
-            self._write(
-                f'MATCH (m:Memory) WHERE m.id = "{quote(memory_id)}" '
-                f'AND m.user_identifier = "{quote(user_identifier)}" '
-                f'SET m.vector_id = {vid}, m.kind = "{quote(next_kind)}", '
-                f'm.content = "{quote(next_content)}", m.session_id = "{quote(next_session_id)}", '
-                f'm.role = "{quote(next_role)}", m.source = "{quote(next_source)}", '
-                f'm.tags_json = "{quote(self._json_dumps(next_tags))}", '
-                f'm.metadata_json = "{quote(self._json_dumps(next_metadata))}", '
-                f'm.expires_at = "{quote(next_expires_at)}", '
-                f'm.updated_at = "{quote(updated_at)}", m.status = "active"'
-            )
+            self._write_many([statement])
         except Exception:
             if sparse_batch_id is not None and self.sparse_index is not None:
                 self.sparse_index.discard_prepared(sparse_batch_id)
@@ -189,19 +194,6 @@ class _MemoryReadMixin:
         if sparse_batch_id is not None and self.sparse_index is not None:
             self.sparse_index.commit_batch(sparse_batch_id)
             self.sparse_index.replay(batch_id=sparse_batch_id)
-        if load_vector and next_content != existing.content:
-            self._load_vectors(
-                self._tenant_vector_index(self.memory_index, user_identifier),
-                [
-                    (
-                        vid,
-                        vector
-                        if vector is not None
-                        else self._embed_text(next_content, operation="memory.update"),
-                    )
-                ],
-                f"memory_{memory_id}",
-            )
         item = MemoryItem(
             id=memory_id,
             user_identifier=user_identifier,
@@ -246,26 +238,14 @@ class _MemoryReadMixin:
                     ],
                 ]
             )
-        match_nodes = ["(m:Memory)"] + [f"({cypher_var(fact_id)}:Fact)" for fact_id in fact_ids]
-        where_terms = [
-            f'm.id = "{quote(memory_id)}"',
-            f'm.user_identifier = "{quote(user_identifier)}"',
-            *[f'{cypher_var(fact_id)}.id = "{quote(fact_id)}"' for fact_id in fact_ids],
-        ]
-        set_terms = [
-            'm.status = "deleted"',
-            f'm.updated_at = "{quote(updated_at)}"',
-            *[f'{cypher_var(fact_id)}.status = "deleted"' for fact_id in fact_ids],
-        ]
+        statements = memory_delete_statements(
+            memory_id=memory_id,
+            user_identifier=user_identifier,
+            fact_ids=fact_ids,
+            updated_at=updated_at,
+        )
         try:
-            self._write(
-                "MATCH "
-                + ", ".join(match_nodes)
-                + " WHERE "
-                + " AND ".join(where_terms)
-                + " SET "
-                + ", ".join(set_terms)
-            )
+            self._write_many(statements)
         except Exception:
             if sparse_batch_id is not None and self.sparse_index is not None:
                 self.sparse_index.discard_prepared(sparse_batch_id)
@@ -282,21 +262,21 @@ class _MemoryReadMixin:
         return {"memory_id": memory_id, "deleted": True, "updated_at": updated_at}
 
     def _memory_from_row(self, row: dict[str, Any], *, score: float = 1.0) -> MemoryItem:
-        tags = self._json_loads(row.get("m.tags_json"), [])
-        metadata = self._json_loads(row.get("m.metadata_json"), {})
-        created_at = str(row.get("m.created_at") or "")
+        tags = self._json_loads(row.get("tags_json"), [])
+        metadata = self._json_loads(row.get("metadata_json"), {})
+        created_at = str(row.get("created_at") or "")
         return MemoryItem(
-            id=str(row.get("m.id", "")),
-            user_identifier=str(row.get("m.user_identifier", "")),
-            kind=str(row.get("m.kind", "")),
-            content=str(row.get("m.content", "")),
-            session_id=str(row.get("m.session_id", "")),
-            role=str(row.get("m.role", "")),
+            id=str(row.get("id", "")),
+            user_identifier=str(row.get("user_identifier", "")),
+            kind=str(row.get("kind", "")),
+            content=str(row.get("content", "")),
+            session_id=str(row.get("session_id", "")),
+            role=str(row.get("role", "")),
             score=score,
             created_at=created_at,
-            updated_at=str(row.get("m.updated_at") or created_at),
-            expires_at=str(row.get("m.expires_at") or ""),
-            source=str(row.get("m.source", "")),
+            updated_at=str(row.get("updated_at") or created_at),
+            expires_at=str(row.get("expires_at") or ""),
+            source=str(row.get("source", "")),
             tags=tags if isinstance(tags, list) else [],
             metadata=metadata if isinstance(metadata, dict) else {},
         )
@@ -369,20 +349,8 @@ class _MemoryReadMixin:
         )
 
     def _active_memory_rows(self, user_identifier: str) -> list[dict[str, Any]]:
-        try:
-            return self._records(
-                self._query(
-                    f'MATCH (m:Memory) WHERE m.user_identifier = "{quote(user_identifier)}" '
-                    'AND m.status = "active" '
-                    "RETURN m.id, m.user_identifier, m.kind, m.content, m.session_id, m.role, "
-                    "m.created_at, m.updated_at, m.expires_at, m.source, m.tags_json, m.metadata_json",
-                    operation="memory.active_rows",
-                )
-            )
-        except Exception as exc:
-            if "Unknown label: Memory" not in str(exc):
-                raise
-            return []
+        statement, params = memory_list_statement(user_identifier=user_identifier)
+        return self._records(self._query(statement, operation="memory.active_rows", params=params))
 
     @staticmethod
     def _clean_limit(limit: int) -> int:
