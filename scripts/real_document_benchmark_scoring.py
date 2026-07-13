@@ -152,7 +152,17 @@ def file_digest(path: Path) -> tuple[int, str]:
 def load_frozen_questions(path: Path) -> dict[str, list[dict[str, str]]]:
     """Load a previously-frozen per-file question set (D-08). Raises ValueError on
     schema mismatch so a corrupted/incompatible freeze fails loudly, not silently."""
-    raise NotImplementedError
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    by_file = payload.get("questions_by_document")
+    if not isinstance(by_file, dict) or not by_file:
+        raise ValueError("frozen-questions file has no questions_by_document mapping")
+    required = {"source_id", "question", "answer", "evidence_quote"}
+    for filename, rows in by_file.items():
+        if not isinstance(rows, list) or not all(
+            isinstance(row, dict) and required <= row.keys() for row in rows
+        ):
+            raise ValueError(f"frozen questions for {filename} are malformed")
+    return by_file
 
 
 def resolve_questions(
@@ -163,7 +173,15 @@ def resolve_questions(
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
     """Return the frozen questions for `filename` without invoking `generate` when a
     frozen set is loaded (D-08); otherwise fall back to `generate()`."""
-    raise NotImplementedError
+    if frozen is not None:
+        usage: dict[str, Any] = {
+            "frozen": True,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "attempt": 0,
+        }
+        return frozen[filename], usage
+    return generate()
 
 
 def select_passages(text: str, *, count: int, passage_chars: int) -> list[dict[str, str]]:
