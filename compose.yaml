@@ -157,7 +157,7 @@ services:
       - EMBED_API_KEY_HEADER
       - EMBED_API_KEY_SCHEME
       - RERANK_BASE_URL=${RERANK_BASE_URL:-http://agentmemory-rerank:8080}
-      - RERANK_MODEL=${RERANK_MODEL:-Qwen3-Reranker-0.6B-q8_0.gguf}
+      - RERANK_MODEL=${RERANK_MODEL:-bge-reranker-v2-m3-Q8_0.gguf}
       - RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}
       - RERANK_CANDIDATE_LIMIT=${RERANK_CANDIDATE_LIMIT:-50}
       - RERANK_DIMENSIONS
@@ -271,6 +271,10 @@ services:
           'https://huggingface.co/Mungert/Qwen3-Reranker-0.6B-GGUF/resolve/041387f8ed7ead711b9496b153b682c5b2f5d158/Qwen3-Reranker-0.6B-q8_0.gguf?download=true' \
           '8b5337e5baadf83fdd6f7a865dde4b3627fc53a1c8e56cc2f83260dfdd089c49' \
           '/models/pinned/Qwen3-Reranker-0.6B-q8_0.gguf'
+        provision \
+          'https://huggingface.co/gpustack/bge-reranker-v2-m3-GGUF/resolve/3093af03b1a635e67b084b1d8c03c5f5e020fd05/bge-reranker-v2-m3-Q8_0.gguf?download=true' \
+          'a43c7c9b11a4c1517e5bf95151960e1621d1b72f7a493364b01e386cf1aaa1d3' \
+          '/models/pinned/bge-reranker-v2-m3-Q8_0.gguf'
     volumes:
       - agentmemory-llama-cache:/models
     user: "10001:10001"
@@ -468,7 +472,7 @@ services:
     gpus: all
     command:
       - --model
-      - /models/pinned/Qwen3-Reranker-0.6B-q8_0.gguf
+      - /models/pinned/bge-reranker-v2-m3-Q8_0.gguf
       - --rerank
       - --embedding
       - --pooling
