@@ -32,8 +32,10 @@ try:
         evidence_rank,
         file_digest,
         load_env_file,
+        load_frozen_questions,
         normalize_text,
         parse_generated_questions,
+        resolve_questions,
         safe_id,
         select_evidence,
         select_passages,
@@ -45,8 +47,10 @@ except ImportError:  # running as `python scripts/real_document_benchmark.py` di
         evidence_rank,
         file_digest,
         load_env_file,
+        load_frozen_questions,
         normalize_text,
         parse_generated_questions,
+        resolve_questions,
         safe_id,
         select_evidence,
         select_passages,
@@ -92,6 +96,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--question-api-key-env", default="PROVIDER_API_KEY")
     parser.add_argument("--env-file", default=".env")
+    parser.add_argument("--frozen-questions", default="")
     return parser.parse_args()
 
 
@@ -429,6 +434,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         api_key=api_key,
         model=args.question_model,
     )
+    frozen = load_frozen_questions(Path(args.frozen_questions)) if args.frozen_questions else None
     artifact: dict[str, Any] = {
         "schema_version": 1,
         "benchmark_id": benchmark_id,
@@ -460,17 +466,16 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
     for path in files:
         started = time.perf_counter()
         converted = await asyncio.to_thread(convert_document_to_markdown, path)
-        passages = select_passages(
-            converted.text,
-            count=args.question_count,
-            passage_chars=args.passage_chars,
-        )
-        questions, usage = await asyncio.to_thread(
-            generator.generate,
-            filename=path.name,
-            passages=passages,
-            count=args.question_count,
-        )
+
+        def generate(
+            _path: Path = path, _converted: Any = converted
+        ) -> tuple[list[dict[str, str]], dict[str, Any]]:
+            passages = select_passages(
+                _converted.text, count=args.question_count, passage_chars=args.passage_chars
+            )
+            return generator.generate(filename=_path.name, passages=passages, count=args.question_count)
+
+        questions, usage = await asyncio.to_thread(resolve_questions, frozen, path.name, generate=generate)
         total_bytes, sha256 = file_digest(path)
         document = {
             "path": str(path),

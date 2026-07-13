@@ -16,6 +16,7 @@ import re
 import statistics
 import unicodedata
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -146,6 +147,23 @@ def file_digest(path: Path) -> tuple[int, str]:
             digest.update(chunk)
             total += len(chunk)
     return total, digest.hexdigest()
+
+
+def load_frozen_questions(path: Path) -> dict[str, list[dict[str, str]]]:
+    """Load a previously-frozen per-file question set (D-08). Raises ValueError on
+    schema mismatch so a corrupted/incompatible freeze fails loudly, not silently."""
+    raise NotImplementedError
+
+
+def resolve_questions(
+    frozen: dict[str, list[dict[str, str]]] | None,
+    filename: str,
+    *,
+    generate: Callable[[], tuple[list[dict[str, str]], dict[str, Any]]],
+) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    """Return the frozen questions for `filename` without invoking `generate` when a
+    frozen set is loaded (D-08); otherwise fall back to `generate()`."""
+    raise NotImplementedError
 
 
 def select_passages(text: str, *, count: int, passage_chars: int) -> list[dict[str, str]]:

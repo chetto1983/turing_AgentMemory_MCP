@@ -6,8 +6,10 @@ import pytest
 
 from scripts.real_document_benchmark import (
     evidence_rank,
+    load_frozen_questions,
     normalize_text,
     parse_generated_questions,
+    resolve_questions,
     select_evidence,
     select_passages,
     summarize_results,
@@ -173,3 +175,69 @@ def test_summarize_results_reports_mrr_and_recall_cutoffs() -> None:
         "20": 0.5,
     }
     assert summary["documents"]["a"]["mrr_at_20"] == pytest.approx(0.6)
+
+
+def test_load_frozen_questions_round_trips(tmp_path) -> None:
+    row = {
+        "source_id": "S1",
+        "question": "What is the capital?",
+        "answer": "Rome",
+        "evidence_quote": "The capital is Rome.",
+    }
+    payload = {"schema_version": 1, "questions_by_document": {"file.pdf": [row]}}
+    frozen_path = tmp_path / "frozen-questions.json"
+    frozen_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    loaded = load_frozen_questions(frozen_path)
+
+    assert loaded == payload["questions_by_document"]
+
+
+def test_load_frozen_questions_rejects_malformed(tmp_path) -> None:
+    row = {
+        "source_id": "S1",
+        "question": "What is the capital?",
+        "answer": "Rome",
+        "evidence_quote": "The capital is Rome.",
+    }
+    missing_key = {"schema_version": 1}
+    empty_mapping = {"schema_version": 1, "questions_by_document": {}}
+    incomplete_row = {
+        "schema_version": 1,
+        "questions_by_document": {
+            "file.pdf": [{key: value for key, value in row.items() if key != "answer"}]
+        },
+    }
+
+    for index, payload in enumerate((missing_key, empty_mapping, incomplete_row)):
+        frozen_path = tmp_path / f"frozen-{index}.json"
+        frozen_path.write_text(json.dumps(payload), encoding="utf-8")
+        with pytest.raises(ValueError):
+            load_frozen_questions(frozen_path)
+
+
+def test_resolve_questions_skips_generation_when_frozen() -> None:
+    rows = [
+        {
+            "source_id": "S1",
+            "question": "What is the capital?",
+            "answer": "Rome",
+            "evidence_quote": "The capital is Rome.",
+        }
+    ]
+    frozen = {"f.pdf": rows}
+
+    def unreachable_generate() -> tuple[list[dict[str, str]], dict[str, object]]:
+        raise AssertionError("generate must not be called when a frozen set is loaded")
+
+    questions, usage = resolve_questions(frozen, "f.pdf", generate=unreachable_generate)
+
+    assert questions == rows
+    assert usage["frozen"] is True
+
+    sentinel = (["generated"], {"prompt_tokens": 1})
+
+    def live_generate() -> tuple[list[str], dict[str, int]]:
+        return sentinel
+
+    assert resolve_questions(None, "f.pdf", generate=live_generate) == sentinel
