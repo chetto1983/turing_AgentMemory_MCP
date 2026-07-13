@@ -108,7 +108,7 @@ Plans:
   2. The baseline artifact records provider config, corpus, and run parameters so it is reproducible and directly comparable later.
   3. The baseline is committed before any ArcadeDB code touches the stack.
 
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 
@@ -118,7 +118,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — runs at a tree that includes the additive loader)*
 
-- [ ] 03-02-PLAN.md — Capture both raw baseline JSONs (real-doc benchmark + real-provider e2e) against the live TuringDB stack; obtain corpus `--root` + confirm GPU providers
+- [x] 03-02-PLAN.md — Capture both raw baseline JSONs (real-doc benchmark + real-provider e2e) against the live TuringDB stack; obtain corpus `--root` + confirm GPU providers
 
 **Wave 3** *(blocked on Wave 2 — needs the captured raw JSONs)*
 
@@ -258,7 +258,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 |-------|----------------|--------|-----------|
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
-| 3. TuringDB Retrieval Baseline | 1/4 | In Progress|  |
+| 3. TuringDB Retrieval Baseline | 2/4 | In Progress|  |
 | 4. ArcadeDB Direct Port | 0/TBD | Not started | - |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
