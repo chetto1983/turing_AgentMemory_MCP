@@ -23,6 +23,11 @@ All memory and document operations are direct MCP tool calls. The server fuses d
 BM25, entity, temporal graph, community, and rerank signals while retaining canonical
 records in TuringDB.
 
+**In-repo dogfooding:** when this project's own server is a live, connected MCP
+(`turing-agentmemory`), bind every call to the host's configured caller identity for this
+repo (see the "Session memory" section of `CLAUDE.md`). That is a host-provided principal,
+which satisfies rule #1; it is not the guessed `default` the rule forbids.
+
 ## Non-Negotiable Rules
 
 1. Every call uses a **caller-derived** `user_identifier` from authenticated application
