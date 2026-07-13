@@ -1,0 +1,390 @@
+{
+  "questions_by_document": {
+    "Clienti.xlsx": [
+      {
+        "answer": "CASSINETTA DI LUGAGNANO",
+        "evidence_quote": "| CASSINETTA DI LUGAGNANO | COLOMBO PIER PAOLO MARIA |",
+        "question": "Qual è la località del cliente 2A ELETTRICA S.R.L.?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "MINA GUIDO",
+        "evidence_quote": "SPA | BRA | MINA GUIDO |",
+        "question": "Chi è il venditore esterno per D.I.R.A. SPA?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "BUI Area PIE Est",
+        "evidence_quote": "| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 615166 | GPGS SRL | TORINO | PIERMARINO ANDREA |",
+        "question": "A quale filiale è assegnato il cliente GPGS SRL?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "PELLEGRINO BRUNO",
+        "evidence_quote": "CUNEO | F036 | Cuneo | 410084 | PELLEGRINO BRUNO | BOVES | MASSA BOA LUCA |",
+        "question": "Qual è la ragione sociale associata al cliente 410084?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "GOZZANO",
+        "evidence_quote": "CASALE MONFERRATO | F141 | Briga Novarese | 456753 | ZUCCHETTI RUBINETTERIA SPA | GOZZANO | FRIGIOLINI ANDREA |",
+        "question": "In quale località si trova ZUCCHETTI RUBINETTERIA SPA?",
+        "source_id": "S5"
+      }
+    ],
+    "Corso Base Robot.docx": [
+      {
+        "answer": "Definizione e introduzione al concetto di robot",
+        "evidence_quote": "Definizione e introduzione al concetto di robot.",
+        "question": "Qual è la definizione del primo punto del corso base robot?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "dimensionamento e programmazione di una cella robotizzata",
+        "evidence_quote": "Importanza dei simulatori per il dimensionamento e programmazione di una cella robotizzata.",
+        "question": "A cosa servono i simulatori secondo il punto 14?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "Creazione e descrizione di un programma base",
+        "evidence_quote": "Creazione e descrizione di un programma base.",
+        "question": "Cosa prevede il punto 15 relativo alla struttura di un programma di esempio?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "ottimizzare l’utilizzo del robot",
+        "evidence_quote": "Suggerimenti e buone pratiche per ottimizzare l’utilizzo del robot.",
+        "question": "Qual è lo scopo dei Tip and Tricks descritti al punto 16?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "guida robot con la visione industriale",
+        "evidence_quote": "Introduzione alla guida robot con la visione industriale**",
+        "question": "Qual è l'argomento trattato nell'introduzione al punto 17?",
+        "source_id": "S5"
+      }
+    ],
+    "Costituzione.pdf": [
+      {
+        "answer": "Via della Maddalena 27, 00186 Roma",
+        "evidence_quote": "Via della Maddalena 27, 00186 Roma",
+        "question": "Qual è l'indirizzo della Libreria multimediale Centro di In-Form@zione?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "personale ed eguale, libero e segreto",
+        "evidence_quote": "Il voto e` personale ed eguale, libero e segreto.",
+        "question": "Quali sono le caratteristiche del voto secondo l'articolo 48?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "del Presidente del Consiglio e dei ministri",
+        "evidence_quote": "Il Presidente della Repubblica nomina il Presi dente del Consiglio dei ministri e, su proposta",
+        "question": "Di cosa è composto il Governo della Repubblica secondo l'articolo 92?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "solo per finanziare spese di investimento",
+        "evidence_quote": "Possono ricorrere all’indebita mento solo per finanziare spese di investimento,",
+        "question": "Per quale finalità le Regioni possono ricorrere all'indebitamento?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "Palazzo Giustiniani",
+        "evidence_quote": "La Costituzione italiana venne promulgata il 27 dicembre 1947 a Palazzo Giustiniani,",
+        "question": "In quale luogo venne promulgata la Costituzione italiana il 27 dicembre 1947?",
+        "source_id": "S5"
+      }
+    ],
+    "Diario-ultimo.epub": [
+      {
+        "answer": "2015",
+        "evidence_quote": "Il mio survival blog è cominciato il 19 dicembre 2010, anzi il 19 dicembre *2015*.",
+        "question": "In che anno ha colpito l'intero pianeta la pandemia gialla?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "la vasca da bagno",
+        "evidence_quote": "Usai la vasca da bagno come congelatore.",
+        "question": "Cosa ha usato il protagonista come congelatore per il maiale?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "filmare il processo",
+        "evidence_quote": "«A te abbiamo riservato l'onore di filmare il processo» mi disse, porgendomi la telecame",
+        "question": "Quale onore è stato riservato al protagonista da parte del secondo del Cane?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "23 gennaio 2016, ore 7,26",
+        "evidence_quote": "23 gennaio 2016, ore 7,26",
+        "question": "A quale data e ora risale l'inizio del Capitolo VI - Rosso sangue?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "9666 parole",
+        "evidence_quote": "Ho scritto 9666 parole in tutto, escludendo titoli e citazioni.",
+        "question": "Quante parole in tutto ha scritto l'autore per il Survival blog, escludendo titoli e citazioni?",
+        "source_id": "S5"
+      }
+    ],
+    "G220_op_instr_0824_en-US.pdf": [
+      {
+        "answer": "death or severe personal injury will result if proper precautions are not taken",
+        "evidence_quote": "indicates that death or severe personal injury will result if proper precautions are not taken.",
+        "question": "What does the notice grade 'DANGER' indicate in the manual?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "positions 3 - 6",
+        "evidence_quote": "The date of manufacture of the converter is coded in positions 3 - 6 of the serial number.",
+        "question": "In which positions of the serial number is the date of manufacture of the converter coded?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "Direct mode",
+        "evidence_quote": "• Binary mode\nDirect mode",
+        "question": "Which mode is recommended for selecting fixed speed setpoints via digital inputs?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "loads with a parabolic speed-torque characteristic, e.g. for fans",
+        "evidence_quote": "We recommend this setting for loads with a parabolic speed-torque characteristic, e.g. for \nfans.",
+        "question": "For which type of loads is the setting p0290 = 2 recommended?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "25",
+        "evidence_quote": "Resistance Ω 25 15 10.",
+        "question": "What is the resistance in Ω for the braking resistor with article number JJY:023422620001?",
+        "source_id": "S5"
+      }
+    ],
+    "Robot.pptx": [
+      {
+        "answer": "settore alimentare, farmaceutico e dell'elettronica",
+        "evidence_quote": "Un robot Delta è un tipo di robot industriale progettato per compiti che richiedono movimenti rapidi e precisi, soprattutto nel settore alimentare, farmaceutico e dell'elettronica.",
+        "question": "Quali sono i settori principali per cui è progettato un robot Delta?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "se si verifica uno spostamento o se il riferimento USER è legato a qualcosa che può muoversi, non sarà necessario modificare ogni singolo punto, ma solo il riferimento stesso",
+        "evidence_quote": "In questo modo, se si verifica uno spostamento o se il riferimento USER è legato a qualcosa che può muoversi, non sarà necessario modificare ogni singolo punto, ma solo il riferimento stesso.",
+        "question": "Perché è utile definire punti relativi a un riferimento USER invece che al riferimento WORLD?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "una configurazione in cui l'asse del polso (solitamente l'asse 5 o l'asse centrale del robot) è ruotato di - 90°",
+        "evidence_quote": "Il termine Flip indica una configurazione in cui l'asse del polso (solitamente l'asse 5 o l'asse centrale del robot) è ruotato di - 90°.",
+        "question": "Cosa indica il termine Flip in una configurazione del punto?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "fino a 4 task paralleli",
+        "evidence_quote": "Possono essere creati fino a 4 task paralleli.",
+        "question": "Quanti task paralleli possono essere creati nei Task in Background?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "Il robot può continuare a lavorare mentre il programma viene sviluppato e ottimizzato in simulazione",
+        "evidence_quote": "Riduzione dei tempi di fermo macchina: Il robot può continuare a lavorare mentre il programma viene sviluppato e ottimizzato in simulazione.",
+        "question": "Qual è il vantaggio della programmazione offline (OLP) riguardo ai tempi di fermo macchina?",
+        "source_id": "S5"
+      }
+    ],
+    "apprendimento_automatico_wikipedia.html": [
+      {
+        "answer": "Pagina principale, Ultime modifiche, Una voce a caso, Nelle vicinanze, Vetrina, Aiuto, Sportello informazioni, Pagine speciali",
+        "evidence_quote": "* [Una voce a caso](/wiki/Speciale%3APaginaCasuale \"Mostra una pagina a caso [x]\")\n* [Nelle vicinanze](/wiki/Speciale%3ANelleVicinanze)\n* [Vetrina](/wiki/Wikipedia%3AVetrina)\n* [Aiuto](/wiki/Aiuto%3AAiuto \"Pagine di aiuto\")\n* [Sportello informazioni](/wiki/Aiuto%3ASportello_informazioni)",
+        "question": "Quali sono le voci presenti nella sezione Navigazione del menu principale?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "fosse necessario un miliardo di punti-dato",
+        "evidence_quote": "Ad esempio, per vari anni si è ipotizzato che per addestrare 30 qubit fosse necessario un miliardo di punti-dato.",
+        "question": "Cosa è stato ipotizzato per vari anni riguardo l'addestramento di 30 qubit?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "70 miglia all'ora",
+        "evidence_quote": "Ad esempio, il sistema ALVINN[[35]](#cite_note-35) ha usato le sue strategie per imparare a guidare senza assistenza a 70 miglia all'ora per 90 miglia su strade pubbliche, tra le altre auto.",
+        "question": "A quale velocità il sistema ALVINN ha imparato a guidare senza assistenza su strade pubbliche?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "Teoria dell'apprendimento statistico, Classificazione, Regressione, Classificazione a singola classe, Ranking",
+        "evidence_quote": "org/wiki/Teoria_dell%27apprendimento_statistico \"Teoria dell'apprendimento statistico\")**·** [Classificazione](//it.wikipedia.org/wiki/Classificazione \"Classificazione\")**·** [Regressione](//it.wikipedia.org/wiki/Analisi_della_regressione \"Analisi della regressione\")**·** [Classificazione a singola classe](//it.",
+        "question": "Quali problemi sono elencati nella tabella relativa all'apprendimento automatico?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "Informativa sulla privacy, Informazioni su Wikipedia, Avvertenze, Contatti legali e di sicurezza, Codice di condotta",
+        "evidence_quote": "* [Informativa sulla privacy](https://foundation.wikimedia.org/wiki/Special%3AMyLanguage/Policy%3APrivacy_policy/it)\n* [Informazioni su Wikipedia](/wiki/Wikipedia%3ASala_stampa/Wikipedia)\n* [Avvertenze](/wiki/Wikipedia%3AAvvertenze_generali)\n* [Contatti legali e di sicurezza](https://foundation.",
+        "question": "Quali link sono presenti nel piè di pagina relativi alle policy e informazioni legali?",
+        "source_id": "S5"
+      }
+    ],
+    "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf": [
+      {
+        "answer": "Approvazione del testo unico delle disposizioni legislative in materia postale, di bancoposta e di telecomunicazioni",
+        "evidence_quote": "Approvazione del testo unico delle disposizioni legislative in materia postale, di bancoposta e di\ntelecomunicazioni.",
+        "question": "Qual è l'oggetto del decreto del Presidente della Repubblica 29 marzo 1973, n. 156?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "ventimila copie",
+        "evidence_quote": "la cui tiratura per singolo numero non superi le ventimila copie,",
+        "question": "Qual è il limite di tiratura per singolo numero oltre il quale non si applica automaticamente lo sconto massimo per le stampe periodiche?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "decreto del Ministro per il tesoro, di concerto con il Ministro per le poste e le telecomunicazioni",
+        "evidence_quote": "e' stabilito con decreto del Ministro per il tesoro, di concerto con\nil Ministro per le poste e le telecomunicazioni.",
+        "question": "Chi stabilisce il saggio di interesse sulle somme depositate nei libretti postali di risparmio?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "D.LGS. 1 AGOSTO 2003, N. 259",
+        "evidence_quote": "LGS. 1 AGOSTO 2003, N. 259))",
+        "question": "Quale decreto ha abrogato l'articolo 196 relativo alle concessioni ad uso pubblico?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "servizio dei vaglia a taglio fisso",
+        "evidence_quote": "Soppressione del servizio dei vaglia a taglio fisso",
+        "question": "Quale servizio è stato soppresso ai sensi dell'articolo 412?",
+        "source_id": "S5"
+      }
+    ],
+    "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf": [
+      {
+        "answer": "Codice delle comunicazioni elettroniche",
+        "evidence_quote": "Codice delle comunicazioni elettroniche.",
+        "question": "Qual è il titolo del decreto legislativo del 1 agosto 2003, n. 259?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "cinque giorni lavorativi",
+        "evidence_quote": "procedente che ha ricevuto l'istanza convoca, entro cinque giorni\nlavorativi dalla presentazione dell'istanza, una conferenza di",
+        "question": "Entro quanti giorni dalla presentazione dell'istanza l'amministrazione procedente deve convocare una conferenza di servizi?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "00",
+        "evidence_quote": "Il prefisso «00» costituisce il prefisso internazionale.",
+        "question": "Quale prefisso costituisce il prefisso internazionale?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "la cessione dei diritti acquisiti ad altri coinvestitori o a terzi intenzionati ad aderire all'accordo di coinvestimento",
+        "evidence_quote": "- l'accordo di coinvestimento deve consentire la cessione dei diritti\nacquisiti ad altri coinvestitori o a terzi intenzionati ad aderire\nall'accordo di coinvestimento, subordinatamente all'obbligo a carico",
+        "question": "Cosa deve consentire l'accordo di coinvestimento riguardo ai diritti acquisiti?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "scarsa elasticita' della domanda; analoghe quote di mercato; forti ostacoli giuridici o economici alla penetrazione; integrazione verticale con rifiuto collettivo di fornitura; mancanza di un controbilanciante potere contrattuale dell'acquirente; mancanza di potenziale concorrenza",
+        "evidence_quote": "- scarsa elasticita' della domanda;\n- analoghe quote di mercato;\n- forti ostacoli giuridici o economici alla penetrazione;\n- integrazione verticale con rifiuto collettivo di fornitura;\n- mancanza di un controbilanciante potere contrattuale\n dell'acquirente;\n- mancanza di potenziale concorrenza.",
+        "question": "Quali sono alcune delle caratteristiche specifiche di un mercato concentrato che possono indicare una posizione dominante condivisa nel contesto delle comunicazioni elettroniche?",
+        "source_id": "S5"
+      }
+    ],
+    "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf": [
+      {
+        "answer": "Codice della proprietà industriale",
+        "evidence_quote": "Codice della proprietà industriale, a norma dell'articolo 15 della legge 12 dicembre 2002, n.",
+        "question": "Qual è l'oggetto del Decreto Legislativo 10 febbraio 2005, n. 30?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "purche' il richiedente la licenza fornisca le necessarie garanzie in ordine ad una soddisfacente attuazione dell'invenzione",
+        "evidence_quote": "del brevetto o dei suoi aventi causa, di un equo compenso e purche'\nil richiedente la licenza fornisca le necessarie garanzie in ordine\nad una soddisfacente attuazione dell'invenzione a norma delle",
+        "question": "A quale condizione può essere concessa una licenza obbligatoria in ordine all'attuazione dell'invenzione?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "la morte, la radiazione o sospensione dall'albo di uno dei difensori incaricati a sensi dell'articolo 201",
+        "evidence_quote": "b) la morte, la radiazione o sospensione dall'albo di uno dei\ndifensori incaricati a sensi dell'articolo 201.",
+        "question": "In quali casi il processo è interrotto dopo la proposizione del ricorso a causa di eventi riguardanti i difensori?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "trenta unita'",
+        "evidence_quote": "opposizioni non puo' superare le trenta unita'.",
+        "question": "Qual è il numero massimo di funzionari designati per l'esame delle opposizioni?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "Roma",
+        "evidence_quote": "Dato a Roma, addi' 10 febbraio 2005",
+        "question": "In quale città è stato dato il decreto il 10 febbraio 2005?",
+        "source_id": "S5"
+      }
+    ],
+    "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf": [
+      {
+        "answer": "Codice dell'amministrazione digitale",
+        "evidence_quote": "Codice dell'amministrazione digitale.",
+        "question": "Qual è il titolo del decreto legislativo 7 marzo 2005, n. 82?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "La Presidenza del Consiglio dei ministri, anche avvalendosi dell'AgID",
+        "evidence_quote": "((La Presidenza del Consiglio dei\nministri, anche avvalendosi dell'AgID,)) assicura il coordinamento",
+        "question": "Chi assicura il coordinamento informatico dell'amministrazione statale, regionale e locale per progettare e monitorare l'evoluzione strategica del sistema informativo della pubblica amministrazione?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "l'Organismo di certificazione della sicurezza informatica",
+        "evidence_quote": "accertata, in Italia, dall'Organismo di certificazione della\nsicurezza informatica in base allo schema nazionale per la",
+        "question": "Chi accerta in Italia la conformità dei requisiti di sicurezza dei dispositivi per la creazione di una firma elettronica qualificata o di un sigillo elettronico prescritti dall'Allegato II del regolamento eIDAS?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "Ministero dell'economia e delle finanze",
+        "evidence_quote": "L'ANA, realizzata dal Ministero dell'economia e delle finanze,",
+        "question": "Quale ente ha realizzato l'Anagrafe nazionale degli assistiti (ANA)?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "7 marzo 2005",
+        "evidence_quote": "Dato a Roma, addi' 7 marzo 2005",
+        "question": "In quale data è stato dato il decreto a Roma?",
+        "source_id": "S5"
+      }
+    ],
+    "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf": [
+      {
+        "answer": "legge 30 dicembre 1923, n. 2814",
+        "evidence_quote": "Vista la legge 30 dicembre 1923, n. 2814, che delega al Governo la",
+        "question": "Quale legge delega al Governo la facoltà di pubblicare un nuovo Codice di procedura civile?",
+        "source_id": "S1"
+      },
+      {
+        "answer": "quelle per le quali sono stati abbreviati i termini e a quelle rinviate a norma degli articoli precedenti",
+        "evidence_quote": "dando la precedenza a quelle per le quali sono stati abbreviati i\ntermini e a quelle rinviate a norma degli articoli precedenti.",
+        "question": "Secondo l'articolo 83, a quali cause il giudice istruttore deve dare la precedenza nel fissare l'ordine di trattazione?",
+        "source_id": "S2"
+      },
+      {
+        "answer": "Direttore generale dei sistemi informativi e automatizzati del Ministero della giustizia",
+        "evidence_quote": "provvedimento del Direttore generale dei sistemi informativi e\nautomatizzati del Ministero della giustizia.",
+        "question": "Chi individua e regola le modalità del collegamento da remoto previsto dall'articolo 473-bis.54, terzo comma, del codice?",
+        "source_id": "S3"
+      },
+      {
+        "answer": "1° marzo 2006",
+        "evidence_quote": "2006.\".\n-------------\nAGGIORNAMENTO (27)\n\n<!-- page 121 -->\n\nIl D.L. 14 marzo 2005, n.",
+        "question": "In base all'aggiornamento (27), quando entrano in vigore le disposizioni di cui ai commi 3, lettera e), numeri da 2) a 43-bis), e 3-ter, lettere a-bis), b), c), c-bis), d), e) ed f)?",
+        "source_id": "S4"
+      },
+      {
+        "answer": "mantiene la competenza sugli affari di cui e' stato investito",
+        "evidence_quote": "Il giudice regolarmente adito secondo le leggi anteriori mantiene\nla competenza sugli affari di cui e' stato investito anche se le",
+        "question": "Cosa accade alla competenza del giudice regolarmente adito secondo le leggi anteriori se le norme sulla competenza sono mutate?",
+        "source_id": "S5"
+      }
+    ]
+  },
+  "schema_version": 1,
+  "source_benchmark_id": "real-documents-direct-mcp-20260713T144535Z"
+}

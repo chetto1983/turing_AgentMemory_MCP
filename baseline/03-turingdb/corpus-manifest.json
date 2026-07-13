@@ -1,0 +1,96 @@
+{
+  "documents": [
+    {
+      "bytes": 331239,
+      "filename": "Clienti.xlsx",
+      "page_count": null,
+      "sha256": "dc087d884caf3b9ce1955c60beaf36d1ef993ec85d7cc1ca814f3c15ed08b5b8",
+      "sheet_count": null,
+      "suffix": ".xlsx"
+    },
+    {
+      "bytes": 18061,
+      "filename": "Corso Base Robot.docx",
+      "page_count": null,
+      "sha256": "0ec1b02e112f0ca4e6b476abe4c91038143f33a8acfff59f2f12e24bd56937cb",
+      "suffix": ".docx"
+    },
+    {
+      "bytes": 478600,
+      "filename": "Costituzione.pdf",
+      "page_count": 96,
+      "sha256": "cf62b430cc08d92c2deb195a214bcd607e8e14519f126142740049a389a02b1f",
+      "suffix": ".pdf"
+    },
+    {
+      "bytes": 2183946,
+      "filename": "Diario-ultimo.epub",
+      "page_count": null,
+      "sha256": "aec36c49f8bad24fae135a58f31791abe901a1b15fc52f5da3c707c33cd14dee",
+      "suffix": ".epub"
+    },
+    {
+      "bytes": 30376574,
+      "filename": "G220_op_instr_0824_en-US.pdf",
+      "page_count": 830,
+      "sha256": "91e62612a7b1ac654a182d477807e5df93ff16103d8797954fac1e691e37e849",
+      "suffix": ".pdf"
+    },
+    {
+      "bytes": 21673578,
+      "filename": "Robot.pptx",
+      "page_count": null,
+      "sha256": "1d924fb88dc4b1b20fe0c4ce5f1256fe19758762a6bf80e6fce20fd6a2bfc504",
+      "suffix": ".pptx"
+    },
+    {
+      "bytes": 369512,
+      "filename": "apprendimento_automatico_wikipedia.html",
+      "page_count": null,
+      "sha256": "bd63980ed35bfa0e771e0c7b5dfc4cc40cb1c8dd59df079320776caf3873d381",
+      "suffix": ".html"
+    },
+    {
+      "bytes": 202460,
+      "filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+      "page_count": 97,
+      "sha256": "99f7c5432e00f3dc4e6e0e8279ea6c87fa3181339f6e12781fb365ce58a17a2c",
+      "suffix": ".pdf"
+    },
+    {
+      "bytes": 754884,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+      "page_count": 327,
+      "sha256": "bcef1e4121f35fcf889449ad11a3905fd28c6668ac18e0b99b93b3a887159675",
+      "suffix": ".pdf"
+    },
+    {
+      "bytes": 417115,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+      "page_count": 169,
+      "sha256": "832f7b914381870b2ef4fe58200bd87f033da6b7704a864ae1811228dafd60ee",
+      "suffix": ".pdf"
+    },
+    {
+      "bytes": 275752,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+      "page_count": 100,
+      "sha256": "43d8b92119de61754e15030ea0a479763b74d71990b589dd1810152c3c57fef2",
+      "suffix": ".pdf"
+    },
+    {
+      "bytes": 346139,
+      "filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+      "page_count": 159,
+      "sha256": "d89f3940dcde99c001085bf801892867ef521782f75f05e5f84cfa2d1206f37e",
+      "suffix": ".pdf"
+    }
+  ],
+  "generated_at": "2026-07-13T15:13:33Z",
+  "notes": [
+    "sheet_count is null for .xlsx documents: no existing code in this repo computes an XLSX sheet count (document_processing.py's MarkItDown path does not expose it); documented as a known gap per 03-RESEARCH.md Open Question 1, not hand-rolled here."
+  ],
+  "root": "D:\\tmp\\baseline-corpus",
+  "schema_version": 1,
+  "source_benchmark_id": "real-documents-direct-mcp-20260713T144535Z"
+}

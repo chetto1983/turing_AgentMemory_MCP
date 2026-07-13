@@ -1,0 +1,3744 @@
+{
+  "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+  "completed_at": "2026-07-13T14:52:36.024740Z",
+  "created_at": "2026-07-13T14:45:35.120634Z",
+  "documents": [
+    {
+      "bytes": 369512,
+      "conversion": {
+        "chars": 121936,
+        "converter": "markitdown",
+        "page_count": null,
+        "seconds": 10.841070400001627
+      },
+      "document_id": "apprendimento_automatico_wikipedia-bd63980ed35b",
+      "enqueue_seconds": 0.12724299999899813,
+      "filename": "apprendimento_automatico_wikipedia.html",
+      "job": {
+        "attempt": 1,
+        "completed_at": "2026-07-13T14:47:15.261750Z",
+        "created_at": "2026-07-13T14:47:05.486743Z",
+        "document_id": "apprendimento_automatico_wikipedia-bd63980ed35b",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "apprendimento_automatico_wikipedia.html",
+        "job_id": "docjob_a6d5bb60c1bf4876946de7cbd25f87f8",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 369512,
+            "sha256": "bd63980ed35bfa0e771e0c7b5dfc4cc40cb1c8dd59df079320776caf3873d381",
+            "source_filename": "apprendimento_automatico_wikipedia.html",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "apprendimento_automatico_wikipedia.html"
+        },
+        "next_attempt_at": "2026-07-13T14:47:05.486743Z",
+        "progress_current": 1,
+        "progress_total": 1,
+        "result": {
+          "chunk_chars": 360,
+          "chunk_count": 416,
+          "created_at": "2026-07-13T14:47:08Z",
+          "document_id": "apprendimento_automatico_wikipedia-bd63980ed35b",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 369512,
+              "converter": "markitdown",
+              "sha256": "bd63980ed35bfa0e771e0c7b5dfc4cc40cb1c8dd59df079320776caf3873d381",
+              "source_filename": "apprendimento_automatico_wikipedia.html",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "apprendimento_automatico_wikipedia.html"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "html"
+          ],
+          "text_hash": "cf357b50a2b274168c1bf9e02546e78111ca92d1e723f7cfc159859e89519302",
+          "title": "apprendimento_automatico_wikipedia",
+          "updated_at": "2026-07-13T14:47:08Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "bd63980ed35bfa0e771e0c7b5dfc4cc40cb1c8dd59df079320776caf3873d381",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:47:05.493945Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "html"
+        ],
+        "title": "apprendimento_automatico_wikipedia",
+        "total_bytes": 369512,
+        "updated_at": "2026-07-13T14:47:15.261750Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\apprendimento_automatico_wikipedia.html",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 363,
+        "prompt_tokens": 2432
+      },
+      "questions": [
+        {
+          "answer": "Pagina principale, Ultime modifiche, Una voce a caso, Nelle vicinanze, Vetrina, Aiuto, Sportello informazioni, Pagine speciali",
+          "evidence_quote": "* [Una voce a caso](/wiki/Speciale%3APaginaCasuale \"Mostra una pagina a caso [x]\")\n* [Nelle vicinanze](/wiki/Speciale%3ANelleVicinanze)\n* [Vetrina](/wiki/Wikipedia%3AVetrina)\n* [Aiuto](/wiki/Aiuto%3AAiuto \"Pagine di aiuto\")\n* [Sportello informazioni](/wiki/Aiuto%3ASportello_informazioni)",
+          "question": "Quali sono le voci presenti nella sezione Navigazione del menu principale?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "fosse necessario un miliardo di punti-dato",
+          "evidence_quote": "Ad esempio, per vari anni si è ipotizzato che per addestrare 30 qubit fosse necessario un miliardo di punti-dato.",
+          "question": "Cosa è stato ipotizzato per vari anni riguardo l'addestramento di 30 qubit?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "70 miglia all'ora",
+          "evidence_quote": "Ad esempio, il sistema ALVINN[[35]](#cite_note-35) ha usato le sue strategie per imparare a guidare senza assistenza a 70 miglia all'ora per 90 miglia su strade pubbliche, tra le altre auto.",
+          "question": "A quale velocità il sistema ALVINN ha imparato a guidare senza assistenza su strade pubbliche?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "Teoria dell'apprendimento statistico, Classificazione, Regressione, Classificazione a singola classe, Ranking",
+          "evidence_quote": "org/wiki/Teoria_dell%27apprendimento_statistico \"Teoria dell'apprendimento statistico\")**·** [Classificazione](//it.wikipedia.org/wiki/Classificazione \"Classificazione\")**·** [Regressione](//it.wikipedia.org/wiki/Analisi_della_regressione \"Analisi della regressione\")**·** [Classificazione a singola classe](//it.",
+          "question": "Quali problemi sono elencati nella tabella relativa all'apprendimento automatico?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "Informativa sulla privacy, Informazioni su Wikipedia, Avvertenze, Contatti legali e di sicurezza, Codice di condotta",
+          "evidence_quote": "* [Informativa sulla privacy](https://foundation.wikimedia.org/wiki/Special%3AMyLanguage/Policy%3APrivacy_policy/it)\n* [Informazioni su Wikipedia](/wiki/Wikipedia%3ASala_stampa/Wikipedia)\n* [Avvertenze](/wiki/Wikipedia%3AAvvertenze_generali)\n* [Contatti legali e di sicurezza](https://foundation.",
+          "question": "Quali link sono presenti nel piè di pagina relativi alle policy e informazioni legali?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "bd63980ed35bfa0e771e0c7b5dfc4cc40cb1c8dd59df079320776caf3873d381",
+      "suffix": ".html",
+      "title": "apprendimento_automatico_wikipedia"
+    },
+    {
+      "bytes": 331239,
+      "conversion": {
+        "chars": 603136,
+        "converter": "markitdown",
+        "page_count": null,
+        "seconds": 8.360053000000335
+      },
+      "document_id": "clienti-dc087d884caf",
+      "enqueue_seconds": 0.1505680999980541,
+      "filename": "Clienti.xlsx",
+      "job": {
+        "attempt": 1,
+        "completed_at": "2026-07-13T14:47:40.662509Z",
+        "created_at": "2026-07-13T14:47:05.640315Z",
+        "document_id": "clienti-dc087d884caf",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "Clienti.xlsx",
+        "job_id": "docjob_58febb4213204aae93f2d64933fb1092",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 331239,
+            "sha256": "dc087d884caf3b9ce1955c60beaf36d1ef993ec85d7cc1ca814f3c15ed08b5b8",
+            "source_filename": "Clienti.xlsx",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "Clienti.xlsx"
+        },
+        "next_attempt_at": "2026-07-13T14:47:05.640315Z",
+        "progress_current": 1,
+        "progress_total": 1,
+        "result": {
+          "chunk_chars": 360,
+          "chunk_count": 1956,
+          "created_at": "2026-07-13T14:47:18Z",
+          "document_id": "clienti-dc087d884caf",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 331239,
+              "converter": "markitdown",
+              "sha256": "dc087d884caf3b9ce1955c60beaf36d1ef993ec85d7cc1ca814f3c15ed08b5b8",
+              "source_filename": "Clienti.xlsx",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "Clienti.xlsx"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "xlsx"
+          ],
+          "text_hash": "134f6fed0bb0574a811313e5c932b7749610b38f92e51d9077653819c8eb1074",
+          "title": "Clienti",
+          "updated_at": "2026-07-13T14:47:18Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "dc087d884caf3b9ce1955c60beaf36d1ef993ec85d7cc1ca814f3c15ed08b5b8",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:47:15.268836Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "xlsx"
+        ],
+        "title": "Clienti",
+        "total_bytes": 331239,
+        "updated_at": "2026-07-13T14:47:40.662509Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\Clienti.xlsx",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 279,
+        "prompt_tokens": 3428
+      },
+      "questions": [
+        {
+          "answer": "CASSINETTA DI LUGAGNANO",
+          "evidence_quote": "| CASSINETTA DI LUGAGNANO | COLOMBO PIER PAOLO MARIA |",
+          "question": "Qual è la località del cliente 2A ELETTRICA S.R.L.?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "MINA GUIDO",
+          "evidence_quote": "SPA | BRA | MINA GUIDO |",
+          "question": "Chi è il venditore esterno per D.I.R.A. SPA?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "BUI Area PIE Est",
+          "evidence_quote": "| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 615166 | GPGS SRL | TORINO | PIERMARINO ANDREA |",
+          "question": "A quale filiale è assegnato il cliente GPGS SRL?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "PELLEGRINO BRUNO",
+          "evidence_quote": "CUNEO | F036 | Cuneo | 410084 | PELLEGRINO BRUNO | BOVES | MASSA BOA LUCA |",
+          "question": "Qual è la ragione sociale associata al cliente 410084?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "GOZZANO",
+          "evidence_quote": "CASALE MONFERRATO | F141 | Briga Novarese | 456753 | ZUCCHETTI RUBINETTERIA SPA | GOZZANO | FRIGIOLINI ANDREA |",
+          "question": "In quale località si trova ZUCCHETTI RUBINETTERIA SPA?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "dc087d884caf3b9ce1955c60beaf36d1ef993ec85d7cc1ca814f3c15ed08b5b8",
+      "suffix": ".xlsx",
+      "title": "Clienti"
+    },
+    {
+      "bytes": 18061,
+      "conversion": {
+        "chars": 1752,
+        "converter": "markitdown",
+        "page_count": null,
+        "seconds": 3.3847430999994685
+      },
+      "document_id": "corso-base-robot-0ec1b02e112f",
+      "enqueue_seconds": 0.10155379999923753,
+      "filename": "Corso Base Robot.docx",
+      "job": {
+        "attempt": 1,
+        "completed_at": "2026-07-13T14:47:42.073457Z",
+        "created_at": "2026-07-13T14:47:05.731358Z",
+        "document_id": "corso-base-robot-0ec1b02e112f",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "Corso Base Robot.docx",
+        "job_id": "docjob_f2b3c8ceac244217a62b94c7bffaafa6",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 18061,
+            "sha256": "0ec1b02e112f0ca4e6b476abe4c91038143f33a8acfff59f2f12e24bd56937cb",
+            "source_filename": "Corso Base Robot.docx",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "Corso Base Robot.docx"
+        },
+        "next_attempt_at": "2026-07-13T14:47:05.731358Z",
+        "progress_current": 1,
+        "progress_total": 1,
+        "result": {
+          "chunk_chars": 360,
+          "chunk_count": 6,
+          "created_at": "2026-07-13T14:47:41Z",
+          "document_id": "corso-base-robot-0ec1b02e112f",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 18061,
+              "converter": "markitdown",
+              "sha256": "0ec1b02e112f0ca4e6b476abe4c91038143f33a8acfff59f2f12e24bd56937cb",
+              "source_filename": "Corso Base Robot.docx",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "Corso Base Robot.docx"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "docx"
+          ],
+          "text_hash": "839bb80894c8ebbeda79db284a3a59a6710cdfdec9945cf7a3cb323cd1dd2474",
+          "title": "Corso Base Robot",
+          "updated_at": "2026-07-13T14:47:41Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "0ec1b02e112f0ca4e6b476abe4c91038143f33a8acfff59f2f12e24bd56937cb",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:47:40.674791Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "docx"
+        ],
+        "title": "Corso Base Robot",
+        "total_bytes": 18061,
+        "updated_at": "2026-07-13T14:47:42.073457Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\Corso Base Robot.docx",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 290,
+        "prompt_tokens": 2836
+      },
+      "questions": [
+        {
+          "answer": "Definizione e introduzione al concetto di robot",
+          "evidence_quote": "Definizione e introduzione al concetto di robot.",
+          "question": "Qual è la definizione del primo punto del corso base robot?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "dimensionamento e programmazione di una cella robotizzata",
+          "evidence_quote": "Importanza dei simulatori per il dimensionamento e programmazione di una cella robotizzata.",
+          "question": "A cosa servono i simulatori secondo il punto 14?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "Creazione e descrizione di un programma base",
+          "evidence_quote": "Creazione e descrizione di un programma base.",
+          "question": "Cosa prevede il punto 15 relativo alla struttura di un programma di esempio?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "ottimizzare l’utilizzo del robot",
+          "evidence_quote": "Suggerimenti e buone pratiche per ottimizzare l’utilizzo del robot.",
+          "question": "Qual è lo scopo dei Tip and Tricks descritti al punto 16?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "guida robot con la visione industriale",
+          "evidence_quote": "Introduzione alla guida robot con la visione industriale**",
+          "question": "Qual è l'argomento trattato nell'introduzione al punto 17?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "0ec1b02e112f0ca4e6b476abe4c91038143f33a8acfff59f2f12e24bd56937cb",
+      "suffix": ".docx",
+      "title": "Corso Base Robot"
+    },
+    {
+      "bytes": 478600,
+      "conversion": {
+        "chars": 110288,
+        "converter": "pdfium-text",
+        "page_count": 96,
+        "seconds": 22.418491699998413
+      },
+      "document_id": "costituzione-cf62b430cc08",
+      "enqueue_seconds": 0.1767987000021094,
+      "filename": "Costituzione.pdf",
+      "job": {
+        "attempt": 1,
+        "completed_at": "2026-07-13T14:47:49.153918Z",
+        "created_at": "2026-07-13T14:47:05.895747Z",
+        "document_id": "costituzione-cf62b430cc08",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "Costituzione.pdf",
+        "job_id": "docjob_9f2e8438e0c143c6bdc59c6aa8c838eb",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 478600,
+            "sha256": "cf62b430cc08d92c2deb195a214bcd607e8e14519f126142740049a389a02b1f",
+            "source_filename": "Costituzione.pdf",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "Costituzione.pdf"
+        },
+        "next_attempt_at": "2026-07-13T14:47:05.895747Z",
+        "progress_current": 96,
+        "progress_total": 96,
+        "result": {
+          "chunk_chars": 4096,
+          "chunk_count": 92,
+          "created_at": "2026-07-13T14:47:42Z",
+          "document_id": "costituzione-cf62b430cc08",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 478600,
+              "converter": "pdfium-text",
+              "page_count": 96,
+              "pages_with_text": 92,
+              "sha256": "cf62b430cc08d92c2deb195a214bcd607e8e14519f126142740049a389a02b1f",
+              "source_filename": "Costituzione.pdf",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "Costituzione.pdf"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "pdf"
+          ],
+          "text_hash": "e05b2149452ef7e8cb205d8812e856f96f4120cba231c5483d525392175182ba",
+          "title": "Costituzione",
+          "updated_at": "2026-07-13T14:47:42Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "cf62b430cc08d92c2deb195a214bcd607e8e14519f126142740049a389a02b1f",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:47:42.082098Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "pdf"
+        ],
+        "title": "Costituzione",
+        "total_bytes": 478600,
+        "updated_at": "2026-07-13T14:47:49.153918Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\Costituzione.pdf",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 303,
+        "prompt_tokens": 2496
+      },
+      "questions": [
+        {
+          "answer": "Via della Maddalena 27, 00186 Roma",
+          "evidence_quote": "Via della Maddalena 27, 00186 Roma",
+          "question": "Qual è l'indirizzo della Libreria multimediale Centro di In-Form@zione?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "personale ed eguale, libero e segreto",
+          "evidence_quote": "Il voto e` personale ed eguale, libero e segreto.",
+          "question": "Quali sono le caratteristiche del voto secondo l'articolo 48?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "del Presidente del Consiglio e dei ministri",
+          "evidence_quote": "Il Presidente della Repubblica nomina il Presi dente del Consiglio dei ministri e, su proposta",
+          "question": "Di cosa è composto il Governo della Repubblica secondo l'articolo 92?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "solo per finanziare spese di investimento",
+          "evidence_quote": "Possono ricorrere all’indebita mento solo per finanziare spese di investimento,",
+          "question": "Per quale finalità le Regioni possono ricorrere all'indebitamento?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "Palazzo Giustiniani",
+          "evidence_quote": "La Costituzione italiana venne promulgata il 27 dicembre 1947 a Palazzo Giustiniani,",
+          "question": "In quale luogo venne promulgata la Costituzione italiana il 27 dicembre 1947?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "cf62b430cc08d92c2deb195a214bcd607e8e14519f126142740049a389a02b1f",
+      "suffix": ".pdf",
+      "title": "Costituzione"
+    },
+    {
+      "bytes": 2183946,
+      "conversion": {
+        "chars": 65378,
+        "converter": "markitdown",
+        "page_count": null,
+        "seconds": 4.613329899999371
+      },
+      "document_id": "diario-ultimo-aec36c49f8ba",
+      "enqueue_seconds": 0.389446000001044,
+      "filename": "Diario-ultimo.epub",
+      "job": {
+        "attempt": 1,
+        "completed_at": "2026-07-13T14:47:52.333354Z",
+        "created_at": "2026-07-13T14:47:06.294486Z",
+        "document_id": "diario-ultimo-aec36c49f8ba",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "Diario-ultimo.epub",
+        "job_id": "docjob_4a1ec457073943b0a7fa22f0ce397a32",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 2183946,
+            "sha256": "aec36c49f8bad24fae135a58f31791abe901a1b15fc52f5da3c707c33cd14dee",
+            "source_filename": "Diario-ultimo.epub",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "Diario-ultimo.epub"
+        },
+        "next_attempt_at": "2026-07-13T14:47:06.294486Z",
+        "progress_current": 1,
+        "progress_total": 1,
+        "result": {
+          "chunk_chars": 360,
+          "chunk_count": 240,
+          "created_at": "2026-07-13T14:47:49Z",
+          "document_id": "diario-ultimo-aec36c49f8ba",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 2183946,
+              "converter": "markitdown",
+              "sha256": "aec36c49f8bad24fae135a58f31791abe901a1b15fc52f5da3c707c33cd14dee",
+              "source_filename": "Diario-ultimo.epub",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "Diario-ultimo.epub"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "epub"
+          ],
+          "text_hash": "1efc6d67048cbab4dd61fb44f40ebb729e81069be0d8c152d8728b63510d1247",
+          "title": "Diario-ultimo",
+          "updated_at": "2026-07-13T14:47:49Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "aec36c49f8bad24fae135a58f31791abe901a1b15fc52f5da3c707c33cd14dee",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:47:49.165255Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "epub"
+        ],
+        "title": "Diario-ultimo",
+        "total_bytes": 2183946,
+        "updated_at": "2026-07-13T14:47:52.333354Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\Diario-ultimo.epub",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 289,
+        "prompt_tokens": 2232
+      },
+      "questions": [
+        {
+          "answer": "2015",
+          "evidence_quote": "Il mio survival blog è cominciato il 19 dicembre 2010, anzi il 19 dicembre *2015*.",
+          "question": "In che anno ha colpito l'intero pianeta la pandemia gialla?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "la vasca da bagno",
+          "evidence_quote": "Usai la vasca da bagno come congelatore.",
+          "question": "Cosa ha usato il protagonista come congelatore per il maiale?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "filmare il processo",
+          "evidence_quote": "«A te abbiamo riservato l'onore di filmare il processo» mi disse, porgendomi la telecame",
+          "question": "Quale onore è stato riservato al protagonista da parte del secondo del Cane?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "23 gennaio 2016, ore 7,26",
+          "evidence_quote": "23 gennaio 2016, ore 7,26",
+          "question": "A quale data e ora risale l'inizio del Capitolo VI - Rosso sangue?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "9666 parole",
+          "evidence_quote": "Ho scritto 9666 parole in tutto, escludendo titoli e citazioni.",
+          "question": "Quante parole in tutto ha scritto l'autore per il Survival blog, escludendo titoli e citazioni?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "aec36c49f8bad24fae135a58f31791abe901a1b15fc52f5da3c707c33cd14dee",
+      "suffix": ".epub",
+      "title": "Diario-ultimo"
+    },
+    {
+      "bytes": 30376574,
+      "conversion": {
+        "chars": 1181296,
+        "converter": "pdfium-text",
+        "page_count": 830,
+        "seconds": 5.875826199997391
+      },
+      "document_id": "g220_op_instr_0824_en-us-91e62612a7b1",
+      "enqueue_seconds": 3.3293488000017533,
+      "filename": "G220_op_instr_0824_en-US.pdf",
+      "job": {
+        "attempt": 1,
+        "completed_at": "2026-07-13T14:49:07.388948Z",
+        "created_at": "2026-07-13T14:47:09.656418Z",
+        "document_id": "g220_op_instr_0824_en-us-91e62612a7b1",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "G220_op_instr_0824_en-US.pdf",
+        "job_id": "docjob_03f5f0e7149f418cb6f4d24510d59220",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 30376574,
+            "sha256": "91e62612a7b1ac654a182d477807e5df93ff16103d8797954fac1e691e37e849",
+            "source_filename": "G220_op_instr_0824_en-US.pdf",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "G220_op_instr_0824_en-US.pdf"
+        },
+        "next_attempt_at": "2026-07-13T14:47:09.656418Z",
+        "progress_current": 830,
+        "progress_total": 830,
+        "result": {
+          "chunk_chars": 4096,
+          "chunk_count": 841,
+          "created_at": "2026-07-13T14:48:09Z",
+          "document_id": "g220_op_instr_0824_en-us-91e62612a7b1",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 30376574,
+              "converter": "pdfium-text",
+              "page_count": 830,
+              "pages_with_text": 828,
+              "sha256": "91e62612a7b1ac654a182d477807e5df93ff16103d8797954fac1e691e37e849",
+              "source_filename": "G220_op_instr_0824_en-US.pdf",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "G220_op_instr_0824_en-US.pdf"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "pdf"
+          ],
+          "text_hash": "21bc38716aa9ca24ae3dd7935e387df93df3b1216ea5deba43a02cde9d5b030c",
+          "title": "G220_op_instr_0824_en-US",
+          "updated_at": "2026-07-13T14:48:09Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "91e62612a7b1ac654a182d477807e5df93ff16103d8797954fac1e691e37e849",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:47:52.340289Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "pdf"
+        ],
+        "title": "G220_op_instr_0824_en-US",
+        "total_bytes": 30376574,
+        "updated_at": "2026-07-13T14:49:07.388948Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\G220_op_instr_0824_en-US.pdf",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 298,
+        "prompt_tokens": 2783
+      },
+      "questions": [
+        {
+          "answer": "death or severe personal injury will result if proper precautions are not taken",
+          "evidence_quote": "indicates that death or severe personal injury will result if proper precautions are not taken.",
+          "question": "What does the notice grade 'DANGER' indicate in the manual?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "positions 3 - 6",
+          "evidence_quote": "The date of manufacture of the converter is coded in positions 3 - 6 of the serial number.",
+          "question": "In which positions of the serial number is the date of manufacture of the converter coded?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "Direct mode",
+          "evidence_quote": "• Binary mode\nDirect mode",
+          "question": "Which mode is recommended for selecting fixed speed setpoints via digital inputs?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "loads with a parabolic speed-torque characteristic, e.g. for fans",
+          "evidence_quote": "We recommend this setting for loads with a parabolic speed-torque characteristic, e.g. for \nfans.",
+          "question": "For which type of loads is the setting p0290 = 2 recommended?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "25",
+          "evidence_quote": "Resistance Ω 25 15 10.",
+          "question": "What is the resistance in Ω for the braking resistor with article number JJY:023422620001?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "91e62612a7b1ac654a182d477807e5df93ff16103d8797954fac1e691e37e849",
+      "suffix": ".pdf",
+      "title": "G220_op_instr_0824_en-US"
+    },
+    {
+      "bytes": 202460,
+      "conversion": {
+        "chars": 158167,
+        "converter": "pdfium-text",
+        "page_count": 97,
+        "seconds": 4.37885439999809
+      },
+      "document_id": "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00",
+      "enqueue_seconds": 0.06645539999954053,
+      "filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+      "job": {
+        "attempt": 2,
+        "completed_at": "2026-07-13T14:49:33.276902Z",
+        "created_at": "2026-07-13T14:47:09.731127Z",
+        "document_id": "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+        "job_id": "docjob_bc3eaf25aed749fbb0aa2dec1819cc85",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 202460,
+            "sha256": "99f7c5432e00f3dc4e6e0e8279ea6c87fa3181339f6e12781fb365ce58a17a2c",
+            "source_filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf"
+        },
+        "next_attempt_at": "2026-07-13T14:49:17.421620Z",
+        "progress_current": 97,
+        "progress_total": 97,
+        "result": {
+          "chunk_chars": 4096,
+          "chunk_count": 97,
+          "created_at": "2026-07-13T14:49:07Z",
+          "document_id": "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 202460,
+              "converter": "pdfium-text",
+              "page_count": 97,
+              "pages_with_text": 97,
+              "sha256": "99f7c5432e00f3dc4e6e0e8279ea6c87fa3181339f6e12781fb365ce58a17a2c",
+              "source_filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "pdf"
+          ],
+          "text_hash": "e4f54c54570e71acf038f44dd8d36a3aff75711b836f5b8cf5289c2d7988867b",
+          "title": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0",
+          "updated_at": "2026-07-13T14:49:33Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "99f7c5432e00f3dc4e6e0e8279ea6c87fa3181339f6e12781fb365ce58a17a2c",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:49:07.398806Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "pdf"
+        ],
+        "title": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0",
+        "total_bytes": 202460,
+        "updated_at": "2026-07-13T14:49:33.276902Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 364,
+        "prompt_tokens": 2709
+      },
+      "questions": [
+        {
+          "answer": "Approvazione del testo unico delle disposizioni legislative in materia postale, di bancoposta e di telecomunicazioni",
+          "evidence_quote": "Approvazione del testo unico delle disposizioni legislative in materia postale, di bancoposta e di\ntelecomunicazioni.",
+          "question": "Qual è l'oggetto del decreto del Presidente della Repubblica 29 marzo 1973, n. 156?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "ventimila copie",
+          "evidence_quote": "la cui tiratura per singolo numero non superi le ventimila copie,",
+          "question": "Qual è il limite di tiratura per singolo numero oltre il quale non si applica automaticamente lo sconto massimo per le stampe periodiche?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "decreto del Ministro per il tesoro, di concerto con il Ministro per le poste e le telecomunicazioni",
+          "evidence_quote": "e' stabilito con decreto del Ministro per il tesoro, di concerto con\nil Ministro per le poste e le telecomunicazioni.",
+          "question": "Chi stabilisce il saggio di interesse sulle somme depositate nei libretti postali di risparmio?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "D.LGS. 1 AGOSTO 2003, N. 259",
+          "evidence_quote": "LGS. 1 AGOSTO 2003, N. 259))",
+          "question": "Quale decreto ha abrogato l'articolo 196 relativo alle concessioni ad uso pubblico?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "servizio dei vaglia a taglio fisso",
+          "evidence_quote": "Soppressione del servizio dei vaglia a taglio fisso",
+          "question": "Quale servizio è stato soppresso ai sensi dell'articolo 412?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "99f7c5432e00f3dc4e6e0e8279ea6c87fa3181339f6e12781fb365ce58a17a2c",
+      "suffix": ".pdf",
+      "title": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0"
+    },
+    {
+      "bytes": 754884,
+      "conversion": {
+        "chars": 761881,
+        "converter": "pdfium-text",
+        "page_count": 327,
+        "seconds": 9.019423099998676
+      },
+      "document_id": "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3",
+      "enqueue_seconds": 0.10929299999770592,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+      "job": {
+        "attempt": 2,
+        "completed_at": "2026-07-13T14:49:44.677722Z",
+        "created_at": "2026-07-13T14:47:09.842662Z",
+        "document_id": "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+        "job_id": "docjob_51842a8abafd4332837c91a4b44e1531",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 754884,
+            "sha256": "bcef1e4121f35fcf889449ad11a3905fd28c6668ac18e0b99b93b3a887159675",
+            "source_filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf"
+        },
+        "next_attempt_at": "2026-07-13T14:49:37.971511Z",
+        "progress_current": 327,
+        "progress_total": 327,
+        "result": {
+          "chunk_chars": 4096,
+          "chunk_count": 327,
+          "created_at": "2026-07-13T14:49:12Z",
+          "document_id": "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 754884,
+              "converter": "pdfium-text",
+              "page_count": 327,
+              "pages_with_text": 327,
+              "sha256": "bcef1e4121f35fcf889449ad11a3905fd28c6668ac18e0b99b93b3a887159675",
+              "source_filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "pdf"
+          ],
+          "text_hash": "aa3587416aa6d3e322b6d5f7594da8ec1499be26b3dae626cbe07afc5e1a503e",
+          "title": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0",
+          "updated_at": "2026-07-13T14:49:44Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "bcef1e4121f35fcf889449ad11a3905fd28c6668ac18e0b99b93b3a887159675",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:49:12.430787Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "pdf"
+        ],
+        "title": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0",
+        "total_bytes": 754884,
+        "updated_at": "2026-07-13T14:49:44.677722Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 380,
+        "prompt_tokens": 2238
+      },
+      "questions": [
+        {
+          "answer": "Codice delle comunicazioni elettroniche",
+          "evidence_quote": "Codice delle comunicazioni elettroniche.",
+          "question": "Qual è il titolo del decreto legislativo del 1 agosto 2003, n. 259?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "cinque giorni lavorativi",
+          "evidence_quote": "procedente che ha ricevuto l'istanza convoca, entro cinque giorni\nlavorativi dalla presentazione dell'istanza, una conferenza di",
+          "question": "Entro quanti giorni dalla presentazione dell'istanza l'amministrazione procedente deve convocare una conferenza di servizi?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "00",
+          "evidence_quote": "Il prefisso «00» costituisce il prefisso internazionale.",
+          "question": "Quale prefisso costituisce il prefisso internazionale?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "la cessione dei diritti acquisiti ad altri coinvestitori o a terzi intenzionati ad aderire all'accordo di coinvestimento",
+          "evidence_quote": "- l'accordo di coinvestimento deve consentire la cessione dei diritti\nacquisiti ad altri coinvestitori o a terzi intenzionati ad aderire\nall'accordo di coinvestimento, subordinatamente all'obbligo a carico",
+          "question": "Cosa deve consentire l'accordo di coinvestimento riguardo ai diritti acquisiti?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "scarsa elasticita' della domanda; analoghe quote di mercato; forti ostacoli giuridici o economici alla penetrazione; integrazione verticale con rifiuto collettivo di fornitura; mancanza di un controbilanciante potere contrattuale dell'acquirente; mancanza di potenziale concorrenza",
+          "evidence_quote": "- scarsa elasticita' della domanda;\n- analoghe quote di mercato;\n- forti ostacoli giuridici o economici alla penetrazione;\n- integrazione verticale con rifiuto collettivo di fornitura;\n- mancanza di un controbilanciante potere contrattuale\n dell'acquirente;\n- mancanza di potenziale concorrenza.",
+          "question": "Quali sono alcune delle caratteristiche specifiche di un mercato concentrato che possono indicare una posizione dominante condivisa nel contesto delle comunicazioni elettroniche?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "bcef1e4121f35fcf889449ad11a3905fd28c6668ac18e0b99b93b3a887159675",
+      "suffix": ".pdf",
+      "title": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0"
+    },
+    {
+      "bytes": 417115,
+      "conversion": {
+        "chars": 407807,
+        "converter": "pdfium-text",
+        "page_count": 169,
+        "seconds": 5.117837600002531
+      },
+      "document_id": "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381",
+      "enqueue_seconds": 0.08115380000162986,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+      "job": {
+        "attempt": 2,
+        "completed_at": "2026-07-13T14:50:08.599949Z",
+        "created_at": "2026-07-13T14:47:09.927288Z",
+        "document_id": "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+        "job_id": "docjob_78b7a4ff452b4abab53d904803da0479",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 417115,
+            "sha256": "832f7b914381870b2ef4fe58200bd87f033da6b7704a864ae1811228dafd60ee",
+            "source_filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf"
+        },
+        "next_attempt_at": "2026-07-13T14:49:49.101688Z",
+        "progress_current": 169,
+        "progress_total": 169,
+        "result": {
+          "chunk_chars": 4096,
+          "chunk_count": 169,
+          "created_at": "2026-07-13T14:49:33Z",
+          "document_id": "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 417115,
+              "converter": "pdfium-text",
+              "page_count": 169,
+              "pages_with_text": 169,
+              "sha256": "832f7b914381870b2ef4fe58200bd87f033da6b7704a864ae1811228dafd60ee",
+              "source_filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "pdf"
+          ],
+          "text_hash": "3a4a96574e8ed1fac5e8f26879d183be5226bab06e49ff6d592f8144091409e0",
+          "title": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0",
+          "updated_at": "2026-07-13T14:50:08Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "832f7b914381870b2ef4fe58200bd87f033da6b7704a864ae1811228dafd60ee",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:49:33.282050Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "pdf"
+        ],
+        "title": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0",
+        "total_bytes": 417115,
+        "updated_at": "2026-07-13T14:50:08.599949Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 356,
+        "prompt_tokens": 2620
+      },
+      "questions": [
+        {
+          "answer": "Codice della proprietà industriale",
+          "evidence_quote": "Codice della proprietà industriale, a norma dell'articolo 15 della legge 12 dicembre 2002, n.",
+          "question": "Qual è l'oggetto del Decreto Legislativo 10 febbraio 2005, n. 30?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "purche' il richiedente la licenza fornisca le necessarie garanzie in ordine ad una soddisfacente attuazione dell'invenzione",
+          "evidence_quote": "del brevetto o dei suoi aventi causa, di un equo compenso e purche'\nil richiedente la licenza fornisca le necessarie garanzie in ordine\nad una soddisfacente attuazione dell'invenzione a norma delle",
+          "question": "A quale condizione può essere concessa una licenza obbligatoria in ordine all'attuazione dell'invenzione?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "la morte, la radiazione o sospensione dall'albo di uno dei difensori incaricati a sensi dell'articolo 201",
+          "evidence_quote": "b) la morte, la radiazione o sospensione dall'albo di uno dei\ndifensori incaricati a sensi dell'articolo 201.",
+          "question": "In quali casi il processo è interrotto dopo la proposizione del ricorso a causa di eventi riguardanti i difensori?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "trenta unita'",
+          "evidence_quote": "opposizioni non puo' superare le trenta unita'.",
+          "question": "Qual è il numero massimo di funzionari designati per l'esame delle opposizioni?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "Roma",
+          "evidence_quote": "Dato a Roma, addi' 10 febbraio 2005",
+          "question": "In quale città è stato dato il decreto il 10 febbraio 2005?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "832f7b914381870b2ef4fe58200bd87f033da6b7704a864ae1811228dafd60ee",
+      "suffix": ".pdf",
+      "title": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0"
+    },
+    {
+      "bytes": 275752,
+      "conversion": {
+        "chars": 247437,
+        "converter": "pdfium-text",
+        "page_count": 100,
+        "seconds": 3.568972799999756
+      },
+      "document_id": "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de",
+      "enqueue_seconds": 0.06673099999898113,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+      "job": {
+        "attempt": 2,
+        "completed_at": "2026-07-13T14:50:36.736195Z",
+        "created_at": "2026-07-13T14:47:09.997734Z",
+        "document_id": "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+        "job_id": "docjob_1fc665024dc4409386fb2d5a47c02c16",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 275752,
+            "sha256": "43d8b92119de61754e15030ea0a479763b74d71990b589dd1810152c3c57fef2",
+            "source_filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf"
+        },
+        "next_attempt_at": "2026-07-13T14:50:13.075701Z",
+        "progress_current": 100,
+        "progress_total": 100,
+        "result": {
+          "chunk_chars": 4096,
+          "chunk_count": 100,
+          "created_at": "2026-07-13T14:49:44Z",
+          "document_id": "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 275752,
+              "converter": "pdfium-text",
+              "page_count": 100,
+              "pages_with_text": 100,
+              "sha256": "43d8b92119de61754e15030ea0a479763b74d71990b589dd1810152c3c57fef2",
+              "source_filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "pdf"
+          ],
+          "text_hash": "3a8880e2eb21f6041892a2a395ee93c8f4c3eaaaf0d750c852f3801b75e9bf91",
+          "title": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0",
+          "updated_at": "2026-07-13T14:50:36Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "43d8b92119de61754e15030ea0a479763b74d71990b589dd1810152c3c57fef2",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:49:44.683278Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "pdf"
+        ],
+        "title": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0",
+        "total_bytes": 275752,
+        "updated_at": "2026-07-13T14:50:36.736195Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 355,
+        "prompt_tokens": 2392
+      },
+      "questions": [
+        {
+          "answer": "Codice dell'amministrazione digitale",
+          "evidence_quote": "Codice dell'amministrazione digitale.",
+          "question": "Qual è il titolo del decreto legislativo 7 marzo 2005, n. 82?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "La Presidenza del Consiglio dei ministri, anche avvalendosi dell'AgID",
+          "evidence_quote": "((La Presidenza del Consiglio dei\nministri, anche avvalendosi dell'AgID,)) assicura il coordinamento",
+          "question": "Chi assicura il coordinamento informatico dell'amministrazione statale, regionale e locale per progettare e monitorare l'evoluzione strategica del sistema informativo della pubblica amministrazione?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "l'Organismo di certificazione della sicurezza informatica",
+          "evidence_quote": "accertata, in Italia, dall'Organismo di certificazione della\nsicurezza informatica in base allo schema nazionale per la",
+          "question": "Chi accerta in Italia la conformità dei requisiti di sicurezza dei dispositivi per la creazione di una firma elettronica qualificata o di un sigillo elettronico prescritti dall'Allegato II del regolamento eIDAS?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "Ministero dell'economia e delle finanze",
+          "evidence_quote": "L'ANA, realizzata dal Ministero dell'economia e delle finanze,",
+          "question": "Quale ente ha realizzato l'Anagrafe nazionale degli assistiti (ANA)?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "7 marzo 2005",
+          "evidence_quote": "Dato a Roma, addi' 7 marzo 2005",
+          "question": "In quale data è stato dato il decreto a Roma?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "43d8b92119de61754e15030ea0a479763b74d71990b589dd1810152c3c57fef2",
+      "suffix": ".pdf",
+      "title": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0"
+    },
+    {
+      "bytes": 346139,
+      "conversion": {
+        "chars": 316612,
+        "converter": "pdfium-text",
+        "page_count": 159,
+        "seconds": 3.414577100000315
+      },
+      "document_id": "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde",
+      "enqueue_seconds": 0.0819563000004564,
+      "filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+      "job": {
+        "attempt": 2,
+        "completed_at": "2026-07-13T14:50:41.843284Z",
+        "created_at": "2026-07-13T14:47:10.083681Z",
+        "document_id": "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+        "job_id": "docjob_4557cc43c9c24747bb1d70000778f4e1",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 346139,
+            "sha256": "d89f3940dcde99c001085bf801892867ef521782f75f05e5f84cfa2d1206f37e",
+            "source_filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf"
+        },
+        "next_attempt_at": "2026-07-13T14:50:41.300748Z",
+        "progress_current": 159,
+        "progress_total": 159,
+        "result": {
+          "chunk_chars": 4096,
+          "chunk_count": 159,
+          "created_at": "2026-07-13T14:50:08Z",
+          "document_id": "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 346139,
+              "converter": "pdfium-text",
+              "page_count": 159,
+              "pages_with_text": 159,
+              "sha256": "d89f3940dcde99c001085bf801892867ef521782f75f05e5f84cfa2d1206f37e",
+              "source_filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "pdf"
+          ],
+          "text_hash": "360fa6ed0dcf74be9ae769de743ee3d66648109187496d1e362bb563f82a5829",
+          "title": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0",
+          "updated_at": "2026-07-13T14:50:41Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "d89f3940dcde99c001085bf801892867ef521782f75f05e5f84cfa2d1206f37e",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:50:08.605397Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "pdf"
+        ],
+        "title": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0",
+        "total_bytes": 346139,
+        "updated_at": "2026-07-13T14:50:41.843284Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 427,
+        "prompt_tokens": 2770
+      },
+      "questions": [
+        {
+          "answer": "legge 30 dicembre 1923, n. 2814",
+          "evidence_quote": "Vista la legge 30 dicembre 1923, n. 2814, che delega al Governo la",
+          "question": "Quale legge delega al Governo la facoltà di pubblicare un nuovo Codice di procedura civile?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "quelle per le quali sono stati abbreviati i termini e a quelle rinviate a norma degli articoli precedenti",
+          "evidence_quote": "dando la precedenza a quelle per le quali sono stati abbreviati i\ntermini e a quelle rinviate a norma degli articoli precedenti.",
+          "question": "Secondo l'articolo 83, a quali cause il giudice istruttore deve dare la precedenza nel fissare l'ordine di trattazione?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "Direttore generale dei sistemi informativi e automatizzati del Ministero della giustizia",
+          "evidence_quote": "provvedimento del Direttore generale dei sistemi informativi e\nautomatizzati del Ministero della giustizia.",
+          "question": "Chi individua e regola le modalità del collegamento da remoto previsto dall'articolo 473-bis.54, terzo comma, del codice?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "1° marzo 2006",
+          "evidence_quote": "2006.\".\n-------------\nAGGIORNAMENTO (27)\n\n<!-- page 121 -->\n\nIl D.L. 14 marzo 2005, n.",
+          "question": "In base all'aggiornamento (27), quando entrano in vigore le disposizioni di cui ai commi 3, lettera e), numeri da 2) a 43-bis), e 3-ter, lettere a-bis), b), c), c-bis), d), e) ed f)?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "mantiene la competenza sugli affari di cui e' stato investito",
+          "evidence_quote": "Il giudice regolarmente adito secondo le leggi anteriori mantiene\nla competenza sugli affari di cui e' stato investito anche se le",
+          "question": "Cosa accade alla competenza del giudice regolarmente adito secondo le leggi anteriori se le norme sulla competenza sono mutate?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "d89f3940dcde99c001085bf801892867ef521782f75f05e5f84cfa2d1206f37e",
+      "suffix": ".pdf",
+      "title": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0"
+    },
+    {
+      "bytes": 21673578,
+      "conversion": {
+        "chars": 25720,
+        "converter": "markitdown",
+        "page_count": null,
+        "seconds": 8.139994900000602
+      },
+      "document_id": "robot-1d924fb88dc4",
+      "enqueue_seconds": 1.9243792000015674,
+      "filename": "Robot.pptx",
+      "job": {
+        "attempt": 1,
+        "completed_at": "2026-07-13T14:50:38.359789Z",
+        "created_at": "2026-07-13T14:47:12.008340Z",
+        "document_id": "robot-1d924fb88dc4",
+        "error_code": "",
+        "error_message": "",
+        "expires_at": "",
+        "filename": "Robot.pptx",
+        "job_id": "docjob_ee564a36be5643f0a14c137c027f6dc7",
+        "max_attempts": 3,
+        "metadata": {
+          "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+          "document_processing": {
+            "bytes": 21673578,
+            "sha256": "1d924fb88dc4b1b20fe0c4ce5f1256fe19758762a6bf80e6fce20fd6a2bfc504",
+            "source_filename": "Robot.pptx",
+            "transport": "mcp-chunk-upload"
+          },
+          "source_filename": "Robot.pptx"
+        },
+        "next_attempt_at": "2026-07-13T14:47:12.008340Z",
+        "progress_current": 1,
+        "progress_total": 1,
+        "result": {
+          "chunk_chars": 360,
+          "chunk_count": 86,
+          "created_at": "2026-07-13T14:50:37Z",
+          "document_id": "robot-1d924fb88dc4",
+          "expires_at": "",
+          "metadata": {
+            "benchmark_id": "real-documents-direct-mcp-20260713T144535Z",
+            "document_processing": {
+              "bytes": 21673578,
+              "converter": "markitdown",
+              "sha256": "1d924fb88dc4b1b20fe0c4ce5f1256fe19758762a6bf80e6fce20fd6a2bfc504",
+              "source_filename": "Robot.pptx",
+              "transport": "mcp-chunk-upload"
+            },
+            "source_filename": "Robot.pptx"
+          },
+          "source": "real-directory-benchmark",
+          "tags": [
+            "real-directory-benchmark",
+            "pptx"
+          ],
+          "text_hash": "06ad2b07799137d5f3c5b7aaa996621263f4174eeb773dd3a8aaaeb21db5f33e",
+          "title": "Robot",
+          "updated_at": "2026-07-13T14:50:37Z",
+          "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+        },
+        "sha256": "1d924fb88dc4b1b20fe0c4ce5f1256fe19758762a6bf80e6fce20fd6a2bfc504",
+        "source": "real-directory-benchmark",
+        "stage": "complete",
+        "started_at": "2026-07-13T14:50:36.741585Z",
+        "status": "succeeded",
+        "tags": [
+          "real-directory-benchmark",
+          "pptx"
+        ],
+        "title": "Robot",
+        "total_bytes": 21673578,
+        "updated_at": "2026-07-13T14:50:38.359789Z",
+        "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+      },
+      "path": "D:\\tmp\\baseline-corpus\\Robot.pptx",
+      "question_usage": {
+        "attempt": 1,
+        "completion_tokens": 361,
+        "prompt_tokens": 2144
+      },
+      "questions": [
+        {
+          "answer": "settore alimentare, farmaceutico e dell'elettronica",
+          "evidence_quote": "Un robot Delta è un tipo di robot industriale progettato per compiti che richiedono movimenti rapidi e precisi, soprattutto nel settore alimentare, farmaceutico e dell'elettronica.",
+          "question": "Quali sono i settori principali per cui è progettato un robot Delta?",
+          "source_id": "S1"
+        },
+        {
+          "answer": "se si verifica uno spostamento o se il riferimento USER è legato a qualcosa che può muoversi, non sarà necessario modificare ogni singolo punto, ma solo il riferimento stesso",
+          "evidence_quote": "In questo modo, se si verifica uno spostamento o se il riferimento USER è legato a qualcosa che può muoversi, non sarà necessario modificare ogni singolo punto, ma solo il riferimento stesso.",
+          "question": "Perché è utile definire punti relativi a un riferimento USER invece che al riferimento WORLD?",
+          "source_id": "S2"
+        },
+        {
+          "answer": "una configurazione in cui l'asse del polso (solitamente l'asse 5 o l'asse centrale del robot) è ruotato di - 90°",
+          "evidence_quote": "Il termine Flip indica una configurazione in cui l'asse del polso (solitamente l'asse 5 o l'asse centrale del robot) è ruotato di - 90°.",
+          "question": "Cosa indica il termine Flip in una configurazione del punto?",
+          "source_id": "S3"
+        },
+        {
+          "answer": "fino a 4 task paralleli",
+          "evidence_quote": "Possono essere creati fino a 4 task paralleli.",
+          "question": "Quanti task paralleli possono essere creati nei Task in Background?",
+          "source_id": "S4"
+        },
+        {
+          "answer": "Il robot può continuare a lavorare mentre il programma viene sviluppato e ottimizzato in simulazione",
+          "evidence_quote": "Riduzione dei tempi di fermo macchina: Il robot può continuare a lavorare mentre il programma viene sviluppato e ottimizzato in simulazione.",
+          "question": "Qual è il vantaggio della programmazione offline (OLP) riguardo ai tempi di fermo macchina?",
+          "source_id": "S5"
+        }
+      ],
+      "sha256": "1d924fb88dc4b1b20fe0c4ce5f1256fe19758762a6bf80e6fce20fd6a2bfc504",
+      "suffix": ".pptx",
+      "title": "Robot"
+    }
+  ],
+  "mcp_url": "http://127.0.0.1:8095/mcp/",
+  "privacy_note": "Source content is sent to the configured embedding provider and sampled passages are sent to the configured question model. This local artifact may contain source evidence and is excluded from Git.",
+  "question_count_per_file": 5,
+  "question_model": "gemma4:31b-cloud",
+  "results": [
+    {
+      "answer": "CASSINETTA DI LUGAGNANO",
+      "document_id": "clienti-dc087d884caf",
+      "error": "",
+      "evidence_quote": "| CASSINETTA DI LUGAGNANO | COLOMBO PIER PAOLO MARIA |",
+      "evidence_rank": 0,
+      "filename": "Clienti.xlsx",
+      "latency_ms": 19403.774300000805,
+      "match_kind": "none",
+      "question": "Qual è la località del cliente 2A ELETTRICA S.R.L.?",
+      "question_index": 1,
+      "retrieved": [
+        {
+          "chunk_id": "clienti-dc087d884caf#648",
+          "locator": "chunk=648",
+          "rank": 1,
+          "score": 0.03252247488101534,
+          "text_preview": "| DIST.LIGURIA | F115 | Sanremo Solaro | 568983 | ELETTRICA S.C. DI SANTOIANNI CRISTI | ISOLABONA | VIANI EMILIANO |\n\n| DIST.TORINO | F109 | Moncalieri | 483992 | ELETTRICA ZETA DI ZURLO GILBERTO | TORINO | MANGIACOTTI GIORGIO |\n\n| DIST.CAS"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#668",
+          "locator": "chunk=668",
+          "rank": 2,
+          "score": 0.03137254901960784,
+          "text_preview": "| DIST.CUNEO | F031 | Alba | 21889 | ELETTRO SOLAR S.R.L. | NEVIGLIE | BERBOTTO PAOLO |\n\n| DIST.TORINO | F028 | Venaria | 563878 | ELETTRO SOLUZIONI SRL | TORINO | LA ROSA ANDREA |\n\n| DIST.CASALE MONFERRATO | F143 | Novara | 554916 | ELETTR"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1077",
+          "locator": "chunk=1077",
+          "rank": 3,
+          "score": 0.031054405392392875,
+          "text_preview": "| DIST.TORINO | F028 | Venaria | 389074 | IMP.ELECTRIC  S.R.L. | RIVOLI | PETRELLI ENRICO |\n\n| DIST.CASALE MONFERRATO | F029 | Vigliano Biellese | 436003 | IMP.ELET.ESSENNE SAS DI SALA ALBERT | VERCELLI | GIORDANO MARCO |\n\n| DIST.TORINO | F"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#580",
+          "locator": "chunk=580",
+          "rank": 4,
+          "score": 0.02964426877470356,
+          "text_preview": "| DIST.TORINO | F028 | Venaria | 636847 | E2M COUTH ITALIA SRL | ROSTA | TARARA' FRANCESCO |\n\n| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 545628 | E2O GROUP S.R.L. | VIGLIANO BIELLESE | DELLARA MAURO |\n\n| DIST.CASALE MONFERRATO | F02"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#683",
+          "locator": "chunk=683",
+          "rank": 5,
+          "score": 0.029437229437229435,
+          "text_preview": "| DIST.CASALE MONFERRATO | F126 | Casale Monferrato | 590862 | ELETTROLUM DI BOTTA ANGELO | MOMBELLO MONFERRATO | GANDINI ALESSIO |\n\n| DIST.TORINO | F109 | Moncalieri | 443932 | ELETTROLUX S.R.L. | TORINO | DEFAZIO MARCO |\n\n| DIST.TORINO | "
+        }
+      ],
+      "source_id": "S1"
+    },
+    {
+      "answer": "MINA GUIDO",
+      "document_id": "clienti-dc087d884caf",
+      "error": "",
+      "evidence_quote": "SPA | BRA | MINA GUIDO |",
+      "evidence_rank": 4,
+      "filename": "Clienti.xlsx",
+      "latency_ms": 6116.113000000041,
+      "match_kind": "quote",
+      "question": "Chi è il venditore esterno per D.I.R.A. SPA?",
+      "question_index": 2,
+      "retrieved": [
+        {
+          "chunk_id": "clienti-dc087d884caf#1396",
+          "locator": "chunk=1396",
+          "rank": 1,
+          "score": 0.03229166666666666,
+          "text_preview": "| DIST.LIGURIA | F108 | Cairo Montenotte | 457936 | O.M.G. MANUFACTURING SPA | ROMA | PONTE DAVIDE |\n\n| DIST.TORINO | F110 | Torino Corso Gross. | 405868 | O.M.G. S.R.L. | TORINO | LA ROSA ANDREA |\n\n| DIST.CUNEO | F031 | Alba | 556267 | O.M"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#542",
+          "locator": "chunk=542",
+          "rank": 2,
+          "score": 0.03229166666666666,
+          "text_preview": "| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 476313 | DIGRIM SOCIETA' COOPERATIVA | REGGIO EMILIA | DELLARA MAURO |\n\n| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 573335 | DIMAC S.R.L. | TORTONA | RUOCCI MARCO |\n\n| DIST.CUNEO | F"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1719",
+          "locator": "chunk=1719",
+          "rank": 3,
+          "score": 0.03131881575727918,
+          "text_preview": "| DIST.TORINO | F110 | Torino Corso Gross. | 423522 | SILMAX SPA | LANZO TORINESE | LA ROSA ANDREA |\n\n| DIST.CUNEO | F101 | Cuneo Valle Infern. | 589173 | SILVA CHIMICA S.R.L. | SAN MICHELE MONDOVI | MUSSO SILVIO |\n\n| DIST.CUNEO | F101 | Cu"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#538",
+          "locator": "chunk=538",
+          "rank": 4,
+          "score": 0.030536130536130537,
+          "text_preview": "| DIST.CUNEO | F104 | Bra | 603766 | DICAF SPA | BRA | MINA GUIDO |\n\n| DIST.CUNEO | F102 | Mondovi' | 621684 | DICIOTTO SRL | ROMA | LINGUA LUCA |\n\n| DIST.TORINO | F038 | Orbassano | 453097 | DIEFFE IMPIANTI SAS DI VILLANI DANI | NICHELINO "
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1597",
+          "locator": "chunk=1597",
+          "rank": 5,
+          "score": 0.029827662395050816,
+          "text_preview": "| DIST.CUNEO | F036 | Cuneo | 479217 | RIVA ACCIAIO SPA | MILANO | MUSSO SILVIO |\n\n| DIST.CUNEO | F101 | Cuneo Valle Infern. | 469010 | RIVA FORNI ELETTRICI SPA | MILANO | MUSSO SILVIO |\n\n| DIST.LIGURIA | F117 | Imperia | 578747 | RIVA MARE"
+        }
+      ],
+      "source_id": "S2"
+    },
+    {
+      "answer": "BUI Area PIE Est",
+      "document_id": "clienti-dc087d884caf",
+      "error": "",
+      "evidence_quote": "| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 615166 | GPGS SRL | TORINO | PIERMARINO ANDREA |",
+      "evidence_rank": 2,
+      "filename": "Clienti.xlsx",
+      "latency_ms": 17955.230200001097,
+      "match_kind": "quote",
+      "question": "A quale filiale è assegnato il cliente GPGS SRL?",
+      "question_index": 3,
+      "retrieved": [
+        {
+          "chunk_id": "clienti-dc087d884caf#1",
+          "locator": "chunk=1",
+          "rank": 1,
+          "score": 0.03306010928961749,
+          "text_preview": "## Foglio1\n\n| Area Comm Fil Cli | Filiale Ass. | Nome Filiale Assegnazione | Cliente | Ragione sociale | Località | Venditore Esterno |\n\n| --- | --- | --- | --- | --- | --- | --- |\n\n| DIST.TORINO | F038 | Orbassano | 597691 | 173 DIVISIONE "
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#978",
+          "locator": "chunk=978",
+          "rank": 2,
+          "score": 0.03306010928961749,
+          "text_preview": "| DIST.TORINO | F028 | Venaria | 405396 | GP PIOLA GIORGIO E C. SNC | TORINO | BELLOSGUARDO IVANO |\n\n| DIST.CUNEO | F031 | Alba | 618983 | GPA SRL | ALBA | MAERO RICCARDO |\n\n| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 615166 | GPGS S"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#983",
+          "locator": "chunk=983",
+          "rank": 3,
+          "score": 0.03076923076923077,
+          "text_preview": "| DIST.LIGURIA | F134 | Genova Romairone | 483281 | GRASSO FACILITY S.R.L. | GENOVA | DE VENUTO BIAGIO |\n\n| DIST.LIGURIA | F121 | Cogorno | 457285 | GRAVEGLIA IMPIANTI SRL | NE | CASSINELLI PAOLO |\n\n| DIST.TORINO | F028 | Venaria | 100751 |"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1499",
+          "locator": "chunk=1499",
+          "rank": 4,
+          "score": 0.02964254577157803,
+          "text_preview": "| DIST.CASALE MONFERRATO | F126 | Casale Monferrato | 630735 | PLASTIPOL SRL | OVADA | GANDINI ALESSIO |\n\n| DIST.TORINO | F038 | Orbassano | 563852 | PLC SYSTEM SRL | ACERRA | MURRU ALESSIO |\n\n| DIST.CASALE MONFERRATO | F046 | Alessandria |"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1114",
+          "locator": "chunk=1114",
+          "rank": 5,
+          "score": 0.02919863597612958,
+          "text_preview": "| DIST.CUNEO | F036 | Cuneo | 444858 | ISI LINE SRL | SALUZZO | ROSSETTI MICHELE |\n\n| DIST.LIGURIA | F134 | Genova Romairone | 241520 | ISMA CONTROLLI ITALY S.P.A. | SANT'OLCESE | CONCU ALESSIO |\n\n| DIST.TORINO | F132 | Settimo Torinese | 4"
+        }
+      ],
+      "source_id": "S3"
+    },
+    {
+      "answer": "PELLEGRINO BRUNO",
+      "document_id": "clienti-dc087d884caf",
+      "error": "",
+      "evidence_quote": "CUNEO | F036 | Cuneo | 410084 | PELLEGRINO BRUNO | BOVES | MASSA BOA LUCA |",
+      "evidence_rank": 0,
+      "filename": "Clienti.xlsx",
+      "latency_ms": 5504.965700001776,
+      "match_kind": "none",
+      "question": "Qual è la ragione sociale associata al cliente 410084?",
+      "question_index": 4,
+      "retrieved": [
+        {
+          "chunk_id": "clienti-dc087d884caf#1",
+          "locator": "chunk=1",
+          "rank": 1,
+          "score": 0.03306010928961749,
+          "text_preview": "## Foglio1\n\n| Area Comm Fil Cli | Filiale Ass. | Nome Filiale Assegnazione | Cliente | Ragione sociale | Località | Venditore Esterno |\n\n| --- | --- | --- | --- | --- | --- | --- |\n\n| DIST.TORINO | F038 | Orbassano | 597691 | 173 DIVISIONE "
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1396",
+          "locator": "chunk=1396",
+          "rank": 2,
+          "score": 0.030309988518943745,
+          "text_preview": "| DIST.LIGURIA | F108 | Cairo Montenotte | 457936 | O.M.G. MANUFACTURING SPA | ROMA | PONTE DAVIDE |\n\n| DIST.TORINO | F110 | Torino Corso Gross. | 405868 | O.M.G. S.R.L. | TORINO | LA ROSA ANDREA |\n\n| DIST.CUNEO | F031 | Alba | 556267 | O.M"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#507",
+          "locator": "chunk=507",
+          "rank": 3,
+          "score": 0.030017921146953404,
+          "text_preview": "| DIST.CUNEO | F036 | Cuneo | 415864 | DAMILANO GROUP S.R.L. | CUNEO | TONELLI DANILO |\n\n| DIST.CASALE MONFERRATO | F126 | Casale Monferrato | 60131 | DANA ITALIA SRL | ARCO | STEFAN CLAUDIO |\n\n| DIST.TORINO | F132 | Settimo Torinese | 8090"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1633",
+          "locator": "chunk=1633",
+          "rank": 4,
+          "score": 0.029709507042253523,
+          "text_preview": "| DIST.CUNEO | F104 | Bra | 424493 | S.I.E. DI SANINO CLAUDIO | SAVIGLIANO | MINA GUIDO |\n\n| DIST.LIGURIA | F119 | Genova Ayroli | 471060 | S.I.E. S.R.L. CON SOCIO UNICO | GENOVA | BASTILE MASSIMO |\n\n| DIST.TORINO | F110 | Torino Corso Gros"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1114",
+          "locator": "chunk=1114",
+          "rank": 5,
+          "score": 0.029437229437229435,
+          "text_preview": "| DIST.CUNEO | F036 | Cuneo | 444858 | ISI LINE SRL | SALUZZO | ROSSETTI MICHELE |\n\n| DIST.LIGURIA | F134 | Genova Romairone | 241520 | ISMA CONTROLLI ITALY S.P.A. | SANT'OLCESE | CONCU ALESSIO |\n\n| DIST.TORINO | F132 | Settimo Torinese | 4"
+        }
+      ],
+      "source_id": "S4"
+    },
+    {
+      "answer": "GOZZANO",
+      "document_id": "clienti-dc087d884caf",
+      "error": "",
+      "evidence_quote": "CASALE MONFERRATO | F141 | Briga Novarese | 456753 | ZUCCHETTI RUBINETTERIA SPA | GOZZANO | FRIGIOLINI ANDREA |",
+      "evidence_rank": 1,
+      "filename": "Clienti.xlsx",
+      "latency_ms": 7005.487599999469,
+      "match_kind": "quote",
+      "question": "In quale località si trova ZUCCHETTI RUBINETTERIA SPA?",
+      "question_index": 5,
+      "retrieved": [
+        {
+          "chunk_id": "clienti-dc087d884caf#1955",
+          "locator": "chunk=1955",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "| DIST.CASALE MONFERRATO | F029 | Vigliano Biellese | 403059 | ZUCCA BERNARDINO MICHELE | VALDILANA | DELLARA MAURO |\n\n| DIST.CASALE MONFERRATO | F141 | Briga Novarese | 456753 | ZUCCHETTI RUBINETTERIA SPA | GOZZANO | FRIGIOLINI ANDREA |\n\n|"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1302",
+          "locator": "chunk=1302",
+          "rank": 2,
+          "score": 0.0315136476426799,
+          "text_preview": "| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 8068046 | MINERVA TECNICA S.R.L. | OSSONA | RUOCCI MARCO |\n\n| DIST.CUNEO | F104 | Bra | 407762 | MINETTI S.P.A. | BERGAMO | MINA GUIDO |\n\n| DIST.CUNEO | F101 | Cuneo Valle Infern. | 592192 "
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1949",
+          "locator": "chunk=1949",
+          "rank": 3,
+          "score": 0.03125,
+          "text_preview": "| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 399119 | ZEGNA BARUFFA LANE BORGOSESIA SPA | VALDILANA | DELLARA MAURO |\n\n| DIST.LIGURIA | F119 | Genova Ayroli | 468467 | ZENA IMPIANTI DI VIRZI STEFANO | GENOVA | COPPO ENRICO |\n\n| DIST.L"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#540",
+          "locator": "chunk=540",
+          "rank": 4,
+          "score": 0.030309988518943745,
+          "text_preview": "| BU INDUSTRY PIEMONTE | F604 | BUI Area PIE Est | 404251 | DIERRE SPA | VILLANOVA D'ASTI | PIERMARINO ANDREA |\n\n| DIST.CASALE MONFERRATO | F025 | Castelletto | 438824 | DIGIEMME S.R.L. | OLEGGIO | CONTI ALESSANDRO |\n\n| DIST.TORINO | F110 |"
+        },
+        {
+          "chunk_id": "clienti-dc087d884caf#1884",
+          "locator": "chunk=1884",
+          "rank": 5,
+          "score": 0.029957522915269395,
+          "text_preview": "| DIST.LIGURIA | F119 | Genova Ayroli | 630518 | TUBARO BRUNO | SORI | DE VENUTO BIAGIO |\n\n| DIST.CASALE MONFERRATO | F126 | Casale Monferrato | 613196 | TUBI GOMMA TORINO SPA | MIRABELLO MONFERRATO | STEFAN CLAUDIO |\n\n| DIST.CUNEO | F101 |"
+        }
+      ],
+      "source_id": "S5"
+    },
+    {
+      "answer": "Definizione e introduzione al concetto di robot",
+      "document_id": "corso-base-robot-0ec1b02e112f",
+      "error": "",
+      "evidence_quote": "Definizione e introduzione al concetto di robot.",
+      "evidence_rank": 1,
+      "filename": "Corso Base Robot.docx",
+      "latency_ms": 3150.680500002636,
+      "match_kind": "quote",
+      "question": "Qual è la definizione del primo punto del corso base robot?",
+      "question_index": 1,
+      "retrieved": [
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#1",
+          "locator": "chunk=1",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "**Corso Base Robot**\n\n**1. Cos’è un robot**\n\nDefinizione e introduzione al concetto di robot.\n\n**2. Tipi di robot**\n\n* Robot industriali\n\n* Robot collaborativi (cobot)\n\n**3. I giunti del robot**\n\nDescrizione dei giunti e delle loro funzioni"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#5",
+          "locator": "chunk=5",
+          "rank": 2,
+          "score": 0.03252247488101534,
+          "text_preview": "Importanza dei simulatori per il dimensionamento e programmazione di una cella robotizzata.\n\n**15. Struttura di un programma di esempio (Pick and Place)**\n\nCreazione e descrizione di un programma base.\n\n**16. Tip and Tricks**\n\nSuggerimenti "
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#2",
+          "locator": "chunk=2",
+          "rank": 3,
+          "score": 0.032266458495966696,
+          "text_preview": "**5. Metodi di calibrazione dei riferimenti**\n\nProcedure per calibrare il TCP e i Frame.\n\n**6. Payload, baricentro e momenti di inerzia**\n\nil carico utile, il baricentro e i momenti di inerzia.\n\n**7. I movimenti del robot**\n\n* **a. Giunti**"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#3",
+          "locator": "chunk=3",
+          "rank": 4,
+          "score": 0.03200204813108039,
+          "text_preview": "* **b. Flip/No Flip**\n\n**9. I raccordi tra i punti**\n\nTecniche per creare movimenti fluidi tra i punti.\n\n**10. La singolarità**\n\nDescrizione e gestione delle singolarità.\n\n**11. Le interfacce con i PLC (I/O)**\n\nIntroduzione agli input/outpu"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#6",
+          "locator": "chunk=6",
+          "rank": 5,
+          "score": 0.031009615384615385,
+          "text_preview": "Suggerimenti e buone pratiche la guida robot"
+        }
+      ],
+      "source_id": "S1"
+    },
+    {
+      "answer": "dimensionamento e programmazione di una cella robotizzata",
+      "document_id": "corso-base-robot-0ec1b02e112f",
+      "error": "",
+      "evidence_quote": "Importanza dei simulatori per il dimensionamento e programmazione di una cella robotizzata.",
+      "evidence_rank": 2,
+      "filename": "Corso Base Robot.docx",
+      "latency_ms": 1777.4042000019108,
+      "match_kind": "quote",
+      "question": "A cosa servono i simulatori secondo il punto 14?",
+      "question_index": 2,
+      "retrieved": [
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#4",
+          "locator": "chunk=4",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "(es. slitte, posizionatori, ecc.)\n\n* **b. Assi slegati dalla cinematica**\n\n(es. pinze, assi esterni, ecc.)\n\n* **c. Spazi logici**\n\n**13. Introduzione alla safety**\n\n* **a. Safety over wire**\n\n* **b. Safety over fieldbus**\n\n* **c. Safety opt"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#5",
+          "locator": "chunk=5",
+          "rank": 2,
+          "score": 0.03278688524590164,
+          "text_preview": "Importanza dei simulatori per il dimensionamento e programmazione di una cella robotizzata.\n\n**15. Struttura di un programma di esempio (Pick and Place)**\n\nCreazione e descrizione di un programma base.\n\n**16. Tip and Tricks**\n\nSuggerimenti "
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#3",
+          "locator": "chunk=3",
+          "rank": 3,
+          "score": 0.03225806451612903,
+          "text_preview": "* **b. Flip/No Flip**\n\n**9. I raccordi tra i punti**\n\nTecniche per creare movimenti fluidi tra i punti.\n\n**10. La singolarità**\n\nDescrizione e gestione delle singolarità.\n\n**11. Le interfacce con i PLC (I/O)**\n\nIntroduzione agli input/outpu"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#2",
+          "locator": "chunk=2",
+          "rank": 4,
+          "score": 0.031746031746031744,
+          "text_preview": "**5. Metodi di calibrazione dei riferimenti**\n\nProcedure per calibrare il TCP e i Frame.\n\n**6. Payload, baricentro e momenti di inerzia**\n\nil carico utile, il baricentro e i momenti di inerzia.\n\n**7. I movimenti del robot**\n\n* **a. Giunti**"
+        }
+      ],
+      "source_id": "S2"
+    },
+    {
+      "answer": "Creazione e descrizione di un programma base",
+      "document_id": "corso-base-robot-0ec1b02e112f",
+      "error": "",
+      "evidence_quote": "Creazione e descrizione di un programma base.",
+      "evidence_rank": 1,
+      "filename": "Corso Base Robot.docx",
+      "latency_ms": 477.0883999990474,
+      "match_kind": "quote",
+      "question": "Cosa prevede il punto 15 relativo alla struttura di un programma di esempio?",
+      "question_index": 3,
+      "retrieved": [
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#5",
+          "locator": "chunk=5",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Importanza dei simulatori per il dimensionamento e programmazione di una cella robotizzata.\n\n**15. Struttura di un programma di esempio (Pick and Place)**\n\nCreazione e descrizione di un programma base.\n\n**16. Tip and Tricks**\n\nSuggerimenti "
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#2",
+          "locator": "chunk=2",
+          "rank": 2,
+          "score": 0.03252247488101534,
+          "text_preview": "**5. Metodi di calibrazione dei riferimenti**\n\nProcedure per calibrare il TCP e i Frame.\n\n**6. Payload, baricentro e momenti di inerzia**\n\nil carico utile, il baricentro e i momenti di inerzia.\n\n**7. I movimenti del robot**\n\n* **a. Giunti**"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#4",
+          "locator": "chunk=4",
+          "rank": 3,
+          "score": 0.032266458495966696,
+          "text_preview": "(es. slitte, posizionatori, ecc.)\n\n* **b. Assi slegati dalla cinematica**\n\n(es. pinze, assi esterni, ecc.)\n\n* **c. Spazi logici**\n\n**13. Introduzione alla safety**\n\n* **a. Safety over wire**\n\n* **b. Safety over fieldbus**\n\n* **c. Safety opt"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#1",
+          "locator": "chunk=1",
+          "rank": 4,
+          "score": 0.03200204813108039,
+          "text_preview": "**Corso Base Robot**\n\n**1. Cos’è un robot**\n\nDefinizione e introduzione al concetto di robot.\n\n**2. Tipi di robot**\n\n* Robot industriali\n\n* Robot collaborativi (cobot)\n\n**3. I giunti del robot**\n\nDescrizione dei giunti e delle loro funzioni"
+        }
+      ],
+      "source_id": "S3"
+    },
+    {
+      "answer": "ottimizzare l’utilizzo del robot",
+      "document_id": "corso-base-robot-0ec1b02e112f",
+      "error": "",
+      "evidence_quote": "Suggerimenti e buone pratiche per ottimizzare l’utilizzo del robot.",
+      "evidence_rank": 1,
+      "filename": "Corso Base Robot.docx",
+      "latency_ms": 538.5256000008667,
+      "match_kind": "quote",
+      "question": "Qual è lo scopo dei Tip and Tricks descritti al punto 16?",
+      "question_index": 4,
+      "retrieved": [
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#5",
+          "locator": "chunk=5",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Importanza dei simulatori per il dimensionamento e programmazione di una cella robotizzata.\n\n**15. Struttura di un programma di esempio (Pick and Place)**\n\nCreazione e descrizione di un programma base.\n\n**16. Tip and Tricks**\n\nSuggerimenti "
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#4",
+          "locator": "chunk=4",
+          "rank": 2,
+          "score": 0.032018442622950824,
+          "text_preview": "(es. slitte, posizionatori, ecc.)\n\n* **b. Assi slegati dalla cinematica**\n\n(es. pinze, assi esterni, ecc.)\n\n* **c. Spazi logici**\n\n**13. Introduzione alla safety**\n\n* **a. Safety over wire**\n\n* **b. Safety over fieldbus**\n\n* **c. Safety opt"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#6",
+          "locator": "chunk=6",
+          "rank": 3,
+          "score": 0.03200204813108039,
+          "text_preview": "Suggerimenti e buone pratiche la guida robot"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#3",
+          "locator": "chunk=3",
+          "rank": 4,
+          "score": 0.03200204813108039,
+          "text_preview": "* **b. Flip/No Flip**\n\n**9. I raccordi tra i punti**\n\nTecniche per creare movimenti fluidi tra i punti.\n\n**10. La singolarità**\n\nDescrizione e gestione delle singolarità.\n\n**11. Le interfacce con i PLC (I/O)**\n\nIntroduzione agli input/outpu"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#1",
+          "locator": "chunk=1",
+          "rank": 5,
+          "score": 0.03177805800756621,
+          "text_preview": "**Corso Base Robot**\n\n**1. Cos’è un robot**\n\nDefinizione e introduzione al concetto di robot.\n\n**2. Tipi di robot**\n\n* Robot industriali\n\n* Robot collaborativi (cobot)\n\n**3. I giunti del robot**\n\nDescrizione dei giunti e delle loro funzioni"
+        }
+      ],
+      "source_id": "S4"
+    },
+    {
+      "answer": "guida robot con la visione industriale",
+      "document_id": "corso-base-robot-0ec1b02e112f",
+      "error": "",
+      "evidence_quote": "Introduzione alla guida robot con la visione industriale**",
+      "evidence_rank": 3,
+      "filename": "Corso Base Robot.docx",
+      "latency_ms": 562.0419000006223,
+      "match_kind": "quote",
+      "question": "Qual è l'argomento trattato nell'introduzione al punto 17?",
+      "question_index": 5,
+      "retrieved": [
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#4",
+          "locator": "chunk=4",
+          "rank": 1,
+          "score": 0.03278688524590164,
+          "text_preview": "(es. slitte, posizionatori, ecc.)\n\n* **b. Assi slegati dalla cinematica**\n\n(es. pinze, assi esterni, ecc.)\n\n* **c. Spazi logici**\n\n**13. Introduzione alla safety**\n\n* **a. Safety over wire**\n\n* **b. Safety over fieldbus**\n\n* **c. Safety opt"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#1",
+          "locator": "chunk=1",
+          "rank": 2,
+          "score": 0.032539682539682535,
+          "text_preview": "**Corso Base Robot**\n\n**1. Cos’è un robot**\n\nDefinizione e introduzione al concetto di robot.\n\n**2. Tipi di robot**\n\n* Robot industriali\n\n* Robot collaborativi (cobot)\n\n**3. I giunti del robot**\n\nDescrizione dei giunti e delle loro funzioni"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#5",
+          "locator": "chunk=5",
+          "rank": 3,
+          "score": 0.032539682539682535,
+          "text_preview": "Importanza dei simulatori per il dimensionamento e programmazione di una cella robotizzata.\n\n**15. Struttura di un programma di esempio (Pick and Place)**\n\nCreazione e descrizione di un programma base.\n\n**16. Tip and Tricks**\n\nSuggerimenti "
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#3",
+          "locator": "chunk=3",
+          "rank": 4,
+          "score": 0.03225806451612903,
+          "text_preview": "* **b. Flip/No Flip**\n\n**9. I raccordi tra i punti**\n\nTecniche per creare movimenti fluidi tra i punti.\n\n**10. La singolarità**\n\nDescrizione e gestione delle singolarità.\n\n**11. Le interfacce con i PLC (I/O)**\n\nIntroduzione agli input/outpu"
+        },
+        {
+          "chunk_id": "corso-base-robot-0ec1b02e112f#2",
+          "locator": "chunk=2",
+          "rank": 5,
+          "score": 0.03125,
+          "text_preview": "**5. Metodi di calibrazione dei riferimenti**\n\nProcedure per calibrare il TCP e i Frame.\n\n**6. Payload, baricentro e momenti di inerzia**\n\nil carico utile, il baricentro e i momenti di inerzia.\n\n**7. I movimenti del robot**\n\n* **a. Giunti**"
+        }
+      ],
+      "source_id": "S5"
+    },
+    {
+      "answer": "Via della Maddalena 27, 00186 Roma",
+      "document_id": "costituzione-cf62b430cc08",
+      "error": "",
+      "evidence_quote": "Via della Maddalena 27, 00186 Roma",
+      "evidence_rank": 1,
+      "filename": "Costituzione.pdf",
+      "latency_ms": 4406.646499999624,
+      "match_kind": "quote",
+      "question": "Qual è l'indirizzo della Libreria multimediale Centro di In-Form@zione?",
+      "question_index": 1,
+      "retrieved": [
+        {
+          "chunk_id": "costituzione-cf62b430cc08#4",
+          "locator": "chunk=4",
+          "rank": 1,
+          "score": 0.03306010928961749,
+          "text_preview": "<!-- page 6 -->\n\nLa pubblicazione contiene il testo della Costituzione della Repubblica italiana\n\naggiornato alla legge costituzionale 11 febbraio 2022, n. 1 (G.U. n. 44 del 22 febbraio 2022)\n\nIn IV di copertina la frase di Enrico De Nicola"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#2",
+          "locator": "chunk=2",
+          "rank": 2,
+          "score": 0.03306010928961749,
+          "text_preview": "<!-- page 3 -->\n\nBIBLIOTECA ITALIA"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#15",
+          "locator": "chunk=15",
+          "rank": 3,
+          "score": 0.028169014084507043,
+          "text_preview": "<!-- page 17 -->\n\nCOSTITUZIONE DELLA REPUBBLICA ITALIANA 13\n\nPARTE I\n\nDIRITTI E DOVERI DEI CITTADINI\n\nTITOLO I\n\nRAPPORTI CIVILI\n\nArt. 13.\n\nLa liberta` personale e` inviolabile.\n\nNon e` ammessa forma alcuna di detenzione,\n\ndi ispezione o per"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#18",
+          "locator": "chunk=18",
+          "rank": 4,
+          "score": 0.027984344422700584,
+          "text_preview": "<!-- page 20 -->\n\n16 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nessere causa di speciali limitazioni legislative, ne´ di\n\nspeciali gravami fiscali per la sua costituzione, ca\u0002pacita` giuridica e ogni forma di attivita` [8, 19].\n\nArt. 21.\n\nTutt"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#61",
+          "locator": "chunk=61",
+          "rank": 5,
+          "score": 0.027529761904761904,
+          "text_preview": "<!-- page 63 -->\n\nCOSTITUZIONE DELLA REPUBBLICA ITALIANA 59\n\nTITOLO V\n\nLE REGIONI, LE PROVINCIE, I COMUNI (1)\n\nArt. 114. (2)\n\nLa Repubblica e` costituita dai Comuni, dalle\n\nProvince, dalle Citta` metropolitane, dalle Regioni\n\n[131] e dallo "
+        }
+      ],
+      "source_id": "S1"
+    },
+    {
+      "answer": "personale ed eguale, libero e segreto",
+      "document_id": "costituzione-cf62b430cc08",
+      "error": "",
+      "evidence_quote": "Il voto e` personale ed eguale, libero e segreto.",
+      "evidence_rank": 1,
+      "filename": "Costituzione.pdf",
+      "latency_ms": 7574.9547999985225,
+      "match_kind": "quote",
+      "question": "Quali sono le caratteristiche del voto secondo l'articolo 48?",
+      "question_index": 2,
+      "retrieved": [
+        {
+          "chunk_id": "costituzione-cf62b430cc08#29",
+          "locator": "chunk=29",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "<!-- page 31 -->\n\nCOSTITUZIONE DELLA REPUBBLICA ITALIANA 27\n\nTITOLO IV\n\nRAPPORTI POLITICI\n\nArt. 48. (1)\n\nSono elettori tutti i cittadini, uomini e donne,\n\nche hanno raggiunto la maggiore eta` [56, 58,\n\n712\n\n, 751, 3, 1382, XIII1].\n\nIl voto "
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#46",
+          "locator": "chunk=46",
+          "rank": 2,
+          "score": 0.03252247488101534,
+          "text_preview": "<!-- page 48 -->\n\n44 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nminoranze. La Valle d’Aosta ha un solo delegato\n\n[II].\n\nL’elezione del Presidente della Repubblica ha\n\nluogo per scrutinio segreto a maggioranza di\n\ndue terzi dell’assemblea. Dopo"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#88",
+          "locator": "chunk=88",
+          "rank": 3,
+          "score": 0.03177805800756621,
+          "text_preview": "<!-- page 90 -->\n\n86 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nXI.\n\nFino a cinque anni dall’entrata in vigore della\n\nCostituzione si possono, con leggi costituzionali,\n\nformare altre Regioni, a modificazione dell’elenco\n\ndi cui all’articolo 1"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#6",
+          "locator": "chunk=6",
+          "rank": 4,
+          "score": 0.031754032258064516,
+          "text_preview": "<!-- page 8 -->\n\n4 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nTITOLO III – Il Governo . . . . . . . . . . . . . . Pag. 48\n\nSezione III – Il Consiglio dei ministri\n\n(artt. 92-96) . . . . . . . . . . . » 48\n\nSezione III – La Pubblica Amministra\u0002"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#5",
+          "locator": "chunk=5",
+          "rank": 5,
+          "score": 0.031746031746031744,
+          "text_preview": "<!-- page 7 -->\n\nINDICE\n\nPrincı`pi fondamentali (artt. 1-12) . . . . . . Pag. 8\n\nPARTE I\n\nDiritti e doveri dei cittadini\n\nTITOLO III – Rapporti civili (artt. 13-28). » 13\n\nTITOLO III – Rapporti etico-sociali (artt.\n\n29-34) . . . . . . . . ."
+        }
+      ],
+      "source_id": "S2"
+    },
+    {
+      "answer": "del Presidente del Consiglio e dei ministri",
+      "document_id": "costituzione-cf62b430cc08",
+      "error": "",
+      "evidence_quote": "Il Presidente della Repubblica nomina il Presi dente del Consiglio dei ministri e, su proposta",
+      "evidence_rank": 1,
+      "filename": "Costituzione.pdf",
+      "latency_ms": 12509.801000000152,
+      "match_kind": "quote",
+      "question": "Di cosa è composto il Governo della Repubblica secondo l'articolo 92?",
+      "question_index": 3,
+      "retrieved": [
+        {
+          "chunk_id": "costituzione-cf62b430cc08#50",
+          "locator": "chunk=50",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "<!-- page 52 -->\n\n48 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nTITOLO III\n\nIL GOVERNO\n\nSEZIONE I. – Il Consiglio dei ministri.\n\nArt. 92.\n\nIl Governo della Repubblica e` composto del\n\nPresidente del Consiglio e dei ministri, che costi\u0002tuiscono"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#6",
+          "locator": "chunk=6",
+          "rank": 2,
+          "score": 0.03252247488101534,
+          "text_preview": "<!-- page 8 -->\n\n4 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nTITOLO III – Il Governo . . . . . . . . . . . . . . Pag. 48\n\nSezione III – Il Consiglio dei ministri\n\n(artt. 92-96) . . . . . . . . . . . » 48\n\nSezione III – La Pubblica Amministra\u0002"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#90",
+          "locator": "chunk=90",
+          "rank": 3,
+          "score": 0.03131881575727918,
+          "text_preview": "<!-- page 92 -->\n\n88 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nnali che non siano state finora esplicitamente o\n\nimplicitamente abrogate.\n\nXVII.\n\nL’Assemblea Costituente sara` convocata dal suo\n\nPresidente per deliberare, entro il 31 gennaio\n"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#61",
+          "locator": "chunk=61",
+          "rank": 4,
+          "score": 0.03125,
+          "text_preview": "<!-- page 63 -->\n\nCOSTITUZIONE DELLA REPUBBLICA ITALIANA 59\n\nTITOLO V\n\nLE REGIONI, LE PROVINCIE, I COMUNI (1)\n\nArt. 114. (2)\n\nLa Repubblica e` costituita dai Comuni, dalle\n\nProvince, dalle Citta` metropolitane, dalle Regioni\n\n[131] e dallo "
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#64",
+          "locator": "chunk=64",
+          "rank": 5,
+          "score": 0.03057889822595705,
+          "text_preview": "<!-- page 66 -->\n\n62 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\ncittadini di Stati non appartenenti all’Unione\n\neuropea;\n\nb) immigrazione;\n\nc) rapporti tra la Repubblica e le confessioni\n\nreligiose;\n\nd) difesa e Forze armate; sicurezza dello S"
+        }
+      ],
+      "source_id": "S3"
+    },
+    {
+      "answer": "solo per finanziare spese di investimento",
+      "document_id": "costituzione-cf62b430cc08",
+      "error": "",
+      "evidence_quote": "Possono ricorrere all’indebita mento solo per finanziare spese di investimento,",
+      "evidence_rank": 1,
+      "filename": "Costituzione.pdf",
+      "latency_ms": 13127.137600000424,
+      "match_kind": "quote",
+      "question": "Per quale finalità le Regioni possono ricorrere all'indebitamento?",
+      "question_index": 4,
+      "retrieved": [
+        {
+          "chunk_id": "costituzione-cf62b430cc08#69",
+          "locator": "chunk=69",
+          "rank": 1,
+          "score": 0.03306010928961749,
+          "text_preview": "<!-- page 71 -->\n\nCOSTITUZIONE DELLA REPUBBLICA ITALIANA 67\n\nPer promuovere lo sviluppo economico, la coe\u0002sione e la solidarieta` sociale, per rimuovere gli\n\nsquilibri economici e sociali, per favorire l’effet\u0002tivo esercizio dei diritti del"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#66",
+          "locator": "chunk=66",
+          "rank": 2,
+          "score": 0.03128054740957967,
+          "text_preview": "<!-- page 68 -->\n\n64 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nrente spetta alle Regioni la potesta` legislativa,\n\nsalvo che per la determinazione dei princı`pi\n\nfondamentali, riservata alla legislazione dello\n\nStato. (1)\n\nSpetta alle Regioni"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#68",
+          "locator": "chunk=68",
+          "rank": 3,
+          "score": 0.03125763125763126,
+          "text_preview": "<!-- page 70 -->\n\n66 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nattivita` di interesse generale, sulla base del princi\u0002pio di sussidiarieta`.\n\nArt. 119.\n\nI Comuni, le Province, le Citta` metropolitane e\n\nle Regioni hanno autonomia finanziaria "
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#61",
+          "locator": "chunk=61",
+          "rank": 4,
+          "score": 0.03057889822595705,
+          "text_preview": "<!-- page 63 -->\n\nCOSTITUZIONE DELLA REPUBBLICA ITALIANA 59\n\nTITOLO V\n\nLE REGIONI, LE PROVINCIE, I COMUNI (1)\n\nArt. 114. (2)\n\nLa Repubblica e` costituita dai Comuni, dalle\n\nProvince, dalle Citta` metropolitane, dalle Regioni\n\n[131] e dallo "
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#88",
+          "locator": "chunk=88",
+          "rank": 5,
+          "score": 0.029827662395050816,
+          "text_preview": "<!-- page 90 -->\n\n86 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nXI.\n\nFino a cinque anni dall’entrata in vigore della\n\nCostituzione si possono, con leggi costituzionali,\n\nformare altre Regioni, a modificazione dell’elenco\n\ndi cui all’articolo 1"
+        }
+      ],
+      "source_id": "S4"
+    },
+    {
+      "answer": "Palazzo Giustiniani",
+      "document_id": "costituzione-cf62b430cc08",
+      "error": "",
+      "evidence_quote": "La Costituzione italiana venne promulgata il 27 dicembre 1947 a Palazzo Giustiniani,",
+      "evidence_rank": 1,
+      "filename": "Costituzione.pdf",
+      "latency_ms": 13243.56009999974,
+      "match_kind": "quote",
+      "question": "In quale luogo venne promulgata la Costituzione italiana il 27 dicembre 1947?",
+      "question_index": 5,
+      "retrieved": [
+        {
+          "chunk_id": "costituzione-cf62b430cc08#92",
+          "locator": "chunk=92",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "<!-- page 96 -->\n\nLa Costituzione italiana venne promulgata il 27 dicembre 1947 a Palazzo Giustiniani,\n\nscelto da Enrico De Nicola come sede provvisoria del Capo dello Stato\n\nnel periodo che va dal referendum tra Monarchia e Repubblica del "
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#91",
+          "locator": "chunk=91",
+          "rank": 2,
+          "score": 0.032018442622950824,
+          "text_preview": "<!-- page 93 -->\n\nCOSTITUZIONE DELLA REPUBBLICA ITALIANA 89\n\ndalla sua approvazione da parte dell’Assemblea\n\nCostituente, ed entra in vigore il 1º gennaio 1948.\n\nIl testo della Costituzione e` depositato nella\n\nsala comunale di ciascun Comu"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#76",
+          "locator": "chunk=76",
+          "rank": 3,
+          "score": 0.030090497737556562,
+          "text_preview": "<!-- page 78 -->\n\n74 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nArt. 129. (1)\n\n[Abrogato.]\n\nArt. 130. (2)\n\n[Abrogato.]\n\nArt. 131. (3)\n\nSono costituite le seguenti Regioni:\n\nPiemonte;\n\nValle d’Aosta [573\n\n, 832, 116];\n\n————————\n\n(1) Articolo ab"
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#5",
+          "locator": "chunk=5",
+          "rank": 4,
+          "score": 0.029418126757516764,
+          "text_preview": "<!-- page 7 -->\n\nINDICE\n\nPrincı`pi fondamentali (artt. 1-12) . . . . . . Pag. 8\n\nPARTE I\n\nDiritti e doveri dei cittadini\n\nTITOLO III – Rapporti civili (artt. 13-28). » 13\n\nTITOLO III – Rapporti etico-sociali (artt.\n\n29-34) . . . . . . . . ."
+        },
+        {
+          "chunk_id": "costituzione-cf62b430cc08#62",
+          "locator": "chunk=62",
+          "rank": 5,
+          "score": 0.0288981288981289,
+          "text_preview": "<!-- page 64 -->\n\n60 COSTITUZIONE DELLA REPUBBLICA ITALIANA\n\nArt. 115. (1)\n\n[Abrogato.]\n\nArt. 116. (2)\n\nIl Friuli Venezia Giulia [X], la Sardegna, la Sici\u0002lia, il Trentino-Alto Adige/Su¨dtirol e la Valle d’Ao\u0002sta/Valle´e d’Aoste dispongono "
+        }
+      ],
+      "source_id": "S5"
+    },
+    {
+      "answer": "2015",
+      "document_id": "diario-ultimo-aec36c49f8ba",
+      "error": "",
+      "evidence_quote": "Il mio survival blog è cominciato il 19 dicembre 2010, anzi il 19 dicembre *2015*.",
+      "evidence_rank": 0,
+      "filename": "Diario-ultimo.epub",
+      "latency_ms": 10843.005800001265,
+      "match_kind": "none",
+      "question": "In che anno ha colpito l'intero pianeta la pandemia gialla?",
+      "question_index": 1,
+      "retrieved": [
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#4",
+          "locator": "chunk=4",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "In questo ebook sono riuniti i sette racconti che ho scritto per il progetto di scrittura collettiva lanciato da Alessandro Girola. È così che è nata l'idea del *survival blog*, un diario di speranza e di sfogo per chi era sopravvissuto all"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#6",
+          "locator": "chunk=6",
+          "rank": 2,
+          "score": 0.03252247488101534,
+          "text_preview": "La copertina, in piena tradizione pandemica, è sul giallo, colore che ha caratterizzato l'intero progetto. E anche qualcuno di noi.\n\nA fine ebook potete leggere l'articolo che ho scritto – e pubblicato su Penna blu – sulla mia esperienza de"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#239",
+          "locator": "chunk=239",
+          "rank": 3,
+          "score": 0.03252247488101534,
+          "text_preview": "Contatti con altri blogger. È stato anche un modo per conoscere altri blogger e visitare i loro blog. Leggere come altri hanno portato avanti i loro racconti apocalittici – anche se non sono riuscito a seguirli tutti, ma non erano certo poc"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#220",
+          "locator": "chunk=220",
+          "rank": 4,
+          "score": 0.030309988518943745,
+          "text_preview": "Il Survival blog è stato un esperimento di scrittura collettiva, lanciato da Alessandro Girola per caso, dopo un racconto apocalittico apparso nel suo blog. Qualcuno ha cominciato a commentare introducendo una sua storia, poi il “virus” si "
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#151",
+          "locator": "chunk=151",
+          "rank": 5,
+          "score": 0.030117753623188408,
+          "text_preview": "Ero fuggito da un carcere temporaneo e da un'esecuzione lenta per finire, senza saperlo, in un altro carcere, dove la mia fine appariva lontana e incerta come il futuro dell'intero pianeta. Sono stati giorni lunghissimi, questi, pieni di an"
+        }
+      ],
+      "source_id": "S1"
+    },
+    {
+      "answer": "la vasca da bagno",
+      "document_id": "diario-ultimo-aec36c49f8ba",
+      "error": "",
+      "evidence_quote": "Usai la vasca da bagno come congelatore.",
+      "evidence_rank": 1,
+      "filename": "Diario-ultimo.epub",
+      "latency_ms": 9420.441700000083,
+      "match_kind": "quote",
+      "question": "Cosa ha usato il protagonista come congelatore per il maiale?",
+      "question_index": 2,
+      "retrieved": [
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#60",
+          "locator": "chunk=60",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Arrivai al rifugio che era già buio. Ero a pezzi. Avevo dovuto fermarmi continuamente, poggiare a terra la carcassa dell'animale, riprendere fiato.\n\nUsai la vasca da bagno come congelatore. Ci buttai dentro il maiale e lo coprii di neve, ri"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#58",
+          "locator": "chunk=58",
+          "rank": 2,
+          "score": 0.03200204813108039,
+          "text_preview": "Il maiale forse intuì qualcosa, perché si girò verso di me d'istinto. Fui veloce a colpirlo, ma riuscii a ferirlo soltanto su una coscia mentre si slanciò per fuggire. Tuttavia quel colpo gli fece perdere l'equilibrio e, prima che potesse r"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#87",
+          "locator": "chunk=87",
+          "rank": 3,
+          "score": 0.031544957774465976,
+          "text_preview": "Avevo bisogno di sapere. Dovevo conoscere dove si nascondessero i Disperati, quanti fossero. Avevo appeso i corpi di quei quattro nel bagno, sulla vasca usata come congelatore. Li avevo spogliati e decapitati e poi appesi per i piedi a sgoc"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#62",
+          "locator": "chunk=62",
+          "rank": 4,
+          "score": 0.030309988518943745,
+          "text_preview": "Oggi è di nuovo sabato notte, o meglio domenica, e ho riacceso il generatore per collegarmi a internet e leggere qualche notizia da questo mondo che va in frantumi. Ho macellato il maiale, ma non ho potuto cuocerne la carne per paura che la"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#56",
+          "locator": "chunk=56",
+          "rank": 5,
+          "score": 0.030309988518943745,
+          "text_preview": "Osservai bene il terreno in cui pascolava il maiale. Mi dava anche “le spalle”, mentre masticava bacche cadute, forse ghiande. Decisi di togliermi le scarpe e le nascosi fra i cespugli. Poi aggirai il terreno in cerca di un varco per entrar"
+        }
+      ],
+      "source_id": "S2"
+    },
+    {
+      "answer": "filmare il processo",
+      "document_id": "diario-ultimo-aec36c49f8ba",
+      "error": "",
+      "evidence_quote": "«A te abbiamo riservato l'onore di filmare il processo» mi disse, porgendomi la telecame",
+      "evidence_rank": 9,
+      "filename": "Diario-ultimo.epub",
+      "latency_ms": 9283.113199999207,
+      "match_kind": "quote",
+      "question": "Quale onore è stato riservato al protagonista da parte del secondo del Cane?",
+      "question_index": 3,
+      "retrieved": [
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#120",
+          "locator": "chunk=120",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Poi vidi il Cane dire qualcosa all'uomo che gli stava vicino, evidentemente il suo secondo. Quello annuì, guardandomi e sorridendo, poi prese dal tavolo una telecamera e ordinò al carceriere di portarmi da lui."
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#118",
+          "locator": "chunk=118",
+          "rank": 2,
+          "score": 0.03200204813108039,
+          "text_preview": "cintura e se ne stava in silenzio, lo sguardo impassibile, con le braccia conserte e una posa da dominatore.\n\nNon fu difficile indovinare che era quello che si faceva chiamare il Cane."
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#133",
+          "locator": "chunk=133",
+          "rank": 3,
+          "score": 0.03149801587301587,
+          "text_preview": "Afferrai il mitra e sparai. Il primo a cadere fu il carceriere, che mi stava vicino, poi vidi il corpo del Cane sbalzare all'indietro, seguito da quello del suo vice. Frugai nelle tasche del carceriere e presi le chiavi del pulmino, poi sca"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#123",
+          "locator": "chunk=123",
+          "rank": 4,
+          "score": 0.03131881575727918,
+          "text_preview": "Il processo era la solita farsa messa in piedi in situazioni del genere. La sentenza era stata già scritta e il mitra che il carceriere teneva puntato contro quell'uomo non lasciava dubbi sulla sua natura. Il Cane ordinò al prigioniero di s"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#125",
+          "locator": "chunk=125",
+          "rank": 5,
+          "score": 0.031099324975891997,
+          "text_preview": "M'ero aspettato un ordine o quantomeno un cenno della testa, ma evidentemente il via a quella barbara esecuzione era stato deciso che avvenisse a quel modo. L'uomo fu proiettato indietro e quando cadde a terra era già morto. Sentivo che le "
+        }
+      ],
+      "source_id": "S3"
+    },
+    {
+      "answer": "23 gennaio 2016, ore 7,26",
+      "document_id": "diario-ultimo-aec36c49f8ba",
+      "error": "",
+      "evidence_quote": "23 gennaio 2016, ore 7,26",
+      "evidence_rank": 0,
+      "filename": "Diario-ultimo.epub",
+      "latency_ms": 9998.848000002909,
+      "match_kind": "none",
+      "question": "A quale data e ora risale l'inizio del Capitolo VI - Rosso sangue?",
+      "question_index": 4,
+      "retrieved": [
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#202",
+          "locator": "chunk=202",
+          "rank": 1,
+          "score": 0.03306010928961749,
+          "text_preview": "Non è più nero il mio destino, ma ha assunto un nuovo colore. Il colore rosso sangue che mi sono lasciato alle spalle, quello che mi sono portato dietro, quello che mi consente di sopravvivere.\n\nÈ questo che mi conforta.\n\nE il sapore metall"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#180",
+          "locator": "chunk=180",
+          "rank": 2,
+          "score": 0.03279569892473118,
+          "text_preview": "passato remoto e sempre più irraggiungibile.\n\nNel silenzio di quel mio isolamento forzato penso tuttora a un modo per fuggire dalla mia prigionia.\n\nSento la fame giungere sempre più forte e decisa, non più estranea.\n\nSento la foresta richia"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#7",
+          "locator": "chunk=7",
+          "rank": 3,
+          "score": 0.03149801587301587,
+          "text_preview": "Sputò un grumo di sangue sulla strada. Alzarmi questa mattina, disse.\n\n— Cormac McCarthy (The Road)\n\n19 dicembre 2015, ore 6,37"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#223",
+          "locator": "chunk=223",
+          "rank": 4,
+          "score": 0.031099324975891997,
+          "text_preview": "Ogni puntata ha un sottotitolo, con l'indicazione del capitolo: Survival blog, capitolo 1.\n\nPrima del testo del racconto c'è una citazione presa da un romanzo famoso.\n\nSotto la citazione c'è la data in cui il protagonista pubblica il suo di"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#106",
+          "locator": "chunk=106",
+          "rank": 5,
+          "score": 0.030776515151515152,
+          "text_preview": "Sento che dentro di me convivono due forze in lotta fra loro. Una volta avevo un nome ed ero qualcuno. Adesso la mia identità è doppia e m'è ignoto quale delle due prenderà il sopravvento.\n\n# Cap. IV - Fuga disperata\n\n«Ho visto uomini malva"
+        }
+      ],
+      "source_id": "S4"
+    },
+    {
+      "answer": "9666 parole",
+      "document_id": "diario-ultimo-aec36c49f8ba",
+      "error": "",
+      "evidence_quote": "Ho scritto 9666 parole in tutto, escludendo titoli e citazioni.",
+      "evidence_rank": 1,
+      "filename": "Diario-ultimo.epub",
+      "latency_ms": 10253.676099997392,
+      "match_kind": "quote",
+      "question": "Quante parole in tutto ha scritto l'autore per il Survival blog, escludendo titoli e citazioni?",
+      "question_index": 5,
+      "retrieved": [
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#237",
+          "locator": "chunk=237",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Un ottimo esercizio di scrittura. Ho scritto 9666 parole in tutto, escludendo titoli e citazioni. Scrivere in prima persona non è molto semplice, a volte è anche rischioso.\n\nCommenti e apprezzamenti da chi ha letto i racconti. Qualcuno mi h"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#4",
+          "locator": "chunk=4",
+          "rank": 2,
+          "score": 0.03252247488101534,
+          "text_preview": "In questo ebook sono riuniti i sette racconti che ho scritto per il progetto di scrittura collettiva lanciato da Alessandro Girola. È così che è nata l'idea del *survival blog*, un diario di speranza e di sfogo per chi era sopravvissuto all"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#221",
+          "locator": "chunk=221",
+          "rank": 3,
+          "score": 0.03149801587301587,
+          "text_preview": "Io, dopo averci pensato un po' su, ho deciso di partecipare e ho studiato una struttura e una storia da portare avanti. Non ho aperto un ennesimo blog, ne ho già troppi in giro per la rete, così ho creato un tag per il Survival blog e ogni "
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#238",
+          "locator": "chunk=238",
+          "rank": 4,
+          "score": 0.03149801587301587,
+          "text_preview": "Traffico al blog. Il Survival blog è stato linkato dal blog di Girola e anche da qualcun altro, quindi ho guadagnato lettori.\n\nArticoli in più sul blog. Anche se erano racconti, erano pur sempre post. Il mio blog si è quindi arricchito di u"
+        },
+        {
+          "chunk_id": "diario-ultimo-aec36c49f8ba#220",
+          "locator": "chunk=220",
+          "rank": 5,
+          "score": 0.03128054740957967,
+          "text_preview": "Il Survival blog è stato un esperimento di scrittura collettiva, lanciato da Alessandro Girola per caso, dopo un racconto apocalittico apparso nel suo blog. Qualcuno ha cominciato a commentare introducendo una sua storia, poi il “virus” si "
+        }
+      ],
+      "source_id": "S5"
+    },
+    {
+      "answer": "death or severe personal injury will result if proper precautions are not taken",
+      "document_id": "g220_op_instr_0824_en-us-91e62612a7b1",
+      "error": "",
+      "evidence_quote": "indicates that death or severe personal injury will result if proper precautions are not taken.",
+      "evidence_rank": 1,
+      "filename": "G220_op_instr_0824_en-US.pdf",
+      "latency_ms": 13976.77300000214,
+      "match_kind": "quote",
+      "question": "What does the notice grade 'DANGER' indicate in the manual?",
+      "question_index": 1,
+      "retrieved": [
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#3",
+          "locator": "chunk=3",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "<!-- page 4 -->\n\nLegal information\n\nWarning notice system\n\nThis manual contains notices you have to observe in order to ensure your personal safety, as well as to prevent\n\ndamage to property. The notices referring to your personal safety ar"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#44",
+          "locator": "chunk=44",
+          "rank": 2,
+          "score": 0.03177805800756621,
+          "text_preview": "<!-- page 32 -->\n\nWARNING\n\nElectric shock due to unsuitable motor temperature evaluation system\n\nVoltage flashovers to the electronics of the converter can occur in motors without safe\n\nelectrical separation of the temperature sensors in ac"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#673",
+          "locator": "chunk=673",
+          "rank": 3,
+          "score": 0.031544957774465976,
+          "text_preview": "<!-- page 661 -->\n\nWARNING\n\nUnexpected automatic start of the motor\n\nAn EMERGENCY STOP must stop the motor involved according to stop category 0 or 1 according\n\nto EN 60204-1 using Safety Integrated Function STO or SS1.\n\nDangerous operating"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#43",
+          "locator": "chunk=43",
+          "rank": 4,
+          "score": 0.03128054740957967,
+          "text_preview": "<!-- page 31 -->\n\nWARNING\n\nUnexpected machine movement caused by radio devices or cellphones\n\nUsing radio devices, cellphones, or mobile WLAN devices in the immediate vicinity of the\n\ncomponents can result in equipment malfunction or faults"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#40",
+          "locator": "chunk=40",
+          "rank": 5,
+          "score": 0.02946912242686891,
+          "text_preview": "<!-- page 28 -->\n\nWARNING\n\nRisk of electric shock and fire from supply networks with an excessively low impedance\n\nExcessively high short-circuit currents can lead to the protective devices not being able to\n\ninterrupt these short-circuit c"
+        }
+      ],
+      "source_id": "S1"
+    },
+    {
+      "answer": "positions 3 - 6",
+      "document_id": "g220_op_instr_0824_en-us-91e62612a7b1",
+      "error": "",
+      "evidence_quote": "The date of manufacture of the converter is coded in positions 3 - 6 of the serial number.",
+      "evidence_rank": 0,
+      "filename": "G220_op_instr_0824_en-US.pdf",
+      "latency_ms": 15366.498799998226,
+      "match_kind": "none",
+      "question": "In which positions of the serial number is the date of manufacture of the converter coded?",
+      "question_index": 2,
+      "retrieved": [
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#757",
+          "locator": "chunk=757",
+          "rank": 1,
+          "score": 0.03279569892473118,
+          "text_preview": "<!-- page 745 -->\n\nI&M data Format Explanation Example for the content\n\nI&M3 Visible String [54] Any comment or remark -\n\nI&M4 Octet String[54] Check signature to track changes for Safety Inte‐\n\ngrated.\n\nThis value can be changed by the use"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#763",
+          "locator": "chunk=763",
+          "rank": 2,
+          "score": 0.03278688524590164,
+          "text_preview": "<!-- page 751 -->\n\n15.7 Faults\n\nOverview\n\nA fault indicates that the reliable operation of the motor by the converter is at risk.\n\nThe extended diagnostics have a fault buffer and a fault history, in which the converter stores\n\nthe most rec"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#255",
+          "locator": "chunk=255",
+          "rank": 3,
+          "score": 0.031054405392392875,
+          "text_preview": "<!-- page 243 -->\n\nDescription of function\n\nProduct-specific information and settings are covered over in the diagram.\n\nFigure 10-12 Diagnostic buffer\n\nReading out the diagnostic buffer facilitates converter diagnostics and supports fault a"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#220",
+          "locator": "chunk=220",
+          "rank": 4,
+          "score": 0.030776515151515152,
+          "text_preview": "<!-- page 208 -->\n\n8.2 Determining the motor data\n\nOverview\n\nYou need the data on the nameplate of the motor to commission the converter.\n\nRequirement\n\nYou know the region of the world in which the motor is being used:\n\n• Europe IEC: 50 Hz "
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#327",
+          "locator": "chunk=327",
+          "rank": 5,
+          "score": 0.02886002886002886,
+          "text_preview": "<!-- page 315 -->\n\nProcedure\n\nRetrieving component information\n\nTo go to the start page for the converter on the Siemens Industry Online Support portal,\n\nproceed as follows:\n\n1. In the navigation bar, navigate to the \"Support\" menu.\n\nConfir"
+        }
+      ],
+      "source_id": "S2"
+    },
+    {
+      "answer": "Direct mode",
+      "document_id": "g220_op_instr_0824_en-us-91e62612a7b1",
+      "error": "",
+      "evidence_quote": "• Binary mode\nDirect mode",
+      "evidence_rank": 2,
+      "filename": "G220_op_instr_0824_en-US.pdf",
+      "latency_ms": 16572.79980000021,
+      "match_kind": "quote",
+      "question": "Which mode is recommended for selecting fixed speed setpoints via digital inputs?",
+      "question_index": 3,
+      "retrieved": [
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#448",
+          "locator": "chunk=448",
+          "rank": 1,
+          "score": 0.03306010928961749,
+          "text_preview": "<!-- page 436 -->\n\nc1076[0...n] Supplementary setpoint scaling [%]\n\nr1077 Supplementary setpoint effective [rpm]\n\n14.9.4 Example for setting fixed speed setpoint\n\nOverview\n\nThe example shows how to select two fixed speed setpoints directly."
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#445",
+          "locator": "chunk=445",
+          "rank": 2,
+          "score": 0.03229166666666666,
+          "text_preview": "<!-- page 433 -->\n\n14.9.3 Fixed speed setpoint as setpoint source for the main setpoint\n\nOverview\n\nThe converter provides multiple fixed setpoints. You can interconnect the fixed setpoints with\n\nthe main setpoint and you can select between "
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#330",
+          "locator": "chunk=330",
+          "rank": 3,
+          "score": 0.03200204813108039,
+          "text_preview": "<!-- page 318 -->\n\nSetpoint channel\n\n• Setpoints\n\n• Jog\n\n• Motorized potentiometer\n\n• Speed limitation\n\n• Acceleration limitation\n\nDrive control\n\n• Select the operating mode or motor control\n\n• Optimize the motor efficiency\n\nDrive functions"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#450",
+          "locator": "chunk=450",
+          "rank": 4,
+          "score": 0.03047794966520434,
+          "text_preview": "<!-- page 438 -->\n\n- 3011 -\n\n1\n\nSetpoint channelFixed speed setpoints, direct selection (p1016\n\n= 1)\n\n© Siemens AG\n\n2\n\n3\n\n4\n\n5\n\n6\n\n7\n\n8\n\nV6.02.00\n\n1\n\n2\n\n1\n\n2\n\n1\n\n2\n\n1\n\n2\n\n1r1198r1198.3 = Fixed setpoint bit 3\n\n[3010][3010][3010][3010]\n\nFixed"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#440",
+          "locator": "chunk=440",
+          "rank": 5,
+          "score": 0.030303030303030304,
+          "text_preview": "<!-- page 428 -->\n\n14.9 Setpoint channel\n\n14.9.1 Main setpoint\n\nOverview\n\nThe main setpoint specifies the speed of the motor.\n\nDescription of function\n\nThe converter receives its main setpoint via one of the following setpoint sources:\n\n• F"
+        }
+      ],
+      "source_id": "S3"
+    },
+    {
+      "answer": "loads with a parabolic speed-torque characteristic, e.g. for fans",
+      "document_id": "g220_op_instr_0824_en-us-91e62612a7b1",
+      "error": "",
+      "evidence_quote": "We recommend this setting for loads with a parabolic speed-torque characteristic, e.g. for \nfans.",
+      "evidence_rank": 7,
+      "filename": "G220_op_instr_0824_en-US.pdf",
+      "latency_ms": 15701.086699998996,
+      "match_kind": "quote",
+      "question": "For which type of loads is the setting p0290 = 2 recommended?",
+      "question_index": 4,
+      "retrieved": [
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#642",
+          "locator": "chunk=642",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "<!-- page 630 -->\n\nIf the overload response does not prevent a converter overload, then the converter switches\n\noff the motor and issues a fault.\n\nOverload response when p0290 = 13\n\nWe recommend this setting for driven loads with a high sta"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#643",
+          "locator": "chunk=643",
+          "rank": 2,
+          "score": 0.032266458495966696,
+          "text_preview": "<!-- page 631 -->\n\n- 8021 -\n\n1\n\nSignals and monitoring functionsThermal monitoring, power unit\n\n© Siemens AG\n\n2\n\n3\n\n4\n\n5\n\n6\n\n7\n\n8\n\nV6.02.00\n\nϑ\n\nRated power unit\n\ncurrent [Arms]\n\nr0207[0..2]\n\nPulse frequency\n\nsetpoint [kHz]\n\np1800 [D] (4.000"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#641",
+          "locator": "chunk=641",
+          "rank": 3,
+          "score": 0.031054405392392875,
+          "text_preview": "<!-- page 629 -->\n\nWhen an alarm is active, the converter responds in 2 stages:\n\n• Stage 1: Reduction of the pulse frequency\n\nThe converter only responds with stage 1 for an excessively high chip temperature of the\n\npower electronics or for"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#523",
+          "locator": "chunk=523",
+          "rank": 4,
+          "score": 0.031054405392392875,
+          "text_preview": "<!-- page 511 -->\n\nRequirement\n\nCritical applications arise in the following constellations:\n\n• High load moment of inertia compared with the motor moment of inertia\n\n• Gearbox play or coupling play between the motor and load machine\n\n• Vib"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#479",
+          "locator": "chunk=479",
+          "rank": 5,
+          "score": 0.030117753623188408,
+          "text_preview": "<!-- page 467 -->\n\n14.10.3.2 Setting of technological application in Dynamic Drive Control\n\nOverview\n\nThe selected technological application optimizes the calculation of the open-loop and closed\u0002loop control parameters in Dynamic Drive Cont"
+        }
+      ],
+      "source_id": "S4"
+    },
+    {
+      "answer": "25",
+      "document_id": "g220_op_instr_0824_en-us-91e62612a7b1",
+      "error": "",
+      "evidence_quote": "Resistance Ω 25 15 10.",
+      "evidence_rank": 1,
+      "filename": "G220_op_instr_0824_en-US.pdf",
+      "latency_ms": 16247.87170000127,
+      "match_kind": "quote",
+      "question": "What is the resistance in Ω for the braking resistor with article number JJY:023422620001?",
+      "question_index": 5,
+      "retrieved": [
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#839",
+          "locator": "chunk=839",
+          "rank": 1,
+          "score": 0.03306010928961749,
+          "text_preview": "<!-- page 827 -->\n\n17.14 Braking resistor\n\n17.14.1 Electrical data for braking resistor, degree of protection IP21\n\nTechnical data\n\nTable 17-31 Electrical data for braking resistor, line voltage 3 AC 200 ... 240 V\n\nProperty Unit Article num"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#149",
+          "locator": "chunk=149",
+          "rank": 2,
+          "score": 0.032539682539682535,
+          "text_preview": "<!-- page 137 -->\n\nArticle number Unit Width Height Depth\n\nJJY:023454020001 1)\n\nJJY:023422620001 ∥\n\nJJY:023434020001\n\nmm\n\nmm\n\n220\n\n630\n\n180\n\n350\n\n470\n\n630\n\nJJY:023464020001 1)\n\nJJY:023434020001 ∥\n\nJJY:023434020001\n\nmm\n\nmm\n\n630\n\n630\n\n350\n\n35"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#147",
+          "locator": "chunk=147",
+          "rank": 3,
+          "score": 0.03252247488101534,
+          "text_preview": "<!-- page 135 -->\n\n6.2.2 Weight, braking resistor in degree of protection IP21\n\nTechnical data\n\nTable 6-12 Weight, line voltage 3 AC 200 ... 240 V\n\nBraking resistor\n\nArticle number Unit Weight\n\nJJY:023151720007 kg 0.7\n\nJJY:023163720018 kg 1"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#148",
+          "locator": "chunk=148",
+          "rank": 4,
+          "score": 0.03200204813108039,
+          "text_preview": "<!-- page 136 -->\n\n6.2.3 Dimensions, braking resistor in degree of protection IP21\n\nDimensions\n\n)FJHIU\n\n%FQUI\n\n8JEUI\n\nFigure 6-7 Dimensions, degree of protection IP21\n\nTable 6-14 Dimensions, line voltage 3 AC 200 ... 240 V\n\nArticle number U"
+        },
+        {
+          "chunk_id": "g220_op_instr_0824_en-us-91e62612a7b1#621",
+          "locator": "chunk=621",
+          "rank": 5,
+          "score": 0.030536130536130537,
+          "text_preview": "<!-- page 609 -->\n\nParameter setting p0215 defines the selection of braking resistors for dynamic braking as\n\nfollows:\n\n• p0215 = 0 No braking resistor\n\n• p0215 = 2 Siemens braking resistor\n\nAll of the settings required to thermally monitor"
+        }
+      ],
+      "source_id": "S5"
+    },
+    {
+      "answer": "settore alimentare, farmaceutico e dell'elettronica",
+      "document_id": "robot-1d924fb88dc4",
+      "error": "",
+      "evidence_quote": "Un robot Delta è un tipo di robot industriale progettato per compiti che richiedono movimenti rapidi e precisi, soprattutto nel settore alimentare, farmaceutico e dell'elettronica.",
+      "evidence_rank": 1,
+      "filename": "Robot.pptx",
+      "latency_ms": 12376.132900000812,
+      "match_kind": "quote",
+      "question": "Quali sono i settori principali per cui è progettato un robot Delta?",
+      "question_index": 1,
+      "retrieved": [
+        {
+          "chunk_id": "robot-1d924fb88dc4#4",
+          "locator": "chunk=4",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Un robot Delta è un tipo di robot industriale progettato per compiti che richiedono movimenti rapidi e precisi, soprattutto nel settore alimentare, farmaceutico e dell'elettronica. È particolarmente riconosciuto per la sua velocità e capaci"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#5",
+          "locator": "chunk=5",
+          "rank": 2,
+          "score": 0.03278688524590164,
+          "text_preview": "È composto da una piattaforma fissa (alla base) e una piattaforma mobile (alla fine), collegate da tre o più bracci paralleli.\n\nDi solito ha 3 assi di movimento lineare (x, y, z) e, a volte, un quarto asse per la rotazione dell’end-effector"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#6",
+          "locator": "chunk=6",
+          "rank": 3,
+          "score": 0.03225806451612903,
+          "text_preview": "I robot palletizzatori sono robot industriali progettati per organizzare, impilare o spostare materiali (come scatole, sacchi o altri oggetti) su pallet in modo rapido, preciso e ripetitivo. Sono fondamentali per automatizzare e ottimizzare"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#2",
+          "locator": "chunk=2",
+          "rank": 4,
+          "score": 0.03149801587301587,
+          "text_preview": "Un robot SCARA (Selective Compliance Assembly Robot Arm) è un tipo di robot industriale progettato principalmente per svolgere compiti che richiedono precisione, velocità e ripetibilità, come assemblaggio, movimentazione e manipolazione di "
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#3",
+          "locator": "chunk=3",
+          "rank": 5,
+          "score": 0.031024531024531024,
+          "text_preview": "Il terzo asse consente il movimento verticale (z).\n\nE presente una rotazione sull'asse z per orientare l'end-effector.\n\n![Applicazioni dei robot Scara: il robot Scara è molto adatto in quale tipo di operazione? - Robot SVE](Picture2.jpg)\n\n<"
+        }
+      ],
+      "source_id": "S1"
+    },
+    {
+      "answer": "se si verifica uno spostamento o se il riferimento USER è legato a qualcosa che può muoversi, non sarà necessario modificare ogni singolo punto, ma solo il riferimento stesso",
+      "document_id": "robot-1d924fb88dc4",
+      "error": "",
+      "evidence_quote": "In questo modo, se si verifica uno spostamento o se il riferimento USER è legato a qualcosa che può muoversi, non sarà necessario modificare ogni singolo punto, ma solo il riferimento stesso.",
+      "evidence_rank": 0,
+      "filename": "Robot.pptx",
+      "latency_ms": 8675.893300001917,
+      "match_kind": "none",
+      "question": "Perché è utile definire punti relativi a un riferimento USER invece che al riferimento WORLD?",
+      "question_index": 2,
+      "retrieved": [
+        {
+          "chunk_id": "robot-1d924fb88dc4#22",
+          "locator": "chunk=22",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Un'applicazione può avere più riferimenti USER a seconda del numero di aree operative del robot. Questo tipo di riferimento è particolarmente utile perché permette di definire punti relativi a un riferimento USER invece che direttamente al "
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#21",
+          "locator": "chunk=21",
+          "rank": 2,
+          "score": 0.03252247488101534,
+          "text_preview": "![](Picture2.jpg)\n\n<!-- Slide number: 13 -->\n\n![](Immagine2.jpg)\n\n# Le basi\n\nIl riferimento Base è un sistema di coordinate cartesiano che può definire un pezzo da lavorare o un'area di interesse, come un nastro trasportatore o la posizione"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#16",
+          "locator": "chunk=16",
+          "rank": 3,
+          "score": 0.03252247488101534,
+          "text_preview": "Il riferimento WORLD è un sistema di coordinate cartesiano fisso che rappresenta il punto centrale alla base del robot e definisce l'intero \"mondo\" per il robot. Esso specifica le tre direzioni in cui puntano gli assi e la posizione dell'or"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#31",
+          "locator": "chunk=31",
+          "rank": 4,
+          "score": 0.03125763125763126,
+          "text_preview": "<!-- Slide number: 16 -->\n\n![](Immagine2.jpg)\n\n# Calibrare le Basi\n\nPer calibrare un sistema di base, è necessario insegnare tre punti che definiranno l’origine e l’allineamento degli assi:\n\nPunto 1: Origine del sistema di riferimento ad es"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#20",
+          "locator": "chunk=20",
+          "rank": 5,
+          "score": 0.031024531024531024,
+          "text_preview": "Un esempio è una punta di saldatura, uno strumento per incollaggio, il centro di una pinza o una matrice di pinze. Quando il robot è programmato per spostarsi verso un punto specifico con l'utensile, il TCP dell'utensile finirà esattamente "
+        }
+      ],
+      "source_id": "S2"
+    },
+    {
+      "answer": "una configurazione in cui l'asse del polso (solitamente l'asse 5 o l'asse centrale del robot) è ruotato di - 90°",
+      "document_id": "robot-1d924fb88dc4",
+      "error": "",
+      "evidence_quote": "Il termine Flip indica una configurazione in cui l'asse del polso (solitamente l'asse 5 o l'asse centrale del robot) è ruotato di - 90°.",
+      "evidence_rank": 1,
+      "filename": "Robot.pptx",
+      "latency_ms": 10904.929299998912,
+      "match_kind": "quote",
+      "question": "Cosa indica il termine Flip in una configurazione del punto?",
+      "question_index": 3,
+      "retrieved": [
+        {
+          "chunk_id": "robot-1d924fb88dc4#43",
+          "locator": "chunk=43",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "### Notes:\n\n<!-- Slide number: 24 -->\n\n![](Immagine2.jpg)\n\n# Flip \u000bno Flip\n\nIl termine Flip indica una configurazione in cui l'asse del polso (solitamente l'asse 5 o l'asse centrale del robot) è ruotato di - 90°.\n\nNo Flip indica la configur"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#42",
+          "locator": "chunk=42",
+          "rank": 2,
+          "score": 0.032266458495966696,
+          "text_preview": "Combina precisione e fluidità del movimento.\n\nSvantaggi:\n\nRichiede una programmazione più accurata rispetto al Joint Motion.\n\nIncorre in singolarità\n\n![Circular move](Picture4.jpg)\n\n<!-- Slide number: 23 -->\n\n![](Immagine2.jpg)\n\n# La config"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#18",
+          "locator": "chunk=18",
+          "rank": 3,
+          "score": 0.03177805800756621,
+          "text_preview": "Il riferimento Flange è il punto utilizzato per spostare il robot in una posizione cartesiana. L'origine del sistema di coordinate è la flangia o piastra frontale del robot, ossia il punto di montaggio dell'utensile sull'asse 6.\n\n![World Co"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#25",
+          "locator": "chunk=25",
+          "rank": 4,
+          "score": 0.03128054740957967,
+          "text_preview": "A volte chiamato metodo a 3 punti, questo orientamento mantiene la stessa rotazione del punto centrale predefinito, ma permette al programmatore di definire una nuova posizione per quel punto centrale. Un sistema tipico di pinze o ventose, "
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#32",
+          "locator": "chunk=32",
+          "rank": 5,
+          "score": 0.030798389007344232,
+          "text_preview": "Punto 2: Definisce la direzione dell'asse X – muovere il robot lungo l’asse orizzontale del pallet.\n\nPunto 3: Definisce il piano XY e l’orientamento dell’asse Y – muovere il robot lungo l’asse ortogonale a X.\n\n![compas_fab - Coordinate fram"
+        }
+      ],
+      "source_id": "S3"
+    },
+    {
+      "answer": "fino a 4 task paralleli",
+      "document_id": "robot-1d924fb88dc4",
+      "error": "",
+      "evidence_quote": "Possono essere creati fino a 4 task paralleli.",
+      "evidence_rank": 1,
+      "filename": "Robot.pptx",
+      "latency_ms": 10172.701899999083,
+      "match_kind": "quote",
+      "question": "Quanti task paralleli possono essere creati nei Task in Background?",
+      "question_index": 4,
+      "retrieved": [
+        {
+          "chunk_id": "robot-1d924fb88dc4#63",
+          "locator": "chunk=63",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Possono essere creati fino a 4 task paralleli.\n\nEsecuzione ciclica: Similmente ai sistemi PLC, i task in background si ripetono ciclicamente, eseguendo continuamente il codice associato.\n\nLimitazione sui movimenti: Normalmente, i task in ba"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#62",
+          "locator": "chunk=62",
+          "rank": 2,
+          "score": 0.03278688524590164,
+          "text_preview": "Puntatore avanzato: Si trova tipicamente 3 righe dopo il puntatore di movimento. Questo serve per pre-elaborare le prossime istruzioni e velocizzare l'esecuzione.\n\nIn pratica:\n\nIl robot esegue la riga corrente (puntatore di movimento).\n\nIl "
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#60",
+          "locator": "chunk=60",
+          "rank": 3,
+          "score": 0.0315136476426799,
+          "text_preview": "| BUSY |  |  | PRODUCTION EXECUTION ERROR |\n\n| SNAC |  |  | ARGUMENT |\n\n| RESERVED |  |  | ARGUMENT 2 |\n\n| AT\\_PERCH | HOME POSITION | HOMEPOS | HOMEPOS |\n\n### Notes:\n\n<!-- Slide number: 31 -->\n\n![](Immagine2.jpg)\n\n# I Task del robot\n\n1. Ta"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#61",
+          "locator": "chunk=61",
+          "rank": 4,
+          "score": 0.03125,
+          "text_preview": "Esegue una riga alla volta: Il robot elabora le istruzioni del task principale sequenzialmente, riga dopo riga, partendo dall'inizio del programma.\n\nPuntatori:\n\nPuntatore di movimento: Indica la riga corrente che il robot sta eseguendo."
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#5",
+          "locator": "chunk=5",
+          "rank": 5,
+          "score": 0.029386529386529386,
+          "text_preview": "È composto da una piattaforma fissa (alla base) e una piattaforma mobile (alla fine), collegate da tre o più bracci paralleli.\n\nDi solito ha 3 assi di movimento lineare (x, y, z) e, a volte, un quarto asse per la rotazione dell’end-effector"
+        }
+      ],
+      "source_id": "S4"
+    },
+    {
+      "answer": "Il robot può continuare a lavorare mentre il programma viene sviluppato e ottimizzato in simulazione",
+      "document_id": "robot-1d924fb88dc4",
+      "error": "",
+      "evidence_quote": "Riduzione dei tempi di fermo macchina: Il robot può continuare a lavorare mentre il programma viene sviluppato e ottimizzato in simulazione.",
+      "evidence_rank": 2,
+      "filename": "Robot.pptx",
+      "latency_ms": 8115.373299999192,
+      "match_kind": "quote",
+      "question": "Qual è il vantaggio della programmazione offline (OLP) riguardo ai tempi di fermo macchina?",
+      "question_index": 5,
+      "retrieved": [
+        {
+          "chunk_id": "robot-1d924fb88dc4#83",
+          "locator": "chunk=83",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Analizzare interferenze: Individuare potenziali collisioni o conflitti tra robot, attrezzi e altri oggetti nella cella.\n\nProgrammazione Offline (OLP - Offline Programming)\u000bLa programmazione offline consente di sviluppare e testare i program"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#84",
+          "locator": "chunk=84",
+          "rank": 2,
+          "score": 0.03252247488101534,
+          "text_preview": "Riduzione dei tempi di fermo macchina: Il robot può continuare a lavorare mentre il programma viene sviluppato e ottimizzato in simulazione.\n\nVerifica dei movimenti: Possibilità di simulare traiettorie, velocità e tempi ciclo in condizioni "
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#70",
+          "locator": "chunk=70",
+          "rank": 3,
+          "score": 0.03252247488101534,
+          "text_preview": "Maggiore flessibilità e scalabilità: ideale per sistemi complessi e modulari.\n\nFacilità di diagnosi e monitoraggio remoto della sicurezza.\n\nRiduzione dei tempi di fermo grazie a un rapido rilevamento di errori.\n\nSvantaggi:\n\nRichiede disposi"
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#73",
+          "locator": "chunk=73",
+          "rank": 4,
+          "score": 0.030309988518943745,
+          "text_preview": "Safe Torque Off (STO): Interrompe l’alimentazione ai motori, garantendo l’arresto sicuro del robot.\n\nSafe Stop 1 (SS1): Arresto controllato del robot con successiva disattivazione della coppia.\n\nSafe Speed Monitoring:\n\nMonitora la velocità "
+        },
+        {
+          "chunk_id": "robot-1d924fb88dc4#85",
+          "locator": "chunk=85",
+          "rank": 5,
+          "score": 0.030117753623188408,
+          "text_preview": "Debug e ottimizzazione: Identificare e correggere errori logici o inefficienze prima di trasferire il programma al robot reale.\n\nAnalisi delle Prestazioni e Ottimizzazione dei Tempi Ciclo\u000bUtilizzando un simulatore, è possibile:\n\nCalcolare i"
+        }
+      ],
+      "source_id": "S5"
+    },
+    {
+      "answer": "Pagina principale, Ultime modifiche, Una voce a caso, Nelle vicinanze, Vetrina, Aiuto, Sportello informazioni, Pagine speciali",
+      "document_id": "apprendimento_automatico_wikipedia-bd63980ed35b",
+      "error": "",
+      "evidence_quote": "* [Una voce a caso](/wiki/Speciale%3APaginaCasuale \"Mostra una pagina a caso [x]\")\n* [Nelle vicinanze](/wiki/Speciale%3ANelleVicinanze)\n* [Vetrina](/wiki/Wikipedia%3AVetrina)\n* [Aiuto](/wiki/Aiuto%3AAiuto \"Pagine di aiuto\")\n* [Sportello informazioni](/wiki/Aiuto%3ASportello_informazioni)",
+      "evidence_rank": 11,
+      "filename": "apprendimento_automatico_wikipedia.html",
+      "latency_ms": 4180.597800001124,
+      "match_kind": "quote",
+      "question": "Quali sono le voci presenti nella sezione Navigazione del menu principale?",
+      "question_index": 1,
+      "retrieved": [
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#1",
+          "locator": "chunk=1",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "[Vai al contenuto](#bodyContent)\n\n[ ]\n\nMenu principale\n\nMenu principale\n\nsposta nella barra laterale\n\nnascondi\n\nNavigazione\n\n* [Pagina principale](/wiki/Pagina_principale \"Visita la pagina principale [z]\")\n\n* [Ultime modifiche](/wiki/Specia"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#3",
+          "locator": "chunk=3",
+          "rank": 2,
+          "score": 0.03177805800756621,
+          "text_preview": "* [Pagine speciali](/wiki/Speciale%3APagineSpeciali \"Elenco di tutte le pagine speciali [q]\")\n\nComunità\n\n* [Portale Comunità](/wiki/Portale%3AComunit%C3%A0 \"Descrizione del progetto, cosa puoi fare, dove trovare le cose\")\n\n* [Bar](/wiki/Wik"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#226",
+          "locator": "chunk=226",
+          "rank": 3,
+          "score": 0.03149801587301587,
+          "text_preview": "[[modifica](/w/index.php?title=Apprendimento_automatico&veaction=edit&section=28 \"Modifica la sezione Note\") | [modifica wikitesto](/w/index.php?title=Apprendimento_automatico&action=edit&section=28 \"Edit section's source code: Note\")]"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#8",
+          "locator": "chunk=8",
+          "rank": 4,
+          "score": 0.030798389007344232,
+          "text_preview": "sposta nella barra laterale\n\nnascondi\n\n* Inizio\n\n* [1\n\nStoria](#Storia)\n\n* [2\n\nGeneralità](#Generalità)\n\nAttiva/disattiva la sottosezione Generalità\n\n+ [2.1\n\nTeoria dell'apprendimento](#Teoria_dell'apprendimento)\n\n+ [2.2\n\nTipi di problemi e"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#58",
+          "locator": "chunk=58",
+          "rank": 5,
+          "score": 0.0304147465437788,
+          "text_preview": "* [Puntano qui](/wiki/Speciale%3APuntanoQui/Apprendimento_automatico \"Elenco di tutte le pagine che sono collegate a questa [j]\")\n\n* [Modifiche correlate](/wiki/Speciale%3AModificheCorrelate/Apprendimento_automatico \"Elenco delle ultime mod"
+        }
+      ],
+      "source_id": "S1"
+    },
+    {
+      "answer": "fosse necessario un miliardo di punti-dato",
+      "document_id": "apprendimento_automatico_wikipedia-bd63980ed35b",
+      "error": "",
+      "evidence_quote": "Ad esempio, per vari anni si è ipotizzato che per addestrare 30 qubit fosse necessario un miliardo di punti-dato.",
+      "evidence_rank": 1,
+      "filename": "apprendimento_automatico_wikipedia.html",
+      "latency_ms": 6172.173800001474,
+      "match_kind": "quote",
+      "question": "Cosa è stato ipotizzato per vari anni riguardo l'addestramento di 30 qubit?",
+      "question_index": 2,
+      "retrieved": [
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#102",
+          "locator": "chunk=102",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "[spazio di Hilbert](//it.wikipedia.org/wiki/Spazio_di_Hilbert \"Spazio di Hilbert\") che cresce esponenzialmente col numero di [qubit](//it.wikipedia.org/wiki/Qubit \"Qubit\") addestrati. Ad esempio, per vari anni si è ipotizzato che per addest"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#101",
+          "locator": "chunk=101",
+          "rank": 2,
+          "score": 0.03200204813108039,
+          "text_preview": "Un teorema pubblicato nell'agosto 2022 ha dimostrato che, nel caso di un [computer quantistico](//it.wikipedia.org/wiki/Computer_quantistico \"Computer quantistico\"), per una vasta classe di problemi è errata l'ipotesi secondo cui la dimensi"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#88",
+          "locator": "chunk=88",
+          "rank": 3,
+          "score": 0.03149801587301587,
+          "text_preview": "Sempre negli anni '50, [Alan Turing](//it.wikipedia.org/wiki/Alan_Turing \"Alan Turing\") propose l'idea di una *macchina che apprende*, ovvero in grado di imparare e dunque diventare intelligente. La proposta specifica di Turing anticipa gli"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#114",
+          "locator": "chunk=114",
+          "rank": 4,
+          "score": 0.03131881575727918,
+          "text_preview": "gli esempi di addestramento sono insiemi finiti di dati e non c'è modo di sapere l'evoluzione futura di un modello, la teoria dell'apprendimento non offre alcuna garanzia sulle prestazioni degli algoritmi. D'altro canto, è piuttosto comune "
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#255",
+          "locator": "chunk=255",
+          "rank": 5,
+          "score": 0.030886196246139225,
+          "text_preview": "30. [↑](#cite_ref-30) Nicolas Le Roux, Yoshua Bengio e Andrew Fitzgibbon, Improving First and Second-Order Methods by Modeling Uncertainty, in Suvrit Sra, Sebastian Nowozin e Stephen J. Wright (a cura di), Optimization for Machine Learning,"
+        }
+      ],
+      "source_id": "S2"
+    },
+    {
+      "answer": "70 miglia all'ora",
+      "document_id": "apprendimento_automatico_wikipedia-bd63980ed35b",
+      "error": "",
+      "evidence_quote": "Ad esempio, il sistema ALVINN[[35]](#cite_note-35) ha usato le sue strategie per imparare a guidare senza assistenza a 70 miglia all'ora per 90 miglia su strade pubbliche, tra le altre auto.",
+      "evidence_rank": 1,
+      "filename": "apprendimento_automatico_wikipedia.html",
+      "latency_ms": 5334.727400000702,
+      "match_kind": "quote",
+      "question": "A quale velocità il sistema ALVINN ha imparato a guidare senza assistenza su strade pubbliche?",
+      "question_index": 3,
+      "retrieved": [
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#206",
+          "locator": "chunk=206",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "Metodi di apprendimento automatico sono stati usati per addestrare i veicoli controllati da computer. Ad esempio, il sistema ALVINN[[35]](#cite_note-35) ha usato le sue strategie per imparare a guidare senza assistenza a 70 miglia all'ora p"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#261",
+          "locator": "chunk=261",
+          "rank": 2,
+          "score": 0.032018442622950824,
+          "text_preview": "34. [↑](#cite_ref-34) Automatic speech recognition: the development of the SPHINX system, Lee 1989\n\n35. [↑](#cite_ref-35) D. Pomerleau. Alvinn: An autonomous land vehicle\n\nin a neural network. In Advances in Neural Information\n\nProcessing S"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#155",
+          "locator": "chunk=155",
+          "rank": 3,
+          "score": 0.031024531024531024,
+          "text_preview": "Le tecniche di *soft computing* d'altro canto antepongono il guadagno nella comprensione del comportamento di un sistema a scapito della precisione, spesso non necessaria. I paradigmi di *soft computing* si basano su due principi[[31]](#cit"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#123",
+          "locator": "chunk=123",
+          "rank": 4,
+          "score": 0.03028233151183971,
+          "text_preview": "* [apprendimento per rinforzo](//it.wikipedia.org/wiki/Apprendimento_per_rinforzo \"Apprendimento per rinforzo\"), in cui il modello interagisce con un ambiente dinamico nel quale cerca di raggiungere un obiettivo (per esempio guidare un veic"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#384",
+          "locator": "chunk=384",
+          "rank": 5,
+          "score": 0.029273504273504274,
+          "text_preview": "[Q-learning](//it.wikipedia.org/wiki/Q-learning \"Q-learning\")**·** [Autovettura autonoma](//it.wikipedia.org/wiki/Autovettura_autonoma \"Autovettura autonoma\") ([Tesla Autopilot](//it.wikipedia.org/wiki/Tesla_Autopilot?action=edit&redlink=1 "
+        }
+      ],
+      "source_id": "S3"
+    },
+    {
+      "answer": "Teoria dell'apprendimento statistico, Classificazione, Regressione, Classificazione a singola classe, Ranking",
+      "document_id": "apprendimento_automatico_wikipedia-bd63980ed35b",
+      "error": "",
+      "evidence_quote": "org/wiki/Teoria_dell%27apprendimento_statistico \"Teoria dell'apprendimento statistico\")**·** [Classificazione](//it.wikipedia.org/wiki/Classificazione \"Classificazione\")**·** [Regressione](//it.wikipedia.org/wiki/Analisi_della_regressione \"Analisi della regressione\")**·** [Classificazione a singola classe](//it.",
+      "evidence_rank": 0,
+      "filename": "apprendimento_automatico_wikipedia.html",
+      "latency_ms": 4212.031700000807,
+      "match_kind": "none",
+      "question": "Quali problemi sono elencati nella tabella relativa all'apprendimento automatico?",
+      "question_index": 4,
+      "retrieved": [
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#148",
+          "locator": "chunk=148",
+          "rank": 1,
+          "score": 0.03333333333333333,
+          "text_preview": "L'apprendimento automatico ha legami molto stretti con l'ottimizzazione: molti problemi di apprendimento sono formulati come la minimizzazione di una qualche funzione di costo su un insieme di esempi di apprendimento. La funzione di costo ("
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#224",
+          "locator": "chunk=224",
+          "rank": 2,
+          "score": 0.03252247488101534,
+          "text_preview": "L'apprendimento automatico solleva un numero di problematiche etiche. I sistemi addestrati con insiemi di dati faziosi o pregiudizievoli possono esibire questi pregiudizi quando vengono interpellati: in questo modo possono essere digitalizz"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#120",
+          "locator": "chunk=120",
+          "rank": 3,
+          "score": 0.031746031746031744,
+          "text_preview": "I compiti dell'apprendimento automatico vengono tipicamente classificati in tre ampie categorie, a seconda della natura del \"segnale\" utilizzato per l'apprendimento o del \"feedback\" disponibile al sistema di apprendimento. Queste categorie,"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#119",
+          "locator": "chunk=119",
+          "rank": 4,
+          "score": 0.029709507042253523,
+          "text_preview": "[[modifica](/w/index.php?title=Apprendimento_automatico&veaction=edit&section=4 \"Modifica la sezione Tipi di problemi e compiti\") | [modifica wikitesto](/w/index.php?title=Apprendimento_automatico&action=edit&section=4 \"Edit section's sourc"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#213",
+          "locator": "chunk=213",
+          "rank": 5,
+          "score": 0.028949545078577336,
+          "text_preview": "problemi pratici in cui gli spazi di ricerca molto rilevanti devono essere esaminati in modo efficiente.\n\n### Apprendimento automatico in finanza"
+        }
+      ],
+      "source_id": "S4"
+    },
+    {
+      "answer": "Informativa sulla privacy, Informazioni su Wikipedia, Avvertenze, Contatti legali e di sicurezza, Codice di condotta",
+      "document_id": "apprendimento_automatico_wikipedia-bd63980ed35b",
+      "error": "",
+      "evidence_quote": "* [Informativa sulla privacy](https://foundation.wikimedia.org/wiki/Special%3AMyLanguage/Policy%3APrivacy_policy/it)\n* [Informazioni su Wikipedia](/wiki/Wikipedia%3ASala_stampa/Wikipedia)\n* [Avvertenze](/wiki/Wikipedia%3AAvvertenze_generali)\n* [Contatti legali e di sicurezza](https://foundation.",
+      "evidence_rank": 0,
+      "filename": "apprendimento_automatico_wikipedia.html",
+      "latency_ms": 5288.003600002412,
+      "match_kind": "none",
+      "question": "Quali link sono presenti nel piè di pagina relativi alle policy e informazioni legali?",
+      "question_index": 5,
+      "retrieved": [
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#414",
+          "locator": "chunk=414",
+          "rank": 1,
+          "score": 0.03279569892473118,
+          "text_preview": "* [Contatti legali e di sicurezza](https://foundation.wikimedia.org/wiki/Special%3AMyLanguage/Legal%3AWikimedia_Foundation_Legal_and_Safety_Contact_Information)\n\n* [Codice di condotta](https://foundation.wikimedia.org/wiki/Special%3AMyLangu"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#413",
+          "locator": "chunk=413",
+          "rank": 2,
+          "score": 0.03278688524590164,
+          "text_preview": "* [Informativa sulla privacy](https://foundation.wikimedia.org/wiki/Special%3AMyLanguage/Policy%3APrivacy_policy/it)\n\n* [Informazioni su Wikipedia](/wiki/Wikipedia%3ASala_stampa/Wikipedia)\n\n* [Avvertenze](/wiki/Wikipedia%3AAvvertenze_genera"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#3",
+          "locator": "chunk=3",
+          "rank": 3,
+          "score": 0.03149801587301587,
+          "text_preview": "* [Pagine speciali](/wiki/Speciale%3APagineSpeciali \"Elenco di tutte le pagine speciali [q]\")\n\nComunità\n\n* [Portale Comunità](/wiki/Portale%3AComunit%C3%A0 \"Descrizione del progetto, cosa puoi fare, dove trovare le cose\")\n\n* [Bar](/wiki/Wik"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#59",
+          "locator": "chunk=59",
+          "rank": 4,
+          "score": 0.030751173708920186,
+          "text_preview": "* [Link permanente](/w/index.php?title=Apprendimento_automatico&oldid=151052742 \"Collegamento permanente a questa versione di questa pagina\")\n\n* [Informazioni pagina](/w/index.php?title=Apprendimento_automatico&action=info \"Ulteriori inform"
+        },
+        {
+          "chunk_id": "apprendimento_automatico_wikipedia-bd63980ed35b#58",
+          "locator": "chunk=58",
+          "rank": 5,
+          "score": 0.03057889822595705,
+          "text_preview": "* [Puntano qui](/wiki/Speciale%3APuntanoQui/Apprendimento_automatico \"Elenco di tutte le pagine che sono collegate a questa [j]\")\n\n* [Modifiche correlate](/wiki/Speciale%3AModificheCorrelate/Apprendimento_automatico \"Elenco delle ultime mod"
+        }
+      ],
+      "source_id": "S5"
+    },
+    {
+      "answer": "Approvazione del testo unico delle disposizioni legislative in materia postale, di bancoposta e di telecomunicazioni",
+      "document_id": "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00",
+      "error": "",
+      "evidence_quote": "Approvazione del testo unico delle disposizioni legislative in materia postale, di bancoposta e di\ntelecomunicazioni.",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 262.2747999994317,
+      "match_kind": "none",
+      "question": "Qual è l'oggetto del decreto del Presidente della Repubblica 29 marzo 1973, n. 156?",
+      "question_index": 1,
+      "retrieved": [],
+      "source_id": "S1"
+    },
+    {
+      "answer": "ventimila copie",
+      "document_id": "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00",
+      "error": "",
+      "evidence_quote": "la cui tiratura per singolo numero non superi le ventimila copie,",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 310.8505999989575,
+      "match_kind": "none",
+      "question": "Qual è il limite di tiratura per singolo numero oltre il quale non si applica automaticamente lo sconto massimo per le stampe periodiche?",
+      "question_index": 2,
+      "retrieved": [],
+      "source_id": "S2"
+    },
+    {
+      "answer": "decreto del Ministro per il tesoro, di concerto con il Ministro per le poste e le telecomunicazioni",
+      "document_id": "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00",
+      "error": "",
+      "evidence_quote": "e' stabilito con decreto del Ministro per il tesoro, di concerto con\nil Ministro per le poste e le telecomunicazioni.",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 203.85320000059437,
+      "match_kind": "none",
+      "question": "Chi stabilisce il saggio di interesse sulle somme depositate nei libretti postali di risparmio?",
+      "question_index": 3,
+      "retrieved": [],
+      "source_id": "S3"
+    },
+    {
+      "answer": "D.LGS. 1 AGOSTO 2003, N. 259",
+      "document_id": "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00",
+      "error": "",
+      "evidence_quote": "LGS. 1 AGOSTO 2003, N. 259))",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 243.8828000013018,
+      "match_kind": "none",
+      "question": "Quale decreto ha abrogato l'articolo 196 relativo alle concessioni ad uso pubblico?",
+      "question_index": 4,
+      "retrieved": [],
+      "source_id": "S4"
+    },
+    {
+      "answer": "servizio dei vaglia a taglio fisso",
+      "document_id": "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00",
+      "error": "",
+      "evidence_quote": "Soppressione del servizio dei vaglia a taglio fisso",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 226.87980000046082,
+      "match_kind": "none",
+      "question": "Quale servizio è stato soppresso ai sensi dell'articolo 412?",
+      "question_index": 5,
+      "retrieved": [],
+      "source_id": "S5"
+    },
+    {
+      "answer": "Codice delle comunicazioni elettroniche",
+      "document_id": "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3",
+      "error": "",
+      "evidence_quote": "Codice delle comunicazioni elettroniche.",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+      "latency_ms": 348.61049999744864,
+      "match_kind": "none",
+      "question": "Qual è il titolo del decreto legislativo del 1 agosto 2003, n. 259?",
+      "question_index": 1,
+      "retrieved": [],
+      "source_id": "S1"
+    },
+    {
+      "answer": "cinque giorni lavorativi",
+      "document_id": "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3",
+      "error": "",
+      "evidence_quote": "procedente che ha ricevuto l'istanza convoca, entro cinque giorni\nlavorativi dalla presentazione dell'istanza, una conferenza di",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+      "latency_ms": 183.18009999711649,
+      "match_kind": "none",
+      "question": "Entro quanti giorni dalla presentazione dell'istanza l'amministrazione procedente deve convocare una conferenza di servizi?",
+      "question_index": 2,
+      "retrieved": [],
+      "source_id": "S2"
+    },
+    {
+      "answer": "00",
+      "document_id": "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3",
+      "error": "",
+      "evidence_quote": "Il prefisso «00» costituisce il prefisso internazionale.",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+      "latency_ms": 175.44920000000275,
+      "match_kind": "none",
+      "question": "Quale prefisso costituisce il prefisso internazionale?",
+      "question_index": 3,
+      "retrieved": [],
+      "source_id": "S3"
+    },
+    {
+      "answer": "la cessione dei diritti acquisiti ad altri coinvestitori o a terzi intenzionati ad aderire all'accordo di coinvestimento",
+      "document_id": "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3",
+      "error": "",
+      "evidence_quote": "- l'accordo di coinvestimento deve consentire la cessione dei diritti\nacquisiti ad altri coinvestitori o a terzi intenzionati ad aderire\nall'accordo di coinvestimento, subordinatamente all'obbligo a carico",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+      "latency_ms": 194.21220000003814,
+      "match_kind": "none",
+      "question": "Cosa deve consentire l'accordo di coinvestimento riguardo ai diritti acquisiti?",
+      "question_index": 4,
+      "retrieved": [],
+      "source_id": "S4"
+    },
+    {
+      "answer": "scarsa elasticita' della domanda; analoghe quote di mercato; forti ostacoli giuridici o economici alla penetrazione; integrazione verticale con rifiuto collettivo di fornitura; mancanza di un controbilanciante potere contrattuale dell'acquirente; mancanza di potenziale concorrenza",
+      "document_id": "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3",
+      "error": "",
+      "evidence_quote": "- scarsa elasticita' della domanda;\n- analoghe quote di mercato;\n- forti ostacoli giuridici o economici alla penetrazione;\n- integrazione verticale con rifiuto collettivo di fornitura;\n- mancanza di un controbilanciante potere contrattuale\n dell'acquirente;\n- mancanza di potenziale concorrenza.",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20030801_259_2003-09-15_003G0280_VIGENZA_2026-05-27_V0.pdf",
+      "latency_ms": 183.40560000069672,
+      "match_kind": "none",
+      "question": "Quali sono alcune delle caratteristiche specifiche di un mercato concentrato che possono indicare una posizione dominante condivisa nel contesto delle comunicazioni elettroniche?",
+      "question_index": 5,
+      "retrieved": [],
+      "source_id": "S5"
+    },
+    {
+      "answer": "Codice della proprietà industriale",
+      "document_id": "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381",
+      "error": "",
+      "evidence_quote": "Codice della proprietà industriale, a norma dell'articolo 15 della legge 12 dicembre 2002, n.",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+      "latency_ms": 226.01729999951203,
+      "match_kind": "none",
+      "question": "Qual è l'oggetto del Decreto Legislativo 10 febbraio 2005, n. 30?",
+      "question_index": 1,
+      "retrieved": [],
+      "source_id": "S1"
+    },
+    {
+      "answer": "purche' il richiedente la licenza fornisca le necessarie garanzie in ordine ad una soddisfacente attuazione dell'invenzione",
+      "document_id": "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381",
+      "error": "",
+      "evidence_quote": "del brevetto o dei suoi aventi causa, di un equo compenso e purche'\nil richiedente la licenza fornisca le necessarie garanzie in ordine\nad una soddisfacente attuazione dell'invenzione a norma delle",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+      "latency_ms": 223.04309999890393,
+      "match_kind": "none",
+      "question": "A quale condizione può essere concessa una licenza obbligatoria in ordine all'attuazione dell'invenzione?",
+      "question_index": 2,
+      "retrieved": [],
+      "source_id": "S2"
+    },
+    {
+      "answer": "la morte, la radiazione o sospensione dall'albo di uno dei difensori incaricati a sensi dell'articolo 201",
+      "document_id": "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381",
+      "error": "",
+      "evidence_quote": "b) la morte, la radiazione o sospensione dall'albo di uno dei\ndifensori incaricati a sensi dell'articolo 201.",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+      "latency_ms": 251.01440000071307,
+      "match_kind": "none",
+      "question": "In quali casi il processo è interrotto dopo la proposizione del ricorso a causa di eventi riguardanti i difensori?",
+      "question_index": 3,
+      "retrieved": [],
+      "source_id": "S3"
+    },
+    {
+      "answer": "trenta unita'",
+      "document_id": "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381",
+      "error": "",
+      "evidence_quote": "opposizioni non puo' superare le trenta unita'.",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+      "latency_ms": 272.3855999975058,
+      "match_kind": "none",
+      "question": "Qual è il numero massimo di funzionari designati per l'esame delle opposizioni?",
+      "question_index": 4,
+      "retrieved": [],
+      "source_id": "S4"
+    },
+    {
+      "answer": "Roma",
+      "document_id": "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381",
+      "error": "",
+      "evidence_quote": "Dato a Roma, addi' 10 febbraio 2005",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050210_30_2005-03-04_005G0055_VIGENZA_2026-06-17_V0.pdf",
+      "latency_ms": 304.6955000027083,
+      "match_kind": "none",
+      "question": "In quale città è stato dato il decreto il 10 febbraio 2005?",
+      "question_index": 5,
+      "retrieved": [],
+      "source_id": "S5"
+    },
+    {
+      "answer": "Codice dell'amministrazione digitale",
+      "document_id": "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de",
+      "error": "",
+      "evidence_quote": "Codice dell'amministrazione digitale.",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+      "latency_ms": 283.35859999788227,
+      "match_kind": "none",
+      "question": "Qual è il titolo del decreto legislativo 7 marzo 2005, n. 82?",
+      "question_index": 1,
+      "retrieved": [],
+      "source_id": "S1"
+    },
+    {
+      "answer": "La Presidenza del Consiglio dei ministri, anche avvalendosi dell'AgID",
+      "document_id": "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de",
+      "error": "",
+      "evidence_quote": "((La Presidenza del Consiglio dei\nministri, anche avvalendosi dell'AgID,)) assicura il coordinamento",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+      "latency_ms": 339.0232999990985,
+      "match_kind": "none",
+      "question": "Chi assicura il coordinamento informatico dell'amministrazione statale, regionale e locale per progettare e monitorare l'evoluzione strategica del sistema informativo della pubblica amministrazione?",
+      "question_index": 2,
+      "retrieved": [],
+      "source_id": "S2"
+    },
+    {
+      "answer": "l'Organismo di certificazione della sicurezza informatica",
+      "document_id": "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de",
+      "error": "",
+      "evidence_quote": "accertata, in Italia, dall'Organismo di certificazione della\nsicurezza informatica in base allo schema nazionale per la",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+      "latency_ms": 329.9034000010579,
+      "match_kind": "none",
+      "question": "Chi accerta in Italia la conformità dei requisiti di sicurezza dei dispositivi per la creazione di una firma elettronica qualificata o di un sigillo elettronico prescritti dall'Allegato II del regolamento eIDAS?",
+      "question_index": 3,
+      "retrieved": [],
+      "source_id": "S3"
+    },
+    {
+      "answer": "Ministero dell'economia e delle finanze",
+      "document_id": "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de",
+      "error": "",
+      "evidence_quote": "L'ANA, realizzata dal Ministero dell'economia e delle finanze,",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+      "latency_ms": 274.59279999675346,
+      "match_kind": "none",
+      "question": "Quale ente ha realizzato l'Anagrafe nazionale degli assistiti (ANA)?",
+      "question_index": 4,
+      "retrieved": [],
+      "source_id": "S4"
+    },
+    {
+      "answer": "7 marzo 2005",
+      "document_id": "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de",
+      "error": "",
+      "evidence_quote": "Dato a Roma, addi' 7 marzo 2005",
+      "evidence_rank": 0,
+      "filename": "normattiva_DECRETO LEGISLATIVO_20050307_82_2005-05-16_005G0104_VIGENZA_2026-05-09_V0.pdf",
+      "latency_ms": 289.0598999983922,
+      "match_kind": "none",
+      "question": "In quale data è stato dato il decreto a Roma?",
+      "question_index": 5,
+      "retrieved": [],
+      "source_id": "S5"
+    },
+    {
+      "answer": "legge 30 dicembre 1923, n. 2814",
+      "document_id": "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde",
+      "error": "",
+      "evidence_quote": "Vista la legge 30 dicembre 1923, n. 2814, che delega al Governo la",
+      "evidence_rank": 0,
+      "filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 275.3171000003931,
+      "match_kind": "none",
+      "question": "Quale legge delega al Governo la facoltà di pubblicare un nuovo Codice di procedura civile?",
+      "question_index": 1,
+      "retrieved": [],
+      "source_id": "S1"
+    },
+    {
+      "answer": "quelle per le quali sono stati abbreviati i termini e a quelle rinviate a norma degli articoli precedenti",
+      "document_id": "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde",
+      "error": "",
+      "evidence_quote": "dando la precedenza a quelle per le quali sono stati abbreviati i\ntermini e a quelle rinviate a norma degli articoli precedenti.",
+      "evidence_rank": 0,
+      "filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 294.2191999973147,
+      "match_kind": "none",
+      "question": "Secondo l'articolo 83, a quali cause il giudice istruttore deve dare la precedenza nel fissare l'ordine di trattazione?",
+      "question_index": 2,
+      "retrieved": [],
+      "source_id": "S2"
+    },
+    {
+      "answer": "Direttore generale dei sistemi informativi e automatizzati del Ministero della giustizia",
+      "document_id": "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde",
+      "error": "",
+      "evidence_quote": "provvedimento del Direttore generale dei sistemi informativi e\nautomatizzati del Ministero della giustizia.",
+      "evidence_rank": 0,
+      "filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 314.17530000180705,
+      "match_kind": "none",
+      "question": "Chi individua e regola le modalità del collegamento da remoto previsto dall'articolo 473-bis.54, terzo comma, del codice?",
+      "question_index": 3,
+      "retrieved": [],
+      "source_id": "S3"
+    },
+    {
+      "answer": "1° marzo 2006",
+      "document_id": "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde",
+      "error": "",
+      "evidence_quote": "2006.\".\n-------------\nAGGIORNAMENTO (27)\n\n<!-- page 121 -->\n\nIl D.L. 14 marzo 2005, n.",
+      "evidence_rank": 0,
+      "filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 308.487199999945,
+      "match_kind": "none",
+      "question": "In base all'aggiornamento (27), quando entrano in vigore le disposizioni di cui ai commi 3, lettera e), numeri da 2) a 43-bis), e 3-ter, lettere a-bis), b), c), c-bis), d), e) ed f)?",
+      "question_index": 4,
+      "retrieved": [],
+      "source_id": "S4"
+    },
+    {
+      "answer": "mantiene la competenza sugli affari di cui e' stato investito",
+      "document_id": "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde",
+      "error": "",
+      "evidence_quote": "Il giudice regolarmente adito secondo le leggi anteriori mantiene\nla competenza sugli affari di cui e' stato investito anche se le",
+      "evidence_rank": 0,
+      "filename": "normattiva_REGIO DECRETO_19411218_1368_1941-12-24_041U1368_VIGENZA_2026-02-10_V0.pdf",
+      "latency_ms": 267.2577999983332,
+      "match_kind": "none",
+      "question": "Cosa accade alla competenza del giudice regolarmente adito secondo le leggi anteriori se le norme sulla competenza sono mutate?",
+      "question_index": 5,
+      "retrieved": [],
+      "source_id": "S5"
+    }
+  ],
+  "root": "D:\\tmp\\baseline-corpus",
+  "schema_version": 1,
+  "search_concurrency": 3,
+  "summary": {
+    "documents": {
+      "apprendimento_automatico_wikipedia-bd63980ed35b": {
+        "latency_ms": {
+          "max": 6172.173800001474,
+          "mean": 5037.506860001304
+        },
+        "mrr_at_20": 0.41818181818181815,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.4,
+          "10": 0.4,
+          "20": 0.6,
+          "3": 0.4,
+          "5": 0.4
+        },
+        "search_error_count": 0
+      },
+      "clienti-dc087d884caf": {
+        "latency_ms": {
+          "max": 19403.774300000805,
+          "mean": 11197.114160000638
+        },
+        "mrr_at_20": 0.35,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.2,
+          "10": 0.6,
+          "20": 0.6,
+          "3": 0.4,
+          "5": 0.6
+        },
+        "search_error_count": 0
+      },
+      "corso-base-robot-0ec1b02e112f": {
+        "latency_ms": {
+          "max": 3150.680500002636,
+          "mean": 1301.1481200010167
+        },
+        "mrr_at_20": 0.7666666666666667,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.6,
+          "10": 1.0,
+          "20": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "search_error_count": 0
+      },
+      "costituzione-cf62b430cc08": {
+        "latency_ms": {
+          "max": 13243.56009999974,
+          "mean": 10172.419999999693
+        },
+        "mrr_at_20": 1.0,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 1.0,
+          "10": 1.0,
+          "20": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "search_error_count": 0
+      },
+      "diario-ultimo-aec36c49f8ba": {
+        "latency_ms": {
+          "max": 10843.005800001265,
+          "mean": 9959.816960000171
+        },
+        "mrr_at_20": 0.4222222222222222,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.4,
+          "10": 0.6,
+          "20": 0.6,
+          "3": 0.4,
+          "5": 0.4
+        },
+        "search_error_count": 0
+      },
+      "g220_op_instr_0824_en-us-91e62612a7b1": {
+        "latency_ms": {
+          "max": 16572.79980000021,
+          "mean": 15573.006000000169
+        },
+        "mrr_at_20": 0.5285714285714286,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.4,
+          "10": 0.8,
+          "20": 0.8,
+          "3": 0.6,
+          "5": 0.6
+        },
+        "search_error_count": 0
+      },
+      "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00": {
+        "latency_ms": {
+          "max": 310.8505999989575,
+          "mean": 249.54824000014924
+        },
+        "mrr_at_20": 0.0,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.0,
+          "10": 0.0,
+          "20": 0.0,
+          "3": 0.0,
+          "5": 0.0
+        },
+        "search_error_count": 0
+      },
+      "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3": {
+        "latency_ms": {
+          "max": 348.61049999744864,
+          "mean": 216.97151999906055
+        },
+        "mrr_at_20": 0.0,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.0,
+          "10": 0.0,
+          "20": 0.0,
+          "3": 0.0,
+          "5": 0.0
+        },
+        "search_error_count": 0
+      },
+      "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381": {
+        "latency_ms": {
+          "max": 304.6955000027083,
+          "mean": 255.43117999986862
+        },
+        "mrr_at_20": 0.0,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.0,
+          "10": 0.0,
+          "20": 0.0,
+          "3": 0.0,
+          "5": 0.0
+        },
+        "search_error_count": 0
+      },
+      "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de": {
+        "latency_ms": {
+          "max": 339.0232999990985,
+          "mean": 303.18759999863687
+        },
+        "mrr_at_20": 0.0,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.0,
+          "10": 0.0,
+          "20": 0.0,
+          "3": 0.0,
+          "5": 0.0
+        },
+        "search_error_count": 0
+      },
+      "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde": {
+        "latency_ms": {
+          "max": 314.17530000180705,
+          "mean": 291.8913199995586
+        },
+        "mrr_at_20": 0.0,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.0,
+          "10": 0.0,
+          "20": 0.0,
+          "3": 0.0,
+          "5": 0.0
+        },
+        "search_error_count": 0
+      },
+      "robot-1d924fb88dc4": {
+        "latency_ms": {
+          "max": 12376.132900000812,
+          "mean": 10049.006139999983
+        },
+        "mrr_at_20": 0.7,
+        "question_count": 5,
+        "recall_at_k": {
+          "1": 0.6,
+          "10": 0.8,
+          "20": 0.8,
+          "3": 0.8,
+          "5": 0.8
+        },
+        "search_error_count": 0
+      }
+    },
+    "latency_ms": {
+      "max": 19403.774300000805,
+      "mean": 5383.92067500002
+    },
+    "mrr_at_20": 0.34880351130351134,
+    "question_count": 60,
+    "recall_at_k": {
+      "1": 0.3,
+      "10": 0.43333333333333335,
+      "20": 0.45,
+      "3": 0.38333333333333336,
+      "5": 0.4
+    },
+    "search_error_count": 0
+  },
+  "top_k": 20,
+  "user_identifier": "real-documents-direct-mcp-20260713T144535Z"
+}

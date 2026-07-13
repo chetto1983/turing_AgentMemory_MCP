@@ -17,6 +17,11 @@ after the first stable release; pre-1.0 releases may change interfaces.
 - Native Leiden community detection and GLiNER2 sidecar integration.
 - UTCP manual export, runtime health, audit hooks, and content-free spans.
 - Vector quarantine repair command and local AgentMemory Lab.
+- Committed TuringDB retrieval baseline (`baseline/03-turingdb/`): a
+  reproducible ARC-01 yardstick with provider config, corpus manifest, frozen
+  questions, per-check e2e results with inflation caveats, and a git snapshot
+  SHA, captured before the ArcadeDB port begins so Phase 6 (ARC-09) can diff
+  meet-or-exceed correctness and retrieval quality against a fixed baseline.
 
 ### Fixed
 
