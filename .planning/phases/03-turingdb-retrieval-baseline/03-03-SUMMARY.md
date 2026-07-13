@@ -150,3 +150,8 @@ None - no external service configuration required.
 ---
 *Phase: 03-turingdb-retrieval-baseline*
 *Completed: 2026-07-13*
+
+## Self-Check: PASSED
+- All 5 baseline artifact files found on disk under `baseline/03-turingdb/`.
+- This SUMMARY.md found on disk.
+- Both commits (`07cab0b` baseline artifact, `07cb4a7` summary) found in git log.
