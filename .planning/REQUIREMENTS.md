@@ -49,8 +49,8 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 
 ### Performance (PERF) — Thrust 2 concerns
 
-- [ ] **PERF-01**: Batch embedding API for memories and document chunks (single round-trip per batch)
-- [ ] **PERF-02**: Batched memory extraction (no per-item HTTP calls)
+- [x] **PERF-01**: Batch embedding API for memories and document chunks (single round-trip per batch)
+- [x] **PERF-02**: Batched memory extraction (no per-item HTTP calls)
 - [ ] **PERF-03**: Vector-search fetch tuning (predicate pushdown / adaptive fetch instead of fixed 4× over-fetch)
 
 ### Storage & Infra (INFRA) — Thrust 2 concerns
@@ -151,8 +151,8 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | SEC-02 | Phase 10 | Pending |
 | SEC-03 | Phase 10 | Pending |
 | SEC-04 | Phase 10 | Pending |
-| PERF-01 | Phase 9 | Pending |
-| PERF-02 | Phase 9 | Pending |
+| PERF-01 | Phase 9 | Complete |
+| PERF-02 | Phase 9 | Complete |
 | PERF-03 | Phase 9 | Pending |
 | INFRA-01 | Phase 8 | Pending |
 | INFRA-02 | Phase 10 | Pending |

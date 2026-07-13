@@ -6,14 +6,14 @@ current_phase: 04
 current_phase_name: arcadedb-direct-port
 status: executing
 stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-07-13T20:45:35.613Z"
+last_updated: "2026-07-13T21:44:50.024Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 25
-  completed_plans: 20
+  completed_plans: 21
   percent: 23
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 04 (arcadedb-direct-port) — EXECUTING
-Plan: 5 of 9
+Plan: 2 of 9
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 04 execution started
 
@@ -75,6 +75,7 @@ Progress: [█████████░] 94%
 | Phase 04 P02 | 90min | 2 tasks | 2 files |
 | Phase 04 P03 | 70 | 1 tasks | 2 files |
 | Phase 04 P04 | 35min | 3 tasks | 4 files |
+| Phase 04 P05 | 53min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,9 @@ Recent decisions affecting current work:
 - [Phase ?]: _write_many signature changed from list[str] to list[tuple[str, params]] as the Wave 4 forward contract
 - [Phase ?]: load_graph_after_restart renamed to reconnect() per the grep-gate; benchmark_stages.py/e2e_score.py callers flagged as follow-up debt
 - [Phase ?]: Phase 4: lexical channel = BOTH LSM_SPARSE_VECTOR + Lucene FULL_TEXT on content, both feed Python RRF (user decision reconciling spike D-04 with pre-spike plans)
+- [Phase ?]: sparse_encoder.py (sparse_vector) is the canonical shared both-channels sparse-lexical encoder for 04-05/06/07/08 -- reuse verbatim, never re-derive a tokenizer
+- [Phase ?]: _write_many (not sqlscript+LET) is the batch mechanism for memory/entity/fact writes; CREATE EDGE ... FROM (SELECT ...) subqueries make explicit existing-entity MATCH machinery unnecessary
+- [Phase ?]: store_memory_read.py row-key convention changed from Cypher m.-prefixed alias shape to ArcadeDB bare unqualified property names -- store_search.py/store_evidence.py (04-07) must update call sites to match
 
 ### Pending Todos
 
@@ -156,6 +160,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T20:45:35.604Z
+Last session: 2026-07-13T21:42:12.412Z
 Stopped at: Completed 04-04-PLAN.md
 Resume file: None
