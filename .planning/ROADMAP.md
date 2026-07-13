@@ -137,7 +137,7 @@ Plans:
   3. Vector search runs on ArcadeDB native `LSM_VECTOR` (HNSW) with the TuringDB `vector_id` int-join deleted (not ported), built on a versioned/namespaced index foundation; full-text runs on native Lucene with the analyzer validated against golden queries and the SQLite-FTS5 outbox retired.
   4. `stable_id()` remains the sole cross-record identifier, stored as an indexed ArcadeDB property (never ArcadeDB's native RID); no vector-ID drift across the port.
 
-**Plans:** 7/9 plans executed
+**Plans:** 8/9 plans executed
 
 Plans:
 
@@ -159,7 +159,7 @@ Plans:
 - [x] 04-05-PLAN.md — Memory write/read port: inline vectors on stable_id, batched embed/extract (PERF-01/02), no vector_id (ARC-04, ARC-05, ARC-08, PERF-01, PERF-02)
 - [x] 04-06-PLAN.md — Document ingest/chunking/search port: sqlscript+LET, native HNSW + Lucene, adaptive over-fetch (ARC-04, ARC-05, ARC-06, PERF-01)
 - [x] 04-07-PLAN.md — Fused memory search + evidence traversal: HNSW dense + Lucene lexical + D-05 graph surface, RRF unchanged (ARC-04, ARC-05, ARC-06)
-- [ ] 04-08-PLAN.md — Rebuild + D-07 versioned-index atomic swap (no stale) + community-graph sqlscript (ARC-04, ARC-05, INFRA-03)
+- [x] 04-08-PLAN.md — Rebuild + D-07 versioned-index atomic swap (no stale) + community-graph sqlscript (ARC-04, ARC-05, INFRA-03)
 
 **Wave 5** *(blocked on Wave 4)*
 
@@ -287,7 +287,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
-| 4. ArcadeDB Direct Port | 7/9 | In Progress|  |
+| 4. ArcadeDB Direct Port | 8/9 | In Progress|  |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |

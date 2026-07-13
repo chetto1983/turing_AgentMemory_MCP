@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: arcadedb-direct-port
 status: executing
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-07-13T23:01:46.799Z"
+stopped_at: Completed 04-08-PLAN.md
+last_updated: "2026-07-13T23:51:08.638Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 25
-  completed_plans: 23
+  completed_plans: 24
   percent: 23
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 04 (arcadedb-direct-port) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 04 execution started
 
@@ -78,6 +78,7 @@ Progress: [█████████░] 94%
 | Phase 04 P05 | 53min | 2 tasks | 10 files |
 | Phase 04 P06 | 45min | 2 tasks | 8 files |
 | Phase 04 P07 | 95min | 2 tasks | 9 files |
+| Phase 04 P08 | 95min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,9 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-06: Chunk id = stable_id('chunk', user_identifier, document_id, ordinal); the second both-channels lexical channel (LSM_SPARSE_VECTOR) stays reserved for 04-07's full RRF fusion, not consumed by this plan's simpler document-search blend
 - [Phase 04]: 04-07: BOTH-channels lexical decision resolved by merging vector.sparseNeighbors + SEARCH_INDEX into ONE bm25 RRF channel (not two new fusion_weights keys), keeping store_core.py's fusion schema untouched
 - [Phase 04]: 04-07: D-05 graph surface uses ONLY the object-notation MATCH {type:...,as:...,where:(...)}.out(){as:...} form (the ONLY form the spike empirically confirmed live for 26.7.1), not the simplified Cypher-like literal some generic docs show
+- [Phase 04]: 04-08: D-07 versioned atomic swap (staged tenant+version-namespaced scratch property + own LSM_VECTOR index, populated fully, then ONE bulk field-to-field UPDATE flips the live embedding/lexical_tokens/lexical_weights, then scratch schema dropped) -- live fields are never mutated record-by-record while still computing, no separate CSV load, no vector_id
+- [Phase 04]: 04-08: community embedding write folded directly into _replace_community_graph's single sqlscript+LET transaction (not routed through the same staging/swap helper as memory/document/entity/fact) since Leiden re-clustering already recomputes every active community's full state atomically in one script call
+- [Phase 04]: 04-08: ported _fact_ids_for_memory/_existing_entity_ids/_community_graph_inputs/_active_community_ids/_canonical_vector_records to bound-param ArcadeDB SQL as a Rule-1 bug fix -- these were live call sites from already-ported store_memory_read.py/store_memory_write.py still issuing invalid Cypher
 
 ### Pending Todos
 
@@ -167,6 +171,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T23:00:58.270Z
-Stopped at: Completed 04-06-PLAN.md
+Last session: 2026-07-13T23:51:08.629Z
+Stopped at: Completed 04-08-PLAN.md
 Resume file: None
