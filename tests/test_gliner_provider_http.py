@@ -311,7 +311,12 @@ def test_server_drops_connections_above_worker_cap() -> None:
                 f"http://127.0.0.1:{server.server_port}",
                 b"GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n",
             )
-        except (ConnectionAbortedError, ConnectionResetError):
+        except OSError:
+            # The server may tear the socket down via its over-cap shutdown_request
+            # before the client's shutdown(SHUT_WR), which surfaces as a bare OSError
+            # (Errno 107, ENOTCONN) that is not a ConnectionError subclass; every race
+            # outcome (abort, reset, broken pipe, ENOTCONN) still satisfies the
+            # assertions below.
             response = b""
         assert b" 200 " not in response
         assert provider.health_calls == 0
