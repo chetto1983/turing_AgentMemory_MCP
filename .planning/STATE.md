@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: arcadedb-direct-port
 status: executing
-stopped_at: Completed 04-01-PLAN.md (D-02 spike gate)
-last_updated: "2026-07-13T19:06:49.929Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-07-13T19:26:55.317Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 25
-  completed_plans: 17
+  completed_plans: 18
   percent: 23
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 04 (arcadedb-direct-port) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 04 execution started
 
@@ -72,6 +72,7 @@ Progress: [█████████░] 94%
 | Phase 03 P01 | 25min | 2 tasks | 3 files |
 | Phase 03-turingdb-retrieval-baseline P03 | 30min | 3 tasks | 6 files |
 | Phase 04 P01 | 50min | 3 tasks | 5 files |
+| Phase 04 P02 | 90min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,7 @@ Recent decisions affecting current work:
 - [Phase ?]: D-03 (confirmed, no change): keep over-fetch-then-filter for filtered vector search -- k-underfill is empirically present (post-filter, not HNSW pushdown)
 - [Phase ?]: D-04 (spike-decided): native LSM_SPARSE_VECTOR wins the lexical channel over Lucene SEARCH_INDEX -- higher MRR/recall and zero errors on the 60-question yardstick vs 2/60 Lucene query-parse failures on unescaped natural-language punctuation
 - [Phase ?]: D-05 (spike-decided): SQL MATCH/TRAVERSE wins the graph-query surface -- same query language as vectorNeighbors/SEARCH_INDEX, composes traversal with ranking in one statement
+- [Phase ?]: ArcadeDB MVCC conflict signal is HTTP 503 with exception=ConcurrentModificationException; retrying the same commit does not recover (session invalidated), so run_in_transaction redoes the whole begin/body/commit cycle bounded by ARCADEDB_COMMIT_RETRIES, and the transport retry loop skips retrying that one signal to avoid masking it
 
 ### Pending Todos
 
@@ -145,6 +147,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T19:06:49.920Z
-Stopped at: Completed 04-01-PLAN.md (D-02 spike gate)
+Last session: 2026-07-13T19:26:55.308Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
