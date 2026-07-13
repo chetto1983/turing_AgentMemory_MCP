@@ -23,10 +23,10 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [x] **ARC-02**: ArcadeDB stood up as a Compose service (`arcadedata/arcadedb:26.7.1`) with its own persistent data volume
 - [x] **ARC-03**: Thin `arcadedb_client.py` over ArcadeDB's HTTP/JSON API using stdlib `urllib` (matching `embeddings.py`/`rerank.py`; evaluate the `postgresw` Postgres-wire path as an alternative)
 - [ ] **ARC-04**: `store.py` graph CRUD ported to ArcadeDB SQL (memories, documents, chunks, entities, facts, communities, and all edges) — direct port, no abstraction layer
-- [ ] **ARC-05**: Vector search ported to ArcadeDB native `LSM_VECTOR` (HNSW); the TuringDB `vector_id` int-join is deleted, not ported
-- [ ] **ARC-06**: Full-text ported to ArcadeDB native Lucene; analyzer/tokenizer validated against golden queries; the SQLite-FTS5 outbox prepare/commit/replay path retired
+- [x] **ARC-05**: Vector search ported to ArcadeDB native `LSM_VECTOR` (HNSW); the TuringDB `vector_id` int-join is deleted, not ported
+- [x] **ARC-06**: Full-text ported to ArcadeDB native Lucene; analyzer/tokenizer validated against golden queries; the SQLite-FTS5 outbox prepare/commit/replay path retired
 - [ ] **ARC-07**: One ArcadeDB database per tenant for physical isolation, with app-layer `user_identifier` scoping still mandatory on every query (invariant #1)
-- [ ] **ARC-08**: Stable/deterministic IDs preserved across the port (invariant #3); no vector-ID drift
+- [x] **ARC-08**: Stable/deterministic IDs preserved across the port (invariant #3); no vector-ID drift
 - [ ] **ARC-09**: Migration-correctness gate — the ported ArcadeDB code meets-or-exceeds the ARC-01 baseline (HARD exit criterion; nothing downstream proceeds until it passes)
 - [ ] **ARC-10**: TuringDB removed from the codebase and Compose stack; CLAUDE.md invariants updated (ArcadeDB canonical, invariant #2 superseded)
 
@@ -57,7 +57,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 
 - [ ] **INFRA-01**: Document staging on Garage (S3-compatible, `dxflrs/garage:v2.2.0`) via boto3; bucket-side `AbortIncompleteMultipartUpload` lifecycle rule + checksum + TTL
 - [ ] **INFRA-02**: `expires_at` purge enforcement (background/compliance purge, not just read-time filtering)
-- [ ] **INFRA-03**: Vector-index versioning (A/B embedding models, canary, rollback)
+- [x] **INFRA-03**: Vector-index versioning (A/B embedding models, canary, rollback)
 - [ ] **INFRA-04**: Extensible observability/metrics hooks for custom KPIs (ingestion latency, recall, cost)
 
 ### Fragile Areas & Test Coverage (TEST) — Thrust 2 concerns
@@ -134,10 +134,10 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | ARC-02 | Phase 4 | Complete |
 | ARC-03 | Phase 4 | Complete |
 | ARC-04 | Phase 4 | Pending |
-| ARC-05 | Phase 4 | Pending |
-| ARC-06 | Phase 4 | Pending |
+| ARC-05 | Phase 4 | Complete |
+| ARC-06 | Phase 4 | Complete |
 | ARC-07 | Phase 5 | Pending |
-| ARC-08 | Phase 4 | Pending |
+| ARC-08 | Phase 4 | Complete |
 | ARC-09 | Phase 6 | Pending |
 | ARC-10 | Phase 7 | Pending |
 | FIX-01 | Phase 8 | Pending |
@@ -156,7 +156,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | PERF-03 | Phase 9 | Pending |
 | INFRA-01 | Phase 8 | Pending |
 | INFRA-02 | Phase 10 | Pending |
-| INFRA-03 | Phase 9 | Pending |
+| INFRA-03 | Phase 9 | Complete |
 | INFRA-04 | Phase 10 | Pending |
 | TEST-01 | Phase 8 | Pending |
 | TEST-02 | Phase 11 | Pending |

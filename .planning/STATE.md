@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: arcadedb-direct-port
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-07-13T19:26:55.317Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-07-13T19:48:04.056Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 25
-  completed_plans: 18
+  completed_plans: 19
   percent: 23
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 04 (arcadedb-direct-port) — EXECUTING
-Plan: 3 of 9
+Plan: 4 of 9
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 04 execution started
 
@@ -73,6 +73,7 @@ Progress: [█████████░] 94%
 | Phase 03-turingdb-retrieval-baseline P03 | 30min | 3 tasks | 6 files |
 | Phase 04 P01 | 50min | 3 tasks | 5 files |
 | Phase 04 P02 | 90min | 2 tasks | 2 files |
+| Phase 04 P03 | 70 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,9 @@ Recent decisions affecting current work:
 - [Phase ?]: D-04 (spike-decided): native LSM_SPARSE_VECTOR wins the lexical channel over Lucene SEARCH_INDEX -- higher MRR/recall and zero errors on the 60-question yardstick vs 2/60 Lucene query-parse failures on unescaped natural-language punctuation
 - [Phase ?]: D-05 (spike-decided): SQL MATCH/TRAVERSE wins the graph-query surface -- same query language as vectorNeighbors/SEARCH_INDEX, composes traversal with ranking in one statement
 - [Phase ?]: ArcadeDB MVCC conflict signal is HTTP 503 with exception=ConcurrentModificationException; retrying the same commit does not recover (session invalidated), so run_in_transaction redoes the whole begin/body/commit cycle bounded by ARCADEDB_COMMIT_RETRIES, and the transport retry loop skips retrying that one signal to avoid masking it
+- [Phase ?]: Reconciled 04-03 schema lexical index to D-04's LSM_SPARSE_VECTOR (spike-decided winner) instead of the plan's pre-spike 'Lucene full-text' wording
+- [Phase ?]: ArcadeDB CREATE INDEX has no IF NOT EXISTS support (confirmed live, 26.7.1) -- idempotency uses a catch-already-exists wrapper; CREATE VERTEX/EDGE TYPE and CREATE PROPERTY do support IF NOT EXISTS
+- [Phase ?]: ArcadeDB schema:indexes/schema:types introspection does not expose LSM_VECTOR dimensions metadata (confirmed live) -- introspect_vector_dimension() samples an existing record's stored vector length instead
 
 ### Pending Todos
 
@@ -147,6 +151,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T19:26:55.308Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-07-13T19:48:04.047Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
