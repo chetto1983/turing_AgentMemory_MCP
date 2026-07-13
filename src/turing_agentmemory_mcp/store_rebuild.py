@@ -3,148 +3,81 @@
 Split out of store.py (D-08/D-09, phase 01-02). All projections here are
 rebuildable from canonical graph data (invariant #2 / CLAUDE.md), not a second
 source of truth.
+
+Ported to ArcadeDB (04-08, ARC-04/ARC-05): `rebuild_vector_projection`/
+`rebuild_communities`'s vector step now use the D-07 versioned atomic-swap
+flow (`store_rebuild_queries.py`) instead of the retired TuringDB CSV
+LOAD-VECTOR/synthetic-integer join-property mechanism -- see that module's
+docstring for the full mechanism. `_replace_community_graph` (Task 2) is one
+`sqlscript` BEGIN/LET/COMMIT transaction with inline vectors keyed on
+`stable_id`, no synthetic-integer join property. `_fact_ids_for_memory`/`_existing_entity_ids`
+(live call sites in `store_memory_read.py`/`store_memory_write.py`, per
+04-05-SUMMARY.md's heads-up) and `_community_graph_inputs`/
+`_active_community_ids`/`_canonical_vector_records` are also ported to
+bound-param ArcadeDB SQL here -- they were still Cypher-shaped (a real,
+currently-live bug: these are called from already-ported write/read paths).
+
+The legacy SQLite-FTS5 sparse-index outbox rebuild (`rebuild_sparse_projection`,
+`_canonical_sparse_documents`, `_prepare_sparse_projection`, `_sparse_doc_key`,
+`_sparse_kind`) moved to the sibling `store_rebuild_sparse.py` mixin, purely to
+keep this file under the 600-LOC cap while porting -- it is deliberately LEFT
+untouched and still Cypher-shaped there, matching 04-05-SUMMARY.md's explicit
+precedent: ARC-06's bootstrap-time outbox retirement is a separate, later
+concern, out of this plan's declared scope (ARC-04/ARC-05/INFRA-03).
 """
 
 from __future__ import annotations
 
-from typing import Any
-
+from turing_agentmemory_mcp import store_rebuild_queries as rebuild_queries
 from turing_agentmemory_mcp.community_detection import (
     CommunityEntity,
     CommunityFact,
-    CommunityProjection,
     WeightedEntityEdge,
     build_community_projection,
 )
-from turing_agentmemory_mcp.ids import cypher_var, quote
+from turing_agentmemory_mcp.sparse_encoder import sparse_vector
 from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseMutation
 from turing_agentmemory_mcp.temporal_graph import EntityProjection, TemporalProjection
 
 
 class _RebuildMixin:
-    def _prepare_sparse_projection(
-        self,
-        *,
-        user_identifier: str,
-        payloads: list[dict[str, object]],
-        projections: list[TemporalProjection],
-        entities: list[EntityProjection],
-    ) -> str | None:
-        if self.sparse_index is None or not payloads:
-            return None
-        payload_by_memory_id = {str(payload["memory_id"]): payload for payload in payloads}
-        mutations: list[SparseMutation] = []
-        for payload in payloads:
-            source_id = str(payload["memory_id"])
-            mutations.append(
-                SparseMutation.upsert(
-                    SparseDocument(
-                        doc_key=self._sparse_doc_key(user_identifier, "episode", source_id),
-                        user_identifier=user_identifier,
-                        source_id=source_id,
-                        kind="episode",
-                        content=str(payload["content"]),
-                        source=str(payload["source"]),
-                        session_id=str(payload["session_id"]),
-                        created_at=str(payload["created_at"]),
-                        expires_at=str(payload["expires_at"]),
-                    )
-                )
-            )
-        for entity in entities:
-            source_payload = payload_by_memory_id.get(entity.source_memory_id, {})
-            mutations.append(
-                SparseMutation.upsert(
-                    SparseDocument(
-                        doc_key=self._sparse_doc_key(user_identifier, "entity", entity.id),
-                        user_identifier=user_identifier,
-                        source_id=entity.id,
-                        kind="entity",
-                        content=entity.content,
-                        source=str(source_payload.get("source") or ""),
-                        session_id=str(source_payload.get("session_id") or ""),
-                        created_at=entity.observed_at,
-                        expires_at=entity.expires_at,
-                    )
-                )
-            )
-        for projection in projections:
-            for fact in projection.facts:
-                mutations.append(
-                    SparseMutation.upsert(
-                        SparseDocument(
-                            doc_key=self._sparse_doc_key(user_identifier, "fact", fact.id),
-                            user_identifier=user_identifier,
-                            source_id=fact.id,
-                            kind="fact",
-                            content=fact.content,
-                            source=fact.source,
-                            session_id=fact.session_id,
-                            created_at=fact.observed_at,
-                            expires_at=fact.expires_at,
-                        )
-                    )
-                )
-        return self.sparse_index.prepare(mutations)
-
-    @staticmethod
-    def _sparse_doc_key(user_identifier: str, kind: str, source_id: str) -> str:
-        return f"{user_identifier}:{kind}:{source_id}"
-
-    @staticmethod
-    def _sparse_kind(memory_kind: str) -> str:
-        return "episode" if memory_kind == "message" else memory_kind
-
     def _fact_ids_for_memory(self, user_identifier: str, memory_id: str) -> list[str]:
-        try:
-            rows = self._records(
-                self._query(
-                    "MATCH (f:Fact) "
-                    f'WHERE f.user_identifier = "{quote(user_identifier)}" '
-                    f'AND f.source_memory_id = "{quote(memory_id)}" AND f.status = "active" '
-                    "RETURN f.id",
-                    operation="fact.ids_for_memory",
-                )
-            )
-        except Exception as exc:
-            if "Unknown label: Fact" not in str(exc):
-                raise
-            return []
-        return [str(row.get("f.id")) for row in rows if row.get("f.id")]
+        statement, params = rebuild_queries.fact_ids_for_memory_statement(
+            user_identifier=user_identifier, memory_id=memory_id
+        )
+        rows = self._records(self._query(statement, operation="fact.ids_for_memory", params=params))
+        return [str(row["id"]) for row in rows if row.get("id")]
 
-    def rebuild_sparse_projection(self) -> dict[str, object]:
-        if self.sparse_index is None:
-            raise RuntimeError("sparse projection is not configured")
-        documents = self._canonical_sparse_documents()
-        self.sparse_index.rebuild(documents)
-        return self.sparse_index.status()
+    # -- D-07 versioned atomic-swap vector rebuild --------------------------
 
     def rebuild_vector_projection(self, *, user_identifier: str) -> dict[str, object]:
-        """Re-embed active tenant records into recoverable vector indexes."""
+        """Re-embed active tenant records into recoverable vector indexes.
+
+        Each kind's records are staged into a tenant+version-namespaced
+        scratch property/index (never mutating the live, search-queried
+        `embedding`/`lexical_tokens`/`lexical_weights` while still
+        computing), then atomically swapped in and the scratch schema
+        dropped -- see `store_rebuild_queries.py` module docstring (D-07).
+        """
         self._require_user(user_identifier)
         canonical = self._canonical_vector_records(user_identifier)
         specifications = (
-            ("memory", self.memory_index, self._memory_vector_id),
-            ("document", self.document_index, self._document_vector_id),
-            ("entity", self.entity_index, self._entity_vector_id),
-            ("fact", self.fact_index, self._fact_vector_id),
-            ("community", self.community_index, self._community_vector_id),
+            ("memory", "Memory", self.memory_index),
+            ("document", "Chunk", self.document_index),
+            ("entity", "Entity", self.entity_index),
+            ("fact", "Fact", self.fact_index),
+            ("community", "Community", self.community_index),
         )
         counts: dict[str, int] = {}
-        for kind, base_index_name, id_factory in specifications:
+        for kind, type_name, base_index_name in specifications:
             records = canonical.get(kind, [])
-            index_name = self._ensure_tenant_vector_index(base_index_name, user_identifier)
-            vectors = self._embed_many([content for _source_id, content in records])
-            if vectors:
-                self._load_vectors(
-                    index_name,
-                    [
-                        (id_factory(user_identifier, source_id), vector)
-                        for (source_id, _content), vector in zip(records, vectors, strict=True)
-                    ],
-                    f"{kind}_rebuild",
-                )
-            counts[kind] = len(records)
+            counts[kind] = self._rebuild_kind_vectors(
+                kind=kind,
+                type_name=type_name,
+                base_index_name=base_index_name,
+                user_identifier=user_identifier,
+                records=records,
+            )
         result: dict[str, object] = {
             "user_identifier": user_identifier,
             "counts": counts,
@@ -160,6 +93,137 @@ class _RebuildMixin:
             details={"counts": counts, "total": result["total"]},
         )
         return result
+
+    def _rebuild_kind_vectors(
+        self,
+        *,
+        kind: str,
+        type_name: str,
+        base_index_name: str,
+        user_identifier: str,
+        records: list[tuple[str, str]],
+    ) -> int:
+        if not records:
+            return 0
+        current_version = self._active_vector_version(kind, user_identifier)
+        new_version = current_version + 1
+        embedding_property, tokens_property, weights_property = (
+            rebuild_queries.staging_property_names(base_index_name, user_identifier, new_version)
+        )
+        self._ensure_staging_vector_schema(type_name, embedding_property)
+        self._ensure_staging_lexical_schema(type_name, tokens_property, weights_property)
+
+        texts = [text for _record_id, text in records]
+        vectors = self._embed_many(texts)
+        populate_statements = [
+            rebuild_queries.stage_vector_statement(
+                type_name=type_name,
+                staging_embedding_property=embedding_property,
+                staging_tokens_property=tokens_property,
+                staging_weights_property=weights_property,
+                record_id=record_id,
+                embedding=vector,
+                lexical_tokens=tokens,
+                lexical_weights=weights,
+            )
+            for (record_id, text), vector in zip(records, vectors, strict=True)
+            for tokens, weights in (sparse_vector(text),)
+        ]
+        self._write_many(populate_statements)  # POPULATE -- live fields untouched
+
+        swap_statement, swap_params = rebuild_queries.swap_vector_statement(
+            type_name=type_name,
+            user_identifier=user_identifier,
+            staging_embedding_property=embedding_property,
+            staging_tokens_property=tokens_property,
+            staging_weights_property=weights_property,
+        )
+        self._write(swap_statement, params=swap_params)  # SWAP -- one bulk field-copy
+        self._set_active_vector_version(
+            kind, user_identifier, previous_version=current_version, version=new_version
+        )
+
+        self._drop_staging_vector_schema(type_name, embedding_property)  # DROP
+        self._drop_staging_lexical_schema(type_name, tokens_property, weights_property)
+        return len(records)
+
+    def _active_vector_version(self, kind: str, user_identifier: str) -> int:
+        self._ensure_vector_version_schema()
+        version_id = rebuild_queries.vector_version_id(kind, user_identifier)
+        statement, params = rebuild_queries.vector_version_select_statement(version_id=version_id)
+        rows = self._records(self._query(statement, operation="vector_version.read", params=params))
+        if not rows:
+            return 0
+        return int(rows[0].get("version") or 0)
+
+    def _set_active_vector_version(
+        self, kind: str, user_identifier: str, *, previous_version: int, version: int
+    ) -> None:
+        version_id = rebuild_queries.vector_version_id(kind, user_identifier)
+        if previous_version == 0:
+            statement, params = rebuild_queries.vector_version_create_statement(
+                version_id=version_id, version=version
+            )
+        else:
+            statement, params = rebuild_queries.vector_version_update_statement(
+                version_id=version_id, version=version
+            )
+        self._write(statement, params=params)
+
+    def _ensure_vector_version_schema(self) -> None:
+        if getattr(self, "_vector_version_schema_ready", False):
+            return
+        for statement in rebuild_queries.vector_version_schema_ddl():
+            self._idempotent_schema_command(statement)
+        self._vector_version_schema_ready = True
+
+    def _ensure_staging_vector_schema(self, type_name: str, property_name: str) -> None:
+        for statement in rebuild_queries.staging_vector_schema_ddl(
+            type_name, property_name, dimensions=self.dimensions
+        ):
+            self._idempotent_schema_command(statement)
+
+    def _ensure_staging_lexical_schema(
+        self, type_name: str, tokens_property: str, weights_property: str
+    ) -> None:
+        for statement in rebuild_queries.staging_lexical_schema_ddl(
+            type_name, tokens_property, weights_property
+        ):
+            self._idempotent_schema_command(statement)
+
+    def _drop_staging_vector_schema(self, type_name: str, property_name: str) -> None:
+        self._idempotent_schema_command(
+            rebuild_queries.drop_staging_vector_index_ddl(type_name, property_name),
+            missing_ok=True,
+        )
+        self._idempotent_schema_command(
+            rebuild_queries.drop_staging_property_ddl(type_name, property_name), missing_ok=True
+        )
+
+    def _drop_staging_lexical_schema(
+        self, type_name: str, tokens_property: str, weights_property: str
+    ) -> None:
+        for property_name in (tokens_property, weights_property):
+            self._idempotent_schema_command(
+                rebuild_queries.drop_staging_property_ddl(type_name, property_name),
+                missing_ok=True,
+            )
+
+    def _idempotent_schema_command(self, statement: str, *, missing_ok: bool = False) -> None:
+        # Schema DDL is issued directly via the client, not `_write`/`_write_many`
+        # -- matches arcadedb_schema.py's own precedent that schema mutations
+        # are not app-data writes and don't belong in a managed transaction.
+        try:
+            self.client.command(statement)
+        except Exception as exc:
+            detail = str(exc).lower()
+            if "already exists" in detail:
+                return
+            if missing_ok and ("not found" in detail or "does not exist" in detail):
+                return
+            raise
+
+    # -- community rebuild ----------------------------------------------------
 
     def rebuild_communities(self, *, user_identifier: str) -> dict[str, object]:
         self._require_user(user_identifier)
@@ -222,8 +286,27 @@ class _RebuildMixin:
             )
             if mutations:
                 sparse_batch_id = self.sparse_index.prepare(mutations)
+        prepared = [
+            {
+                "id": projection.id,
+                "content": projection.content,
+                "member_ids": list(projection.member_ids),
+                "member_ids_json": self._json_dumps(list(projection.member_ids)),
+                "source_memory_ids_json": self._json_dumps(list(projection.source_memory_ids)),
+                "fact_ids_json": self._json_dumps(list(projection.fact_ids)),
+                "confidence": projection.confidence,
+                "level": projection.level,
+                "parent_id": projection.parent_id,
+                "edge_weight": projection.edge_weight,
+                "embedding": vector,
+                "lexical_tokens": tokens,
+                "lexical_weights": weights,
+            }
+            for projection, vector in zip(projections, vectors, strict=True)
+            for tokens, weights in (sparse_vector(projection.content),)
+        ]
         try:
-            self._replace_community_graph(user_identifier, projections)
+            self._replace_community_graph(user_identifier, prepared, previous_ids)
         except Exception as exc:
             if sparse_batch_id is not None and self.sparse_index is not None:
                 try:
@@ -234,18 +317,6 @@ class _RebuildMixin:
         if sparse_batch_id is not None and self.sparse_index is not None:
             self.sparse_index.commit_batch(sparse_batch_id)
             self.sparse_index.replay(batch_id=sparse_batch_id)
-        if vectors:
-            self._load_vectors(
-                self._tenant_vector_index(self.community_index, user_identifier),
-                [
-                    (
-                        self._community_vector_id(user_identifier, projection.id),
-                        vector,
-                    )
-                    for projection, vector in zip(projections, vectors, strict=True)
-                ],
-                "community_batch",
-            )
         result = {
             "user_identifier": user_identifier,
             "community_count": len(projections),
@@ -278,71 +349,74 @@ class _RebuildMixin:
         list[CommunityFact],
         dict[str, tuple[str, ...]],
     ]:
+        entity_statement, entity_params = rebuild_queries.community_entities_statement(
+            user_identifier=user_identifier
+        )
         entity_rows = self._records(
             self._query(
-                "MATCH (e:Entity) "
-                f'WHERE e.user_identifier = "{quote(user_identifier)}" AND e.status = "active" '
-                "RETURN e.id, e.display_name, e.entity_type, e.confidence, e.source_memory_id",
-                operation="community.inputs.entities",
+                entity_statement, operation="community.inputs.entities", params=entity_params
             )
+        )
+        mention_statement, mention_params = rebuild_queries.community_mentions_statement(
+            user_identifier=user_identifier
         )
         mention_rows = self._records(
             self._query(
-                "MATCH (m:Memory)-[:MENTIONS]->(e:Entity) "
-                f'WHERE m.user_identifier = "{quote(user_identifier)}" '
-                'AND m.status = "active" AND e.status = "active" RETURN m.id, e.id',
-                operation="community.inputs.mentions",
+                mention_statement, operation="community.inputs.mentions", params=mention_params
             )
         )
         sources_by_entity: dict[str, set[str]] = {}
         mentions_by_memory_sets: dict[str, set[str]] = {}
         for row in mention_rows:
-            memory_id = str(row.get("m.id") or "")
-            entity_id = str(row.get("e.id") or "")
-            if not memory_id or not entity_id:
+            memory_id = str(row.get("memory_id") or "")
+            if not memory_id:
                 continue
-            sources_by_entity.setdefault(entity_id, set()).add(memory_id)
-            mentions_by_memory_sets.setdefault(memory_id, set()).add(entity_id)
+            entity_ids = row.get("entity_id") or []
+            if not isinstance(entity_ids, list):
+                entity_ids = [entity_ids]
+            for entity_id in entity_ids:
+                entity_id = str(entity_id or "")
+                if not entity_id:
+                    continue
+                sources_by_entity.setdefault(entity_id, set()).add(memory_id)
+                mentions_by_memory_sets.setdefault(memory_id, set()).add(entity_id)
         entities = {
-            str(row.get("e.id")): CommunityEntity(
-                id=str(row.get("e.id")),
-                display_name=str(row.get("e.display_name") or ""),
-                entity_type=str(row.get("e.entity_type") or "entity"),
-                confidence=float(row.get("e.confidence") or 0.0),
+            str(row.get("id")): CommunityEntity(
+                id=str(row.get("id")),
+                display_name=str(row.get("display_name") or ""),
+                entity_type=str(row.get("entity_type") or "entity"),
+                confidence=float(row.get("confidence") or 0.0),
                 source_memory_ids=tuple(
                     sorted(
                         sources_by_entity.get(
-                            str(row.get("e.id")),
-                            {str(row.get("e.source_memory_id") or "")} - {""},
+                            str(row.get("id")),
+                            {str(row.get("source_memory_id") or "")} - {""},
                         )
                     )
                 ),
             )
             for row in entity_rows
-            if row.get("e.id") and row.get("e.display_name")
+            if row.get("id") and row.get("display_name")
         }
+        fact_statement, fact_params = rebuild_queries.community_facts_statement(
+            user_identifier=user_identifier
+        )
         fact_rows = self._records(
-            self._query(
-                "MATCH (f:Fact) "
-                f'WHERE f.user_identifier = "{quote(user_identifier)}" AND f.status = "active" '
-                "RETURN f.id, f.subject_entity_id, f.predicate, f.object_entity_id, f.content, "
-                "f.confidence, f.observed_at, f.source_memory_id",
-                operation="community.inputs.facts",
-            )
+            self._query(fact_statement, operation="community.inputs.facts", params=fact_params)
         )
         facts = [
             CommunityFact(
-                id=str(row.get("f.id")),
-                subject_entity_id=str(row.get("f.subject_entity_id") or ""),
-                predicate=str(row.get("f.predicate") or ""),
-                object_entity_id=str(row.get("f.object_entity_id") or ""),
-                content=str(row.get("f.content") or ""),
-                confidence=float(row.get("f.confidence") or 0.0),
-                observed_at=str(row.get("f.observed_at") or ""),
-                source_memory_id=str(row.get("f.source_memory_id") or ""),
+                id=str(row.get("id")),
+                subject_entity_id=str(row.get("subject_entity_id") or ""),
+                predicate=str(row.get("predicate") or ""),
+                object_entity_id=str(row.get("object_entity_id") or ""),
+                content=str(row.get("content") or ""),
+                confidence=float(row.get("confidence") or 0.0),
+                observed_at=str(row.get("observed_at") or ""),
+                source_memory_id=str(row.get("source_memory_id") or ""),
             )
             for row in fact_rows
-            if row.get("f.id") and row.get("f.content")
+            if row.get("id") and row.get("content")
         ]
         return (
             entities,
@@ -354,182 +428,60 @@ class _RebuildMixin:
         )
 
     def _active_community_ids(self, user_identifier: str) -> set[str]:
-        try:
-            rows = self._records(
-                self._query(
-                    "MATCH (c:Community) "
-                    f'WHERE c.user_identifier = "{quote(user_identifier)}" '
-                    'AND c.status = "active" RETURN c.id',
-                    operation="community.active_ids",
-                )
-            )
-        except Exception as exc:
-            if "Unknown label: Community" not in str(exc):
-                raise
-            return set()
-        return {str(row.get("c.id")) for row in rows if row.get("c.id")}
+        statement, params = rebuild_queries.active_community_ids_statement(
+            user_identifier=user_identifier
+        )
+        rows = self._records(
+            self._query(statement, operation="community.active_ids", params=params)
+        )
+        return {str(row["id"]) for row in rows if row.get("id")}
 
     def _replace_community_graph(
         self,
         user_identifier: str,
-        projections: list[CommunityProjection],
+        prepared: list[dict[str, object]],
+        existing_ids: set[str],
     ) -> None:
-        existing_ids = self._active_community_ids(user_identifier)
-        timestamp = self._now_iso()
-        queries = [
-            f'MATCH (c:Community) WHERE c.id = "{quote(community_id)}" '
-            f'AND c.user_identifier = "{quote(user_identifier)}" '
-            f'SET c.status = "stale", c.updated_at = "{quote(timestamp)}"'
-            for community_id in sorted(existing_ids)
-        ]
-        for projection in projections:
-            if projection.id in existing_ids:
-                queries.append(
-                    f'MATCH (c:Community) WHERE c.id = "{quote(projection.id)}" '
-                    f'AND c.user_identifier = "{quote(user_identifier)}" '
-                    f"SET c.vector_id = {self._community_vector_id(user_identifier, projection.id)}, "
-                    f'c.content = "{quote(projection.content)}", '
-                    f'c.member_ids_json = "{quote(self._json_dumps(list(projection.member_ids)))}", '
-                    f'c.source_memory_ids_json = "{quote(self._json_dumps(list(projection.source_memory_ids)))}", '
-                    f'c.fact_ids_json = "{quote(self._json_dumps(list(projection.fact_ids)))}", '
-                    f"c.confidence = {projection.confidence:.8f}, c.level = {projection.level}, "
-                    f'c.parent_id = "{quote(projection.parent_id)}", '
-                    f"c.edge_weight = {projection.edge_weight:.8f}, "
-                    f'c.updated_at = "{quote(timestamp)}", c.status = "active"'
-                )
-                continue
-            member_vars = [cypher_var(member_id) for member_id in projection.member_ids]
-            community_var = cypher_var(projection.id)
-            match_nodes = ", ".join(f"({variable}:Entity)" for variable in member_vars)
-            where_terms = " AND ".join(
-                f'{variable}.id = "{quote(member_id)}"'
-                for variable, member_id in zip(member_vars, projection.member_ids, strict=True)
-            )
-            node = (
-                f'({community_var}:Community {{id: "{quote(projection.id)}", '
-                f"vector_id: {self._community_vector_id(user_identifier, projection.id)}, "
-                f'user_identifier: "{quote(user_identifier)}", content: "{quote(projection.content)}", '
-                f'member_ids_json: "{quote(self._json_dumps(list(projection.member_ids)))}", '
-                f'source_memory_ids_json: "{quote(self._json_dumps(list(projection.source_memory_ids)))}", '
-                f'fact_ids_json: "{quote(self._json_dumps(list(projection.fact_ids)))}", '
-                f"confidence: {projection.confidence:.8f}, level: {projection.level}, "
-                f'parent_id: "{quote(projection.parent_id)}", edge_weight: {projection.edge_weight:.8f}, '
-                f'created_at: "{quote(timestamp)}", updated_at: "{quote(timestamp)}", status: "active"}})'
-            )
-            edges = [f"({variable})-[:IN_COMMUNITY]->({community_var})" for variable in member_vars]
-            queries.append(
-                f"MATCH {match_nodes} WHERE {where_terms} CREATE " + ", ".join([node, *edges])
-            )
-        self._write_many(queries)
-
-    def _canonical_sparse_documents(self) -> list[SparseDocument]:
-        documents: list[SparseDocument] = []
-        memory_rows = self._sparse_rebuild_rows(
-            "Memory",
-            'MATCH (m:Memory) WHERE m.status = "active" '
-            "RETURN m.id, m.user_identifier, m.kind, m.content, m.source, m.session_id, "
-            "m.created_at, m.expires_at",
-            "sparse.rebuild.memory",
+        if not prepared and not existing_ids:
+            return
+        body, params = rebuild_queries.community_replace_sqlscript(
+            user_identifier=user_identifier,
+            prepared=prepared,
+            existing_ids=existing_ids,
+            timestamp=self._now_iso(),
         )
-        for row in memory_rows:
-            source_id = str(row.get("m.id") or "")
-            user_identifier = str(row.get("m.user_identifier") or "")
-            kind = self._sparse_kind(str(row.get("m.kind") or "memory"))
-            content = str(row.get("m.content") or "")
-            if not source_id or not user_identifier or not content:
-                continue
-            documents.append(
-                SparseDocument(
-                    doc_key=self._sparse_doc_key(user_identifier, kind, source_id),
-                    user_identifier=user_identifier,
-                    source_id=source_id,
-                    kind=kind,
-                    content=content,
-                    source=str(row.get("m.source") or ""),
-                    session_id=str(row.get("m.session_id") or ""),
-                    created_at=str(row.get("m.created_at") or ""),
-                    expires_at=str(row.get("m.expires_at") or ""),
-                )
-            )
-        for label, variable, kind, operation in (
-            ("Entity", "e", "entity", "sparse.rebuild.entity"),
-            ("Fact", "f", "fact", "sparse.rebuild.fact"),
-            ("Community", "c", "community", "sparse.rebuild.community"),
+        with self._span(
+            "arcadedb.write_batch",
+            {"graph": self.graph, "operation": "community.replace"},
         ):
-            rows = self._sparse_rebuild_rows(
-                label,
-                f'MATCH ({variable}:{label}) WHERE {variable}.status = "active" '
-                f"RETURN {variable}.id, {variable}.user_identifier, {variable}.content, "
-                f"{variable}.source, {variable}.session_id, "
-                f"{variable}.observed_at, {variable}.created_at, {variable}.expires_at",
-                operation,
-            )
-            for row in rows:
-                source_id = str(row.get(f"{variable}.id") or "")
-                user_identifier = str(row.get(f"{variable}.user_identifier") or "")
-                content = str(row.get(f"{variable}.content") or "")
-                if not source_id or not user_identifier or not content:
-                    continue
-                created_at = str(
-                    row.get(f"{variable}.observed_at") or row.get(f"{variable}.created_at") or ""
-                )
-                documents.append(
-                    SparseDocument(
-                        doc_key=self._sparse_doc_key(user_identifier, kind, source_id),
-                        user_identifier=user_identifier,
-                        source_id=source_id,
-                        kind=kind,
-                        content=content,
-                        source=str(row.get(f"{variable}.source") or ""),
-                        session_id=str(row.get(f"{variable}.session_id") or ""),
-                        created_at=created_at,
-                        expires_at=str(row.get(f"{variable}.expires_at") or ""),
-                    )
-                )
-        return documents
+            self.client.sqlscript(body, params=params)
+
+    # -- shared rebuild inputs --------------------------------------------------
 
     def _canonical_vector_records(
         self,
         user_identifier: str,
     ) -> dict[str, list[tuple[str, str]]]:
         records: dict[str, list[tuple[str, str]]] = {}
-        for kind, label, variable, status, text_property in (
-            ("memory", "Memory", "m", "active", "content"),
-            ("document", "Chunk", "c", "active", "text"),
-            ("entity", "Entity", "e", "active", "content"),
-            ("fact", "Fact", "f", "active", "content"),
-            ("community", "Community", "c", "active", "content"),
+        for kind, type_name, text_property in (
+            ("memory", "Memory", "content"),
+            ("document", "Chunk", "text"),
+            ("entity", "Entity", "content"),
+            ("fact", "Fact", "content"),
+            ("community", "Community", "content"),
         ):
-            rows = self._sparse_rebuild_rows(
-                label,
-                f"MATCH ({variable}:{label}) "
-                f'WHERE {variable}.user_identifier = "{quote(user_identifier)}" '
-                f'AND {variable}.status = "{status}" '
-                f"RETURN {variable}.id, {variable}.{text_property}",
-                f"vector.rebuild.{kind}",
+            statement, params = rebuild_queries.canonical_vector_records_statement(
+                type_name=type_name, text_property=text_property, user_identifier=user_identifier
+            )
+            rows = self._records(
+                self._query(statement, operation=f"vector.rebuild.{kind}", params=params)
             )
             records[kind] = [
-                (
-                    str(row[f"{variable}.id"]),
-                    str(row[f"{variable}.{text_property}"]),
-                )
+                (str(row["id"]), str(row[text_property]))
                 for row in rows
-                if row.get(f"{variable}.id") and row.get(f"{variable}.{text_property}")
+                if row.get("id") and row.get(text_property)
             ]
         return records
-
-    def _sparse_rebuild_rows(
-        self,
-        label: str,
-        query: str,
-        operation: str,
-    ) -> list[dict[str, Any]]:
-        try:
-            return self._records(self._query(query, operation=operation))
-        except Exception as exc:
-            if f"Unknown label: {label}" not in str(exc):
-                raise
-            return []
 
     def _unique_projection_entities(
         self,
@@ -549,18 +501,8 @@ class _RebuildMixin:
     def _existing_entity_ids(self, user_identifier: str, entity_ids: list[str]) -> set[str]:
         if not entity_ids:
             return set()
-        conditions = " OR ".join(f'e.id = "{quote(entity_id)}"' for entity_id in entity_ids)
-        try:
-            rows = self._records(
-                self._query(
-                    "MATCH (e:Entity) "
-                    f'WHERE e.user_identifier = "{quote(user_identifier)}" AND ({conditions}) '
-                    "RETURN e.id",
-                    operation="entity.exists_batch",
-                )
-            )
-        except Exception as exc:
-            if "Unknown label: Entity" not in str(exc):
-                raise
-            return set()
-        return {str(row.get("e.id") or "") for row in rows if row.get("e.id")}
+        statement, params = rebuild_queries.existing_entity_ids_statement(
+            user_identifier=user_identifier, entity_ids=entity_ids
+        )
+        rows = self._records(self._query(statement, operation="entity.exists_batch", params=params))
+        return {str(row["id"]) for row in rows if row.get("id")}
