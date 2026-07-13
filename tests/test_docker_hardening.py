@@ -31,6 +31,8 @@ QWEN_URL = (
     "https://huggingface.co/Mungert/Qwen3-Reranker-0.6B-GGUF/"
     f"resolve/{QWEN_REVISION}/{QWEN_FILENAME}?download=true"
 )
+# Active reranker sidecar as of Phase 3 plan 02 (Qwen3 -> BGE swap; Qwen3 kept provisioned for revert).
+BGE_FILENAME = "bge-reranker-v2-m3-Q8_0.gguf"
 GEMMA_FILENAME = "embeddinggemma-300M-Q8_0.gguf"
 GEMMA_REVISION = "6661a6504c30d8304af13455cb4a5d4f5bc6011f"
 GEMMA_SHA256 = "a0f7b4e13c397a6e1b32c2de75b1f65a14c92ec524d5f674d94a4290a1c4969b"
@@ -124,7 +126,7 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert "--hf-file" not in embed["command"]
     assert "--ubatch-size" in embed["command"]
     assert "4096" in embed["command"]
-    assert rerank["command"][:2] == ["--model", f"/models/pinned/{QWEN_FILENAME}"]
+    assert rerank["command"][:2] == ["--model", f"/models/pinned/{BGE_FILENAME}"]
     assert "--hf-repo" not in rerank["command"]
     assert "--hf-file" not in rerank["command"]
     assert "--embedding" in rerank["command"]
@@ -146,7 +148,7 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert "EMBED_BATCH_SIZE=${EMBED_BATCH_SIZE:-128}" in app_env
     assert "EMBED_REQUEST_DIMENSIONS" in app_env
     assert "RERANK_BASE_URL=${RERANK_BASE_URL:-http://agentmemory-rerank:8080}" in app_env
-    assert "RERANK_MODEL=${RERANK_MODEL:-Qwen3-Reranker-0.6B-q8_0.gguf}" in app_env
+    assert "RERANK_MODEL=${RERANK_MODEL:-bge-reranker-v2-m3-Q8_0.gguf}" in app_env
     assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}" in app_env
     assert "RERANK_CANDIDATE_LIMIT=${RERANK_CANDIDATE_LIMIT:-50}" in app_env
     assert "RERANK_BLEND=${RERANK_BLEND:-1}" in app_env
