@@ -152,8 +152,14 @@ class _FakeArcadeDBClient:
         return result
 
     def is_ready(self) -> bool:
-        if self._probe_sequence:
+        # Pop queued probe results one at a time until a single value remains,
+        # then hold that last value persistently (rather than defaulting back
+        # to True) -- lets a test script "N failures then recovery" while
+        # still supporting repeated /health-style polling of a steady state.
+        if len(self._probe_sequence or []) > 1:
             return self._probe_sequence.pop(0)
+        if self._probe_sequence:
+            return self._probe_sequence[0]
         return True
 
 

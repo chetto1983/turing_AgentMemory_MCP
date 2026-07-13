@@ -206,22 +206,18 @@ class _StoreCore:
     def bootstrap(self) -> None:
         self.turing_home.mkdir(parents=True, exist_ok=True)
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        self._ensure_graph_loaded()
-        self._ensure_vector_index(self.memory_index)
-        self._ensure_vector_index(self.document_index)
-        self._ensure_vector_index(self.entity_index)
-        self._ensure_vector_index(self.fact_index)
-        self._ensure_vector_index(self.community_index)
-        if self.sparse_index is not None:
-            self.sparse_index.initialize()
-            self.sparse_index.replay()
-        self.runtime_signals.configure_stage("graph", ready=True, identity={"graph": self.graph})
+        self._ensure_schema()
+        self._refresh_graph_readiness()
 
-    def load_graph_after_restart(self) -> None:
-        self.client.load_graph(self.graph, raise_if_loaded=False)
-        self.client.set_graph(self.graph)
+    def reconnect(self) -> bool:
+        """D-10: reconnect is a reachability re-probe, not TuringDB's
+        load-graph-after-restart step -- the public entry point external
+        callers (benchmark/e2e harnesses) use after restarting the backend.
+        """
+        return self._refresh_graph_readiness()
 
     def runtime_status(self) -> dict[str, object]:
+        self._refresh_graph_readiness()
         status = self.runtime_signals.snapshot()
         if self.sparse_index is not None:
             try:
@@ -235,20 +231,14 @@ class _StoreCore:
         status["community_rebuild_on_batch"] = self.community_rebuild_on_batch
         return status
 
-    def _ensure_graph_loaded(self) -> None:
-        try:
-            loaded_graphs = self.client.list_loaded_graphs()
-        except Exception:
-            loaded_graphs = []
-        if self.graph not in loaded_graphs:
-            try:
-                self.client.load_graph(self.graph, raise_if_loaded=False)
-            except Exception:
-                try:
-                    self.client.create_graph(self.graph)
-                except Exception:
-                    pass
-        self.client.set_graph(self.graph)
+    def _refresh_graph_readiness(self) -> bool:
+        """D-10: the graph stage tracks a live probe, not a boot-time latch --
+        `/health` calls this (via `runtime_status`) on every request, so an
+        ArcadeDB outage surfaces immediately and a later successful probe
+        flips it back to ready without any manual reconnect step."""
+        ready = self.client.is_ready()
+        self.runtime_signals.configure_stage("graph", ready=ready, identity={"graph": self.graph})
+        return ready
 
     def _ensure_schema(self) -> None:
         """Idempotently bootstrap the full ArcadeDB schema (D-09, delegated to
