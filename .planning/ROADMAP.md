@@ -137,13 +137,13 @@ Plans:
   3. Vector search runs on ArcadeDB native `LSM_VECTOR` (HNSW) with the TuringDB `vector_id` int-join deleted (not ported), built on a versioned/namespaced index foundation; full-text runs on native Lucene with the analyzer validated against golden queries and the SQLite-FTS5 outbox retired.
   4. `stable_id()` remains the sole cross-record identifier, stored as an indexed ArcadeDB property (never ArcadeDB's native RID); no vector-ID drift across the port.
 
-**Plans:** 9 plans
+**Plans:** 1/9 plans executed
 
 Plans:
 
 **Wave 1** *(hard gate — D-02 spike alone; blocks every other plan)*
 
-- [ ] 04-01-PLAN.md — D-02 spike: stand up arcadedb 26.7.1 service + minimal urllib client + committed smoke test resolving the 5 §3 unknowns + D-04/D-05 bake-off vs the Phase-3 yardstick (ARC-02, ARC-03)
+- [x] 04-01-PLAN.md — D-02 spike: stand up arcadedb 26.7.1 service + minimal urllib client + committed smoke test resolving the 5 §3 unknowns + D-04/D-05 bake-off vs the Phase-3 yardstick (ARC-02, ARC-03)
 
 **Wave 2** *(blocked on Wave 1 — consumes the spike's resolved syntax)*
 
@@ -287,7 +287,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
-| 4. ArcadeDB Direct Port | 0/9 | Not started | - |
+| 4. ArcadeDB Direct Port | 1/9 | In Progress|  |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |

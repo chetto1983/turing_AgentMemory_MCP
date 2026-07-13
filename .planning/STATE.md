@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 13
-current_phase_name: Harden UTCP support
+current_phase: 04
+current_phase_name: arcadedb-direct-port
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-07-13T18:14:10.616Z"
+stopped_at: Completed 04-01-PLAN.md (D-02 spike gate)
+last_updated: "2026-07-13T19:06:49.929Z"
 last_activity: 2026-07-13
-last_activity_desc: Phase 03 complete, transitioned to Phase 13
+last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 13
   completed_phases: 3
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 25
+  completed_plans: 17
   percent: 23
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 03 — turingdb-retrieval-baseline
+**Current focus:** Phase 04 — arcadedb-direct-port
 
 ## Current Position
 
-Phase: 13 — Harden UTCP support
-Plan: Not started
+Phase: 04 (arcadedb-direct-port) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-07-13 — Phase 03 complete, transitioned to Phase 13
+Last activity: 2026-07-13 — Phase 04 execution started
 
 Progress: [█████████░] 94%
 
@@ -71,6 +71,7 @@ Progress: [█████████░] 94%
 | Phase 02 P03 | 30min | - tasks | - files |
 | Phase 03 P01 | 25min | 2 tasks | 3 files |
 | Phase 03-turingdb-retrieval-baseline P03 | 30min | 3 tasks | 6 files |
+| Phase 04 P01 | 50min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,9 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-01: Wrapped the entire per-file generate closure (select_passages + generator.generate) in a single asyncio.to_thread(resolve_questions, ...) call per the plan's designed minimal-diff shape; used a nested def with default-parameter loop-variable capture instead of a lambda to satisfy ruff B023 while keeping real_document_benchmark.py at 587/600 LOC
 - [Phase ?]: BASELINE.md documents the ACTUAL captured stack (BGE reranker, granite embedder, real run params, SHA ab7abd0) not the plan's original assumed config
 - [Phase ?]: AS-OBSERVED D-07 confirmation: 4 e2e checks report ok=true with detail=false, independently confirming ~14/19 true-pass estimate, superseding RESEARCH.md ASSUMED candidate list
+- [Phase ?]: D-03 (confirmed, no change): keep over-fetch-then-filter for filtered vector search -- k-underfill is empirically present (post-filter, not HNSW pushdown)
+- [Phase ?]: D-04 (spike-decided): native LSM_SPARSE_VECTOR wins the lexical channel over Lucene SEARCH_INDEX -- higher MRR/recall and zero errors on the 60-question yardstick vs 2/60 Lucene query-parse failures on unescaped natural-language punctuation
+- [Phase ?]: D-05 (spike-decided): SQL MATCH/TRAVERSE wins the graph-query surface -- same query language as vectorNeighbors/SEARCH_INDEX, composes traversal with ranking in one statement
 
 ### Pending Todos
 
@@ -141,6 +145,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T17:23:45.781Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-arcadedb-direct-port/04-CONTEXT.md
+Last session: 2026-07-13T19:06:49.920Z
+Stopped at: Completed 04-01-PLAN.md (D-02 spike gate)
+Resume file: None
