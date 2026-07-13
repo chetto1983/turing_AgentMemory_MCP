@@ -92,7 +92,9 @@ def test_store_messages_rejects_conflicting_duplicate_ids(tmp_path: Path) -> Non
         raise AssertionError("expected conflicting duplicate memory_id")
 
 
-def test_ingest_document_text_batches_chunk_embeddings_and_vector_loads(tmp_path: Path) -> None:
+def test_ingest_document_text_batches_chunk_embeddings_and_writes_inline_vectors(
+    tmp_path: Path,
+) -> None:
     embedder = CountingBatchEmbedder()
     store = RecordingDocumentStore(tmp_path, embedder)
 
@@ -113,31 +115,16 @@ def test_ingest_document_text_batches_chunk_embeddings_and_vector_loads(tmp_path
     assert len(embedder.embed_many_calls) == 1
     assert len(embedder.embed_many_calls[0]) == document.chunk_count
     assert embedder.embed_calls == []
-    assert len(store.vector_loads) == 1
-    assert len(store.vector_loads[0]) == document.chunk_count
-
-
-def test_ingest_document_text_batches_graph_queries_below_payload_limit(tmp_path: Path) -> None:
-    store = RecordingDocumentStore(tmp_path, CountingBatchEmbedder())
-    store.document_graph_batch_bytes = 1_400
-
-    document = store.ingest_document_text(
-        user_identifier="alice",
-        document_id="doc-large",
-        title="Large Document",
-        text=" ".join(f"section-{index:04d}" for index in range(500)),
-        chunk_chars=200,
-        source="manual",
-        tags=["large"],
-    )
-
-    assert len(store.write_queries) > 2
-    assert all(len(query.encode("utf-8")) <= 1_400 for query in store.write_queries)
-    graph_writes = "\n".join(store.write_queries)
-    assert graph_writes.count(":Document {") == 1
-    assert graph_writes.count(":Chunk {") == document.chunk_count
-    assert graph_writes.count(":HAS_CHUNK") == document.chunk_count
-    assert graph_writes.count(":NEXT_CHUNK") == document.chunk_count - 1
+    # ARC-05: no separate vector-load step remains -- each chunk's embedding
+    # is an inline `CREATE VERTEX Chunk` property, bound as a param.
+    assert store.vector_loads == []
+    chunk_creates = [
+        params
+        for query, params in zip(store.write_queries, store.write_params, strict=True)
+        if query.startswith("CREATE VERTEX Chunk") and params is not None
+    ]
+    assert len(chunk_creates) == document.chunk_count
+    assert all("embedding" in params and "vector_id" not in params for params in chunk_creates)
 
 
 def test_document_chunking_packs_short_lines_to_the_configured_budget() -> None:

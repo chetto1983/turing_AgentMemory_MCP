@@ -319,4 +319,13 @@ def test_document_ingest_extracts_entities_before_chunking_hashing_and_persisten
     assert item.text_hash == store._document_text_hash("TuringDB can store entity-rich documents")
     assert embedder.embed_many_calls == [["TuringDB can store entity-rich documents"]]
     assert embedder.embed_calls == []
-    assert "TuringDB can store entity-rich documents" in store.write_queries[0]
+    # Chunk text is a bound param now, not string-interpolated (Pitfall 2) --
+    # the unmutated (entity-processed) text still round-trips into the
+    # CREATE VERTEX Chunk write.
+    chunk_creates = [
+        params
+        for query, params in zip(store.write_queries, store.write_params, strict=True)
+        if query.startswith("CREATE VERTEX Chunk") and params is not None
+    ]
+    assert chunk_creates
+    assert chunk_creates[0]["text"] == "TuringDB can store entity-rich documents"

@@ -19,33 +19,63 @@ from turing_agentmemory_mcp.server import create_mcp_app
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
 
-class Rows:
-    def __init__(self, rows: list[dict[str, object]] | None = None) -> None:
-        self.rows = rows or []
-
-    def to_dict(self, orient: str) -> list[dict[str, object]]:
-        assert orient == "records"
-        return self.rows
-
-
 class QueryRecordingClient:
+    """ArcadeDB-shaped fake (04-06): session-agnostic (no read-your-writes
+    modeling needed for these span-recording tests) but implements the
+    `query`/`command`/`begin`/`commit`/`rollback`/`run_in_transaction`/
+    `is_ready` surface `store_core.py`'s ported seam requires.
+    """
+
     def __init__(self, vector_rows: list[dict[str, object]] | None = None) -> None:
-        self.queries: list[str] = []
-        self.new_changes = 0
-        self.checkouts = 0
+        self.queries: list[tuple[str, dict[str, object] | None]] = []
+        self.commands: list[tuple[str, dict[str, object] | None]] = []
         self.vector_rows = vector_rows or []
+        self._begin_calls = 0
 
-    def new_change(self) -> None:
-        self.new_changes += 1
+    def is_ready(self) -> bool:
+        return True
 
-    def checkout(self) -> None:
-        self.checkouts += 1
+    def begin(self) -> str:
+        self._begin_calls += 1
+        return f"session-{self._begin_calls}"
 
-    def query(self, query: str) -> Rows:
-        self.queries.append(query)
+    def commit(self, session_id: str) -> None:
+        return
+
+    def rollback(self, session_id: str) -> None:
+        return
+
+    def run_in_transaction(self, body: Any, *, commit_retries: int | None = None) -> Any:
+        session_id = self.begin()
+        result = body(session_id)
+        self.commit(session_id)
+        return result
+
+    def query(
+        self,
+        query: str,
+        *,
+        params: dict[str, object] | None = None,
+        language: str = "sql",
+        session_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        self.queries.append((query, params))
         if query.startswith("VECTOR SEARCH IN agent_memory_vectors"):
-            return Rows(self.vector_rows)
-        return Rows([])
+            return list(self.vector_rows)
+        return []
+
+    def command(
+        self,
+        query: str,
+        *,
+        params: dict[str, object] | None = None,
+        language: str = "sql",
+        session_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        self.commands.append((query, params))
+        if query.strip().upper().startswith("SELECT"):
+            return self.query(query, params=params, language=language, session_id=session_id)
+        return []
 
 
 class CountingEmbedder:
@@ -171,7 +201,7 @@ def test_search_memory_records_embed_query_and_rerank_spans(tmp_path: Path) -> N
     assert observer.by_name("rerank")[0]["attributes"]["count"] == 2
 
 
-def test_ingest_document_text_records_chunk_and_vector_load_spans(tmp_path: Path) -> None:
+def test_ingest_document_text_records_chunk_and_embed_spans(tmp_path: Path) -> None:
     observer = RecordingObserver()
     client = QueryRecordingClient()
     store = TuringAgentMemory(
@@ -193,13 +223,20 @@ def test_ingest_document_text_records_chunk_and_vector_load_spans(tmp_path: Path
     assert document.chunk_count > 1
     assert "document.ingest_text" in observer.names()
     assert "document.chunk" in observer.names()
-    assert "vector.load" in observer.names()
+    assert "embed" in observer.names()
     assert (
         observer.by_name("document.chunk")[0]["attributes"]["chunk_count"] == document.chunk_count
     )
-    assert observer.by_name("vector.load")[0]["attributes"]["index"].startswith(
-        "document_chunk_vectors_tenant_"
-    )
+    # ARC-05: chunk embeddings are inline `CREATE VERTEX Chunk` properties --
+    # no separate CSV vector-load span/step remains.
+    assert "vector.load" not in observer.names()
+    chunk_creates = [
+        params
+        for stmt, params in client.commands
+        if stmt.startswith("CREATE VERTEX Chunk") and params is not None
+    ]
+    assert len(chunk_creates) == document.chunk_count
+    assert all("embedding" in params for params in chunk_creates)
 
 
 def _payload(result: Any) -> Any:

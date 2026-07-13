@@ -34,7 +34,6 @@ class FilterStore(TuringAgentMemory):
         tmp_path: Path,
         *,
         memory_rows: list[dict[str, object]] | None = None,
-        chunk_rows: list[dict[str, object]] | None = None,
     ) -> None:
         super().__init__(
             client=object(),  # type: ignore[arg-type]
@@ -43,29 +42,43 @@ class FilterStore(TuringAgentMemory):
             reranker=None,
         )
         self.memory_rows = memory_rows or []
-        self.chunk_rows = chunk_rows or []
 
     def _query(self, query: str, *, operation: str) -> Rows:
         if operation == "memory.vector_search":
             return Rows(self.memory_rows)
-        if operation == "document.vector_search":
-            return Rows(self.chunk_rows)
         return Rows([])
 
     def _active_memory_rows(self, user_identifier: str) -> list[dict[str, Any]]:
         return [row for row in self.memory_rows if row["m.user_identifier"] == user_identifier]
 
-    def _active_chunk_rows(
-        self, user_identifier: str, *, document_id: str = ""
-    ) -> list[dict[str, Any]]:
-        return [
-            row
-            for row in self.chunk_rows
-            if row["c.user_identifier"] == user_identifier
-            and (not document_id or row["c.document_id"] == document_id)
-        ]
 
-    def _chunk_context(self, vector: int) -> list[dict[str, object]]:
+class DocumentFilterStore(TuringAgentMemory):
+    """ArcadeDB-shaped document-search fixture (04-06): dispatches on the
+    `operation=` tag `store_documents.py`'s ported `_query` calls carry --
+    `chunk_rows` stand in for the native HNSW vector channel's results; the
+    Lucene lexical channel returns no extra candidates (not exercised by this
+    filter-only scenario).
+    """
+
+    def __init__(
+        self, tmp_path: Path, *, chunk_rows: list[dict[str, object]] | None = None
+    ) -> None:
+        super().__init__(
+            client=object(),  # type: ignore[arg-type]
+            turing_home=tmp_path,
+            embedder=NullEmbedder(),
+            reranker=None,
+        )
+        self.chunk_rows = chunk_rows or []
+
+    def _query(
+        self, query: str, *, operation: str, params: dict[str, object] | None = None
+    ) -> list[dict[str, object]]:
+        if operation == "document.vector_search":
+            return list(self.chunk_rows)
+        return []
+
+    def _chunk_context(self, chunk_id: str) -> list[dict[str, object]]:
         return []
 
 
@@ -107,23 +120,22 @@ def _chunk_row(
     tags: list[str],
     created_at: str,
     updated_at: str | None = None,
-    score: float = 0.7,
+    distance: float = 0.3,
 ) -> dict[str, object]:
     return {
-        "c.chunk_id": chunk_id,
-        "c.document_id": document_id,
-        "c.title": document_id,
-        "c.locator": "chunk=1",
-        "c.text": text,
-        "c.vector_id": 100,
-        "c.user_identifier": "alice",
-        "c.created_at": created_at,
-        "c.updated_at": updated_at or created_at,
-        "c.expires_at": "",
-        "c.source": source,
-        "c.tags_json": json.dumps(tags),
-        "c.metadata_json": "{}",
-        "score": score,
+        "id": chunk_id,
+        "document_id": document_id,
+        "title": document_id,
+        "locator": "chunk=1",
+        "text": text,
+        "user_identifier": "alice",
+        "created_at": created_at,
+        "updated_at": updated_at or created_at,
+        "expires_at": "",
+        "source": source,
+        "tags_json": json.dumps(tags),
+        "metadata_json": "{}",
+        "distance": distance,
     }
 
 
@@ -216,7 +228,7 @@ def test_memory_get_context_applies_same_filters_as_memory_search(tmp_path: Path
 
 
 def test_document_search_filters_by_source_tags_and_updated_range(tmp_path: Path) -> None:
-    store = FilterStore(
+    store = DocumentFilterStore(
         tmp_path,
         chunk_rows=[
             _chunk_row(
@@ -260,34 +272,3 @@ def test_document_search_filters_by_source_tags_and_updated_range(tmp_path: Path
     )
 
     assert [hit.chunk_id for hit in hits] == ["doc-keep#1"]
-
-
-def test_chunk_context_treats_missing_next_chunk_edge_type_as_empty(tmp_path: Path) -> None:
-    class MissingNextChunkStore(FilterStore):
-        _chunk_context = TuringAgentMemory._chunk_context
-
-        def _query(self, query: str, *, operation: str) -> Rows:
-            assert operation == "document.chunk_context"
-            raise RuntimeError("ANALYZE_ERROR: Unknown edge type: NEXT_CHUNK")
-
-    store = MissingNextChunkStore(tmp_path)
-
-    assert store._chunk_context(100) == []
-
-
-def test_chunk_context_does_not_hide_unrelated_database_errors(tmp_path: Path) -> None:
-    class BrokenContextStore(FilterStore):
-        _chunk_context = TuringAgentMemory._chunk_context
-
-        def _query(self, query: str, *, operation: str) -> Rows:
-            assert operation == "document.chunk_context"
-            raise RuntimeError("database connection lost")
-
-    store = BrokenContextStore(tmp_path)
-
-    try:
-        store._chunk_context(100)
-    except RuntimeError as exc:
-        assert str(exc) == "database connection lost"
-    else:
-        raise AssertionError("unrelated context query errors must propagate")

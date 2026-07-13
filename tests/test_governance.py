@@ -17,31 +17,65 @@ from turing_agentmemory_mcp.server import create_mcp_app
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
 
-class Rows:
-    def __init__(self, rows: list[dict[str, object]] | None = None) -> None:
-        self.rows = rows or []
-
-    def to_dict(self, orient: str) -> list[dict[str, object]]:
-        assert orient == "records"
-        return self.rows
-
-
 class QueryClient:
+    """ArcadeDB-shaped fake (04-06): a single `rows` bucket returned for any
+    Memory- or Chunk-shaped read (mirrors the pre-port single-bucket design --
+    each test below only ever populates rows for one record type at a time),
+    plus the `command`/`begin`/`commit`/`rollback`/`run_in_transaction`/
+    `is_ready` surface `store_core.py`'s ported seam requires.
+    """
+
     def __init__(self, rows: list[dict[str, object]] | None = None) -> None:
         self.rows = rows or []
-        self.queries: list[str] = []
+        self.queries: list[tuple[str, dict[str, object] | None]] = []
+        self.commands: list[tuple[str, dict[str, object] | None]] = []
+        self._begin_calls = 0
 
-    def new_change(self) -> None:
+    def is_ready(self) -> bool:
+        return True
+
+    def begin(self) -> str:
+        self._begin_calls += 1
+        return f"session-{self._begin_calls}"
+
+    def commit(self, session_id: str) -> None:
         return
 
-    def checkout(self) -> None:
+    def rollback(self, session_id: str) -> None:
         return
 
-    def query(self, query: str) -> Rows:
-        self.queries.append(query)
-        if query.startswith("MATCH"):
-            return Rows(self.rows)
-        return Rows([])
+    def run_in_transaction(self, body: Any, *, commit_retries: int | None = None) -> Any:
+        session_id = self.begin()
+        result = body(session_id)
+        self.commit(session_id)
+        return result
+
+    def query(
+        self,
+        query: str,
+        *,
+        params: dict[str, object] | None = None,
+        language: str = "sql",
+        session_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        self.queries.append((query, params))
+        upper = query.upper()
+        if "MEMORY" in upper or "CHUNK" in upper:
+            return list(self.rows)
+        return []
+
+    def command(
+        self,
+        query: str,
+        *,
+        params: dict[str, object] | None = None,
+        language: str = "sql",
+        session_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        self.commands.append((query, params))
+        if query.strip().upper().startswith("SELECT"):
+            return self.query(query, params=params, language=language, session_id=session_id)
+        return []
 
 
 class CountingEmbedder:
@@ -111,6 +145,7 @@ class RecordingStore(TuringAgentMemory):
         )
         self.memories: dict[tuple[str, str], MemoryItem] = {}
         self.write_queries: list[str] = []
+        self.write_params: list[dict[str, object] | None] = []
 
     @property
     def counting_embedder(self) -> CountingEmbedder:
@@ -124,15 +159,20 @@ class RecordingStore(TuringAgentMemory):
 
     def _write(self, query: str) -> None:
         self.write_queries.append(query)
+        self.write_params.append(None)
 
     def _write_many(self, statements: list[Any]) -> None:
-        # ArcadeDB-ported call sites (04-05) pass `list[tuple[str, params]]`;
-        # record just the statement text -- matches this file's pre-port
-        # `write_queries` convention (content is now a bound value, not
-        # interpolated into the text -- Pitfall 2).
+        # ArcadeDB-ported call sites (04-05/06) pass `list[tuple[str, params]]`;
+        # record the statement text (matches this file's pre-port
+        # `write_queries` convention) plus the bound params (content is now a
+        # bound value, not interpolated into the text -- Pitfall 2).
         for entry in statements:
-            query = entry[0] if isinstance(entry, tuple) else entry
+            if isinstance(entry, tuple):
+                query, params = entry
+            else:
+                query, params = entry, None
             self.write_queries.append(query)
+            self.write_params.append(params)
 
     def _load_vectors(
         self, index_name: str, rows: list[tuple[int, list[float]]], stem: str
@@ -252,7 +292,19 @@ def test_document_ingest_applies_redaction_expiry_and_audit(tmp_path: Path) -> N
     assert document.metadata["redaction"]["redacted"] is True
     assert document.expires_at == "2099-01-01T00:00:00Z"
     assert "sk-live-secret" not in "\n".join(store.write_queries)
-    assert 'expires_at: "2099-01-01T00:00:00Z"' in store.write_queries[0]
+    assert all(
+        "sk-live-secret" not in str(value)
+        for params in store.write_params
+        if params
+        for value in params.values()
+    )
+    document_creates = [
+        params
+        for query, params in zip(store.write_queries, store.write_params, strict=True)
+        if query.startswith("CREATE VERTEX Document") and params is not None
+    ]
+    assert document_creates
+    assert document_creates[0]["expires_at"] == "2099-01-01T00:00:00Z"
     assert audit.events[-1]["operation"] == "document.ingest_text"
     assert audit.events[-1]["resource_type"] == "document"
     assert audit.events[-1]["resource_id"] == "doc-secret"
@@ -261,26 +313,24 @@ def test_document_ingest_applies_redaction_expiry_and_audit(tmp_path: Path) -> N
 
 def test_expired_document_chunks_are_hidden_from_search(tmp_path: Path) -> None:
     expired_chunk = {
-        "c.chunk_id": "doc-expired#1",
-        "c.document_id": "doc-expired",
-        "c.title": "Expired",
-        "c.locator": "chunk=1",
-        "c.text": "expired document chunk",
-        "c.vector_id": 0,
-        "c.expires_at": "2020-01-01T00:00:00Z",
-        "c.source": "docs",
-        "c.tags_json": "[]",
-        "c.metadata_json": "{}",
-        "score": 0.99,
+        "id": "doc-expired#1",
+        "document_id": "doc-expired",
+        "title": "Expired",
+        "locator": "chunk=1",
+        "text": "expired document chunk",
+        "user_identifier": "alice",
+        "expires_at": "2020-01-01T00:00:00Z",
+        "source": "docs",
+        "tags_json": "[]",
+        "metadata_json": "{}",
     }
     active_chunk = {
         **expired_chunk,
-        "c.chunk_id": "doc-active#1",
-        "c.document_id": "doc-active",
-        "c.title": "Active",
-        "c.text": "active document chunk",
-        "c.expires_at": "2099-01-01T00:00:00Z",
-        "score": 0.98,
+        "id": "doc-active#1",
+        "document_id": "doc-active",
+        "title": "Active",
+        "text": "active document chunk",
+        "expires_at": "2099-01-01T00:00:00Z",
     }
     store = TuringAgentMemory(
         client=QueryClient([expired_chunk, active_chunk]),  # type: ignore[arg-type]
