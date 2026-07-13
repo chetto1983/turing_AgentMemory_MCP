@@ -12,7 +12,7 @@ from _batch_memory_shared import CountingBatchEmbedder, RecordingDocumentStore, 
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
 
-def test_store_messages_batches_embeddings_and_vector_loads(tmp_path: Path) -> None:
+def test_store_messages_batches_embeddings_and_writes_inline_vectors(tmp_path: Path) -> None:
     embedder = CountingBatchEmbedder()
     store = RecordingMemoryStore(tmp_path, embedder)
 
@@ -33,9 +33,16 @@ def test_store_messages_batches_embeddings_and_vector_loads(tmp_path: Path) -> N
     assert [item.metadata for item in items] == [{"request_id": "r1"}, {"request_id": "r1"}]
     assert embedder.embed_many_calls == [["batch memory one", "batch memory two"]]
     assert embedder.embed_calls == []
-    assert len(store.write_queries) == 1
-    assert len(store.vector_loads) == 1
-    assert len(store.vector_loads[0]) == 2
+    # ARC-05: no separate vector-load step remains -- the embedding is an
+    # inline `CREATE VERTEX Memory` property, bound as a param on that write.
+    assert store.vector_loads == []
+    memory_creates = [
+        params
+        for query, params in zip(store.write_queries, store.write_params, strict=True)
+        if query.startswith("CREATE VERTEX Memory") and params is not None
+    ]
+    assert len(memory_creates) == 2
+    assert all("embedding" in params and "vector_id" not in params for params in memory_creates)
 
 
 def test_store_messages_replay_is_duplicate_safe_without_reembedding(tmp_path: Path) -> None:
@@ -59,7 +66,12 @@ def test_store_messages_replay_is_duplicate_safe_without_reembedding(tmp_path: P
     assert len(store.memories) == 2
     assert embedder.embed_many_calls == [["retry-safe memory", "manual id memory"]]
     assert embedder.embed_calls == []
-    assert len(store.vector_loads) == 1
+    # A replayed batch finds both memories already existing (`get_memory` is
+    # overridden to consult `self.memories`), so no second write happens at all.
+    memory_creates = [
+        query for query in store.write_queries if query.startswith("CREATE VERTEX Memory")
+    ]
+    assert len(memory_creates) == 2
 
 
 def test_store_messages_rejects_conflicting_duplicate_ids(tmp_path: Path) -> None:
@@ -126,43 +138,6 @@ def test_ingest_document_text_batches_graph_queries_below_payload_limit(tmp_path
     assert graph_writes.count(":Chunk {") == document.chunk_count
     assert graph_writes.count(":HAS_CHUNK") == document.chunk_count
     assert graph_writes.count(":NEXT_CHUNK") == document.chunk_count - 1
-
-
-def test_write_many_submits_each_dependent_graph_batch(tmp_path: Path) -> None:
-    class TransactionClient:
-        def __init__(self) -> None:
-            self.events: list[str] = []
-
-        def new_change(self) -> None:
-            self.events.append("new_change")
-
-        def query(self, query: str) -> list[object]:
-            self.events.append(query)
-            return []
-
-        def checkout(self) -> None:
-            self.events.append("checkout")
-
-    client = TransactionClient()
-    store = TuringAgentMemory(
-        client=client,  # type: ignore[arg-type]
-        turing_home=tmp_path,
-        embedder=CountingBatchEmbedder(),
-        reranker=None,
-    )
-
-    store._write_many(["CREATE document", "MATCH document CREATE chunks"])
-
-    assert client.events == [
-        "new_change",
-        "CREATE document",
-        "CHANGE SUBMIT",
-        "checkout",
-        "new_change",
-        "MATCH document CREATE chunks",
-        "CHANGE SUBMIT",
-        "checkout",
-    ]
 
 
 def test_document_chunking_packs_short_lines_to_the_configured_budget() -> None:

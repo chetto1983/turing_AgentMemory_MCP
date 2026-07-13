@@ -43,30 +43,45 @@ def test_store_messages_projects_temporal_graph_atomically_before_vector_publica
 
     assert [item.id for item in items] == ["episode-1"]
     assert extractor.calls == [["Alice likes hiking."]]
-    assert len(store.write_queries) == 1
-    query = store.write_queries[0]
-    assert ":Memory" in query
-    assert query.count(":Entity {") == 2
-    assert query.count(":Fact {") == 1
-    assert ":MENTIONS" in query
-    assert ":SUBJECT_OF" in query
-    assert ":OBJECT_OF" in query
-    assert ":SUPPORTED_BY" in query
-    assert ":PREFERS" in query
-    assert 'source_memory_id: "episode-1"' in query
-    assert 'session_id: "session-1"' in query
-    assert 'speaker: "user"' in query
-    assert 'source: "locomo"' in query
-    assert 'schema_version: "memory-v1"' in query
-    assert 'model: "test-gliner2"' in query
+    # ArcadeDB (04-05): one bound-param statement per vertex/edge instead of a
+    # single combined Cypher literal -- 1 Memory + 1 HAS_MEMORY edge + 2 Entity
+    # + 1 Fact + (2 MENTIONS + SUBJECT_OF + OBJECT_OF + SUPPORTED_BY + a
+    # dynamic PREFERS edge type-declare + the PREFERS edge itself) = 12.
+    assert len(store.write_queries) == 12
+    creates_by_type = {
+        record_type: [
+            params
+            for query, params in zip(store.write_queries, store.write_params, strict=True)
+            if query.startswith(f"CREATE VERTEX {record_type}") and params is not None
+        ]
+        for record_type in ("Memory", "Entity", "Fact")
+    }
+    assert len(creates_by_type["Memory"]) == 1
+    assert len(creates_by_type["Entity"]) == 2
+    assert len(creates_by_type["Fact"]) == 1
+    edge_queries = [query for query in store.write_queries if query.startswith("CREATE EDGE ")]
+    assert sum(query.startswith("CREATE EDGE MENTIONS ") for query in edge_queries) == 2
+    assert any(query.startswith("CREATE EDGE SUBJECT_OF ") for query in edge_queries)
+    assert any(query.startswith("CREATE EDGE OBJECT_OF ") for query in edge_queries)
+    assert any(query.startswith("CREATE EDGE SUPPORTED_BY ") for query in edge_queries)
+    assert any(query.startswith("CREATE EDGE PREFERS ") for query in edge_queries)
+    assert "CREATE EDGE TYPE PREFERS IF NOT EXISTS" in store.write_queries
+    fact_params = creates_by_type["Fact"][0]
+    assert fact_params["source_memory_id"] == "episode-1"
+    assert fact_params["session_id"] == "session-1"
+    assert fact_params["speaker"] == "user"
+    assert fact_params["source"] == "locomo"
+    assert fact_params["schema_version"] == "memory-v1"
+    assert fact_params["model"] == "test-gliner2"
     assert embedder.embed_many_calls == [
         ["Alice likes hiking.", "Alice (person)", "hiking (activity)", "Alice prefers hiking"]
     ]
-    assert [name for name, _ in store.indexed_vector_loads] == [
-        store._tenant_vector_index(store.memory_index, "alice"),
-        store._tenant_vector_index(store.entity_index, "alice"),
-        store._tenant_vector_index(store.fact_index, "alice"),
-    ]
+    # ARC-05: no separate vector-load step remains -- the dense embedding is
+    # an inline property on each vertex's own CREATE statement.
+    assert store.vector_loads == []
+    assert all("embedding" in params for params in creates_by_type["Memory"])
+    assert all("embedding" in params for params in creates_by_type["Entity"])
+    assert all("embedding" in params for params in creates_by_type["Fact"])
 
 
 def test_store_messages_deduplicates_entities_across_episode_batch(tmp_path: Path) -> None:
@@ -92,9 +107,10 @@ def test_store_messages_deduplicates_entities_across_episode_batch(tmp_path: Pat
         ],
     )
 
-    query = store.write_queries[0]
-    assert query.count(":Entity {") == 2
-    assert query.count(":Fact {") == 2
+    entity_creates = [q for q in store.write_queries if q.startswith("CREATE VERTEX Entity")]
+    fact_creates = [q for q in store.write_queries if q.startswith("CREATE VERTEX Fact")]
+    assert len(entity_creates) == 2  # deduplicated across the whole episode batch
+    assert len(fact_creates) == 2  # one fact per episode (not deduplicated)
     assert embedder.embed_many_calls[0].count("Alice (person)") == 1
     assert embedder.embed_many_calls[0].count("hiking (activity)") == 1
 
@@ -141,7 +157,7 @@ def test_store_messages_replay_skips_temporal_extraction_and_vectors(tmp_path: P
 
     assert second == first
     assert extractor.calls == [["Alice likes hiking."]]
-    assert len(store.write_queries) == 1
+    assert len(store.write_queries) == 12  # 1 Memory+edge + 2 Entity + 1 Fact + 6 edges + 1 declare
     assert len(embedder.embed_many_calls) == 1
 
 
@@ -160,9 +176,9 @@ def test_store_message_uses_same_temporal_transaction_as_batch(tmp_path: Path) -
 
     assert item.id == "single-episode"
     assert extractor.calls == [["Alice likes hiking."]]
-    assert len(store.write_queries) == 1
-    assert ":Fact {" in store.write_queries[0]
-    assert ":PREFERS" in store.write_queries[0]
+    assert len(store.write_queries) == 12
+    assert any(q.startswith("CREATE VERTEX Fact") for q in store.write_queries)
+    assert any(q.startswith("CREATE EDGE PREFERS ") for q in store.write_queries)
 
 
 def test_temporal_episode_id_cannot_be_reused_for_different_content(tmp_path: Path) -> None:
@@ -199,13 +215,14 @@ def test_temporal_episode_id_cannot_be_reused_for_different_content(tmp_path: Pa
         raise AssertionError("expected immutable episode rejection")
 
     assert extractor.calls == [["Alice likes hiking."]]
-    assert len(store.write_queries) == 1
+    # Rejected before `_create_memories_batch` ever runs -- no new statements
+    # are added beyond the first (successful) store_messages call's 12.
+    assert len(store.write_queries) == 12
 
 
 def test_temporal_graph_write_failure_publishes_no_vectors(tmp_path: Path) -> None:
     class FailingWriteStore(RecordingMemoryStore):
-        def _write(self, query: str) -> None:
-            self.write_queries.append(query)
+        def _write_many(self, statements: list[object]) -> None:
             raise RuntimeError("graph commit failed")
 
     embedder = CountingBatchEmbedder()
@@ -228,7 +245,9 @@ def test_temporal_graph_write_failure_publishes_no_vectors(tmp_path: Path) -> No
     else:
         raise AssertionError("expected graph write failure")
 
-    assert len(store.write_queries) == 1
+    # The whole memory+entity+fact+edge batch is ONE managed transaction
+    # (D-08) -- a failure there publishes nothing at all, not a partial write.
+    assert store.write_queries == []
     assert store.vector_loads == []
 
 
@@ -265,7 +284,7 @@ def test_temporal_store_projects_episode_entities_and_fact_to_sparse_index(
 
 def test_graph_failure_discards_prepared_sparse_projection(tmp_path: Path) -> None:
     class FailingWriteStore(RecordingMemoryStore):
-        def _write(self, query: str) -> None:
+        def _write_many(self, statements: list[object]) -> None:
             raise RuntimeError("graph commit failed")
 
     sparse = SparseIndex(tmp_path / "fts.sqlite3")
@@ -319,7 +338,9 @@ def test_temporal_update_rejects_raw_episode_mutation(tmp_path: Path) -> None:
             content="Alice avoids hiking.",
         )
 
-    assert len(store.write_queries) == 1
+    # Rejected before any UPDATE statement is built -- no new write beyond
+    # the initial store_messages call's 12 statements.
+    assert len(store.write_queries) == 12
 
 
 def test_delete_removes_episode_and_supported_facts_from_sparse_projection(

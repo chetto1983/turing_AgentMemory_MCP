@@ -112,6 +112,7 @@ class RecordingStore(TuringAgentMemory):
         self.memories: dict[tuple[str, str], MemoryItem] = {}
         self.documents: dict[tuple[str, str], IngestedDocument] = {}
         self.write_queries: list[str] = []
+        self.write_params: list[dict[str, object] | None] = []
         self.vector_loads: list[list[tuple[int, list[float]]]] = []
 
     def _ensure_user(self, user_identifier: str) -> None:
@@ -125,6 +126,20 @@ class RecordingStore(TuringAgentMemory):
 
     def _write(self, query: str) -> None:
         self.write_queries.append(query)
+        self.write_params.append(None)
+
+    def _write_many(self, statements: list[Any]) -> None:
+        # ArcadeDB-ported call sites (04-05) pass `list[tuple[str, params]]`;
+        # record the statement text (matches the pre-port convention every
+        # existing assertion in this file relies on) plus the bound params
+        # (content is now a bound value, not string-interpolated -- Pitfall 2).
+        for entry in statements:
+            if isinstance(entry, tuple):
+                query, params = entry
+            else:
+                query, params = entry, None
+            self.write_queries.append(query)
+            self.write_params.append(params)
 
     def _load_vectors(
         self, index_name: str, rows: list[tuple[int, list[float]]], stem: str
@@ -177,7 +192,10 @@ def test_store_message_extracts_entities_without_mutating_content(tmp_path: Path
     assert item.metadata["entity_extraction"]["entity_count"] == 1
     assert item.metadata["entity_extraction"]["entities"][0]["text"] == "TuringDB"
     assert embedder.embed_calls == ["TuringDB stores graph memory"]
-    assert "TuringDB stores graph memory" in store.write_queries[0]
+    # Content is a bound param now, not string-interpolated (Pitfall 2) -- the
+    # unmutated text still round-trips into the CREATE VERTEX Memory write.
+    assert store.write_params[0] is not None
+    assert store.write_params[0]["content"] == "TuringDB stores graph memory"
 
 
 def test_store_messages_batch_extracts_entities_before_batch_embedding(tmp_path: Path) -> None:

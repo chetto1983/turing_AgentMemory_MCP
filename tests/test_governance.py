@@ -125,6 +125,15 @@ class RecordingStore(TuringAgentMemory):
     def _write(self, query: str) -> None:
         self.write_queries.append(query)
 
+    def _write_many(self, statements: list[Any]) -> None:
+        # ArcadeDB-ported call sites (04-05) pass `list[tuple[str, params]]`;
+        # record just the statement text -- matches this file's pre-port
+        # `write_queries` convention (content is now a bound value, not
+        # interpolated into the text -- Pitfall 2).
+        for entry in statements:
+            query = entry[0] if isinstance(entry, tuple) else entry
+            self.write_queries.append(query)
+
     def _load_vectors(
         self, index_name: str, rows: list[tuple[int, list[float]]], stem: str
     ) -> None:

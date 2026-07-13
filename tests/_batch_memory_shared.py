@@ -60,6 +60,14 @@ class RecordingMemoryStore(TuringAgentMemory):
         self.vector_loads: list[list[tuple[int, list[float]]]] = []
         self.indexed_vector_loads: list[tuple[str, list[tuple[int, list[float]]]]] = []
         self.write_queries: list[str] = []
+        # ArcadeDB-ported call sites (04-05, store_memory_write.py/store_memory_read.py)
+        # pass `_write_many` a `list[tuple[str, params]]`; unported call sites
+        # (store_documents.py, 04-06) still pass a plain `list[str]`. Both shapes are
+        # normalized into `write_queries` (statement text only, preserving the old
+        # one-entry-per-statement convention every existing assertion relies on) plus
+        # this new parallel `write_params` list for tests that need the bound values
+        # (e.g. an inline `embedding` -- there is no separate vector-load step anymore).
+        self.write_params: list[dict[str, object] | None] = []
 
     def _ensure_user(self, user_identifier: str) -> None:
         return
@@ -72,9 +80,16 @@ class RecordingMemoryStore(TuringAgentMemory):
 
     def _write(self, query: str) -> None:
         self.write_queries.append(query)
+        self.write_params.append(None)
 
-    def _write_many(self, queries: list[str]) -> None:
-        self.write_queries.extend(queries)
+    def _write_many(self, statements: list[Any]) -> None:
+        for entry in statements:
+            if isinstance(entry, tuple) and len(entry) == 2 and isinstance(entry[0], str):
+                query, params = entry
+            else:
+                query, params = entry, None
+            self.write_queries.append(query)
+            self.write_params.append(params)
 
     def _load_vectors(
         self, index_name: str, rows: list[tuple[int, list[float]]], stem: str
