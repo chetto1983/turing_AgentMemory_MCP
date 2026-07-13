@@ -161,6 +161,8 @@ services:
     depends_on:
       turingdb:
         condition: service_healthy
+      arcadedb:
+        condition: service_healthy
       agentmemory-embed:
         condition: service_healthy
       agentmemory-rerank:
@@ -179,6 +181,17 @@ services:
       - TURINGDB_ENTITY_INDEX=${TURINGDB_ENTITY_INDEX:-agent_memory_entity_vectors_768}
       - TURINGDB_FACT_INDEX=${TURINGDB_FACT_INDEX:-agent_memory_fact_vectors_768}
       - TURINGDB_COMMUNITY_INDEX=${TURINGDB_COMMUNITY_INDEX:-agent_memory_community_vectors_768}
+      # ArcadeDB (04-04): the store now connects through this client; the
+      # TURINGDB_* vars above stay wired additively for Phase 6 coexistence.
+      - ARCADEDB_URL=http://arcadedb:2480
+      - ARCADEDB_DATABASE=${ARCADEDB_DATABASE:-agent_memory}
+      - ARCADEDB_USER=${ARCADEDB_USER:-root}
+      - ARCADEDB_PASSWORD=${ARCADEDB_PASSWORD:-agentmemory-arcadedb-dev}
+      - ARCADEDB_MEMORY_INDEX=${ARCADEDB_MEMORY_INDEX:-agent_memory_episode_vectors_768}
+      - ARCADEDB_DOCUMENT_INDEX=${ARCADEDB_DOCUMENT_INDEX:-agent_memory_document_vectors_768}
+      - ARCADEDB_ENTITY_INDEX=${ARCADEDB_ENTITY_INDEX:-agent_memory_entity_vectors_768}
+      - ARCADEDB_FACT_INDEX=${ARCADEDB_FACT_INDEX:-agent_memory_fact_vectors_768}
+      - ARCADEDB_COMMUNITY_INDEX=${ARCADEDB_COMMUNITY_INDEX:-agent_memory_community_vectors_768}
       - EMBED_BASE_URL=${EMBED_BASE_URL:-http://agentmemory-embed:8080}
       - EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-768}
       - EMBED_MODEL=${EMBED_MODEL:-mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M}

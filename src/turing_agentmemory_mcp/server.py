@@ -10,8 +10,8 @@ from typing import Any
 
 from fastmcp import FastMCP
 from starlette.responses import JSONResponse
-from turingdb import TuringDB
 
+from turing_agentmemory_mcp.arcadedb_client import ArcadeDBClient
 from turing_agentmemory_mcp.community_detection import NativeLeidenDetector
 from turing_agentmemory_mcp.document_job_manager import (
     DocumentIngestManager,
@@ -114,8 +114,6 @@ def _fusion_weights_from_env() -> dict[str, float] | None:
 
 
 def store_from_env() -> TuringAgentMemory:
-    url = os.environ.get("TURINGDB_URL", "http://127.0.0.1:6666")
-    token = os.environ.get("TURINGDB_AUTH_TOKEN") or None
     graph = os.environ.get("TURINGDB_GRAPH", "agent_memory")
     home = Path(os.environ.get("TURINGDB_HOME", "/turing"))
     dimensions = int(store_embedding_dimensions())
@@ -147,26 +145,30 @@ def store_from_env() -> TuringAgentMemory:
         iterations=_env_int("AGENTMEMORY_LEIDEN_ITERATIONS", default=2, minimum=1),
         max_cluster_size=_env_int("AGENTMEMORY_LEIDEN_MAX_CLUSTER_SIZE", default=100, minimum=1),
     )
-    client = TuringDB(type="json", host=url, token=token)
+    # ARCADEDB_*_INDEX supersedes TURINGDB_*_INDEX for the ArcadeDB-backed store
+    # (ARC-02); the TURINGDB_* connection vars above stay unread here -- the
+    # turingdb service/dependency is retained for coexistence (Phase 7/ARC-10)
+    # but the store no longer connects through it.
+    client = ArcadeDBClient.from_env()
     store = TuringAgentMemory(
         client,
         turing_home=home,
         graph=graph,
         dimensions=dimensions,
         memory_index=os.environ.get(
-            "TURINGDB_MEMORY_INDEX", f"{index_prefix}_episode_vectors_{dimensions}"
+            "ARCADEDB_MEMORY_INDEX", f"{index_prefix}_episode_vectors_{dimensions}"
         ),
         document_index=os.environ.get(
-            "TURINGDB_DOCUMENT_INDEX", f"{index_prefix}_document_vectors_{dimensions}"
+            "ARCADEDB_DOCUMENT_INDEX", f"{index_prefix}_document_vectors_{dimensions}"
         ),
         entity_index=os.environ.get(
-            "TURINGDB_ENTITY_INDEX", f"{index_prefix}_entity_vectors_{dimensions}"
+            "ARCADEDB_ENTITY_INDEX", f"{index_prefix}_entity_vectors_{dimensions}"
         ),
         fact_index=os.environ.get(
-            "TURINGDB_FACT_INDEX", f"{index_prefix}_fact_vectors_{dimensions}"
+            "ARCADEDB_FACT_INDEX", f"{index_prefix}_fact_vectors_{dimensions}"
         ),
         community_index=os.environ.get(
-            "TURINGDB_COMMUNITY_INDEX", f"{index_prefix}_community_vectors_{dimensions}"
+            "ARCADEDB_COMMUNITY_INDEX", f"{index_prefix}_community_vectors_{dimensions}"
         ),
         entity_processor=entity_processor,
         memory_extractor=memory_extractor,
@@ -223,7 +225,7 @@ def create_mcp_app(
     app = FastMCP(
         "turing-agentmemory-mcp",
         instructions=(
-            "Scoped memory and document retrieval backed by TuringDB. "
+            "Scoped memory and document retrieval backed by ArcadeDB. "
             "Always pass user_identifier from the caller identity."
         ),
         auth=auth_from_env(),
