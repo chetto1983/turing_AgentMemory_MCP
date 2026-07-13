@@ -4,20 +4,37 @@ Split out of store.py (D-08/D-09, phase 01-01). Cross-mixin calls (`self.get_mem
 `self.update_memory`, `self._unique_projection_entities`, `self._prepare_sparse_projection`,
 `self._refresh_communities_after_batch`, ...) resolve via the TuringAgentMemory MRO at
 runtime against the sibling mixins that define them.
+
+Ported to ArcadeDB (04-05, ARC-04/ARC-05/ARC-08): every CREATE is a bound-param
+ArcadeDB SQL statement built in `store_memory_queries.py`, the dense `embedding`
+and both lexical channels (`lexical_tokens`/`lexical_weights`, the user's
+both-channels decision) are inline record properties, and `stable_id()` is the
+sole identifier -- the legacy synthetic-integer join property and the separate
+CSV vector-load step are both retired (ARC-05). A whole batch (memories + entities + facts + edges)
+runs inside ONE managed transaction via `store_core.py`'s `_write_many` (D-08),
+so existing-entity lookups no longer need an explicit MATCH: a
+`CREATE EDGE ... FROM (SELECT ...)` finds both already-committed rows and rows
+created earlier in the SAME batch (read-your-writes, spike-confirmed A5).
 """
 
 from __future__ import annotations
 
-from turing_agentmemory_mcp.ids import cypher_var, quote, stable_id
+from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.models import MemoryItem
+from turing_agentmemory_mcp.sparse_encoder import sparse_vector
+from turing_agentmemory_mcp.store_memory_queries import (
+    entity_create_statement,
+    fact_create_statement,
+    memory_create_statement,
+    memory_edge_statement,
+    projection_edge_statements,
+)
 from turing_agentmemory_mcp.temporal_graph import (
     EntityProjection,
     EpisodeContext,
     TemporalProjection,
     plan_temporal_projection,
 )
-
-_MISSING = object()
 
 
 class _MemoryWriteMixin:
@@ -215,7 +232,6 @@ class _MemoryWriteMixin:
             }
 
             item_by_id: dict[str, MemoryItem] = {}
-            vector_rows: list[tuple[int, list[float]]] = []
             sparse_batch_id = self._prepare_sparse_projection(
                 user_identifier=user_identifier,
                 payloads=new_payloads,
@@ -228,6 +244,9 @@ class _MemoryWriteMixin:
                     payloads=new_payloads,
                     projections=projections,
                     entities=entities,
+                    vector_by_id=vector_by_id,
+                    entity_vectors=entity_vectors,
+                    fact_vectors=fact_vectors,
                 ):
                     item_by_id[item.id] = item
             except Exception as exc:
@@ -251,49 +270,25 @@ class _MemoryWriteMixin:
                 ):
                     item_by_id[memory_id] = existing_item
                     continue
-                vector = vector_by_id.get(memory_id)
-                item = self._write_memory(
+                # An existing memory whose content changed (dedup-safe replay
+                # already excluded via `_memory_matches_payload` above) -- the
+                # new vector was pre-computed alongside the batch (`vector_by_id`)
+                # so `update_memory` can inline it in the same UPDATE statement,
+                # not a separate vector-load step (ARC-05, no CSV loader remains).
+                item = self.update_memory(
                     user_identifier=user_identifier,
                     memory_id=memory_id,
-                    kind="message",
                     content=str(payload["content"]),
+                    kind="message",
                     session_id=str(payload["session_id"]),
                     role=str(payload["role"]),
                     source=str(payload["source"]),
                     tags=payload["tags"],  # type: ignore[arg-type]
                     metadata=payload["metadata"],  # type: ignore[arg-type]
                     expires_at=str(payload["expires_at"]),
-                    existing=existing_by_id[memory_id],
-                    vector=vector,
-                    load_vector=False,
+                    vector=vector_by_id.get(memory_id),
                 )
                 item_by_id[memory_id] = item
-            for memory_id, vector in vector_by_id.items():
-                vector_rows.append((self._memory_vector_id(user_identifier, memory_id), vector))
-            if vector_rows:
-                self._load_vectors(
-                    self._tenant_vector_index(self.memory_index, user_identifier),
-                    vector_rows,
-                    "memory_batch",
-                )
-            if entity_vectors:
-                self._load_vectors(
-                    self._tenant_vector_index(self.entity_index, user_identifier),
-                    [
-                        (self._entity_vector_id(user_identifier, entity.id), vector)
-                        for entity, vector in zip(entities, entity_vectors, strict=True)
-                    ],
-                    "entity_batch",
-                )
-            if fact_vectors:
-                self._load_vectors(
-                    self._tenant_vector_index(self.fact_index, user_identifier),
-                    [
-                        (self._fact_vector_id(user_identifier, fact.id), vector)
-                        for fact, vector in zip(facts, fact_vectors, strict=True)
-                    ],
-                    "fact_batch",
-                )
             if new_payloads and refresh_communities:
                 self._refresh_communities_after_batch(user_identifier)
             items = [item_by_id[str(payload["memory_id"])] for payload in prepared]
@@ -374,13 +369,9 @@ class _MemoryWriteMixin:
         tags: list[str] | None = None,
         metadata: dict[str, object] | None = None,
         expires_at: str = "",
-        existing: MemoryItem | None | object = _MISSING,
-        vector: list[float] | None = None,
-        load_vector: bool = True,
     ) -> MemoryItem:
         self._ensure_user(user_identifier)
-        if existing is _MISSING:
-            existing = self.get_memory(user_identifier=user_identifier, memory_id=memory_id)
+        existing = self.get_memory(user_identifier=user_identifier, memory_id=memory_id)
         if existing is not None:
             return self.update_memory(
                 user_identifier=user_identifier,
@@ -393,40 +384,31 @@ class _MemoryWriteMixin:
                 tags=tags,
                 metadata=metadata,
                 expires_at=expires_at,
-                vector=vector,
-                load_vector=load_vector,
             )
-        vid = self._memory_vector_id(user_identifier, memory_id)
-        mem_var = cypher_var(memory_id)
         created_at = self._now_iso()
         clean_tags = self._clean_tags(tags)
         clean_metadata = dict(metadata or {})
-        self._write(
-            f'MATCH (u:User) WHERE u.identifier = "{quote(user_identifier)}" '
-            f'CREATE ({mem_var}:Memory {{id: "{quote(memory_id)}", vector_id: {vid}, '
-            f'user_identifier: "{quote(user_identifier)}", kind: "{quote(kind)}", '
-            f'content: "{quote(content)}", session_id: "{quote(session_id)}", '
-            f'role: "{quote(role)}", source: "{quote(source)}", '
-            f'tags_json: "{quote(self._json_dumps(clean_tags))}", '
-            f'metadata_json: "{quote(self._json_dumps(clean_metadata))}", '
-            f'created_at: "{quote(created_at)}", updated_at: "{quote(created_at)}", '
-            f'expires_at: "{quote(expires_at)}", '
-            'status: "active"}), '
-            f"(u)-[:HAS_MEMORY]->({mem_var})"
+        embedding = self._embed_text(content, operation="memory.store")
+        lexical_tokens, lexical_weights = sparse_vector(content)
+        statement = memory_create_statement(
+            memory_id=memory_id,
+            user_identifier=user_identifier,
+            kind=kind,
+            content=content,
+            session_id=session_id,
+            role=role,
+            source=source,
+            tags_json=self._json_dumps(clean_tags),
+            metadata_json=self._json_dumps(clean_metadata),
+            created_at=created_at,
+            updated_at=created_at,
+            expires_at=expires_at,
+            embedding=embedding,
+            lexical_tokens=lexical_tokens,
+            lexical_weights=lexical_weights,
         )
-        if load_vector:
-            self._load_vectors(
-                self._tenant_vector_index(self.memory_index, user_identifier),
-                [
-                    (
-                        vid,
-                        vector
-                        if vector is not None
-                        else self._embed_text(content, operation="memory.store"),
-                    )
-                ],
-                f"memory_{memory_id}",
-            )
+        edge_statement = memory_edge_statement(user_identifier=user_identifier, memory_id=memory_id)
+        self._write_many([statement, edge_statement])
         return MemoryItem(
             id=memory_id,
             user_identifier=user_identifier,
@@ -450,19 +432,23 @@ class _MemoryWriteMixin:
         payloads: list[dict[str, object]],
         projections: list[TemporalProjection] | None = None,
         entities: list[EntityProjection] | None = None,
+        vector_by_id: dict[str, list[float]] | None = None,
+        entity_vectors: list[list[float]] | None = None,
+        fact_vectors: list[list[float]] | None = None,
     ) -> list[MemoryItem]:
         if not payloads:
             return []
         self._ensure_user(user_identifier)
         projections = list(projections or [])
         new_entities = list(entities or [])
-        nodes: list[str] = []
-        edges: list[str] = []
+        vector_by_id = vector_by_id or {}
+        entity_vectors = list(entity_vectors or [])
+        fact_vectors = list(fact_vectors or [])
+
+        statements: list[tuple[str, dict[str, object]]] = []
         items: list[MemoryItem] = []
         for payload in payloads:
             memory_id = str(payload["memory_id"])
-            mem_var = cypher_var(memory_id)
-            vid = self._memory_vector_id(user_identifier, memory_id)
             created_at = str(payload.get("created_at") or self._now_iso())
             content = str(payload["content"])
             session_id = str(payload["session_id"])
@@ -473,18 +459,30 @@ class _MemoryWriteMixin:
             clean_metadata = dict(
                 payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
             )
-            nodes.append(
-                f'({mem_var}:Memory {{id: "{quote(memory_id)}", vector_id: {vid}, '
-                f'user_identifier: "{quote(user_identifier)}", kind: "message", '
-                f'content: "{quote(content)}", session_id: "{quote(session_id)}", '
-                f'role: "{quote(role)}", source: "{quote(source)}", '
-                f'tags_json: "{quote(self._json_dumps(clean_tags))}", '
-                f'metadata_json: "{quote(self._json_dumps(clean_metadata))}", '
-                f'created_at: "{quote(created_at)}", updated_at: "{quote(created_at)}", '
-                f'expires_at: "{quote(expires_at)}", '
-                'status: "active"})'
+            embedding = vector_by_id.get(memory_id) or []
+            lexical_tokens, lexical_weights = sparse_vector(content)
+            statements.append(
+                memory_create_statement(
+                    memory_id=memory_id,
+                    user_identifier=user_identifier,
+                    kind="message",
+                    content=content,
+                    session_id=session_id,
+                    role=role,
+                    source=source,
+                    tags_json=self._json_dumps(clean_tags),
+                    metadata_json=self._json_dumps(clean_metadata),
+                    created_at=created_at,
+                    updated_at=created_at,
+                    expires_at=expires_at,
+                    embedding=embedding,
+                    lexical_tokens=lexical_tokens,
+                    lexical_weights=lexical_weights,
+                )
             )
-            edges.append(f"(u)-[:HAS_MEMORY]->({mem_var})")
+            statements.append(
+                memory_edge_statement(user_identifier=user_identifier, memory_id=memory_id)
+            )
             items.append(
                 MemoryItem(
                     id=memory_id,
@@ -502,66 +500,41 @@ class _MemoryWriteMixin:
                     metadata=clean_metadata,
                 )
             )
-        new_entity_ids = {entity.id for entity in new_entities}
-        all_entity_ids = {entity.id for projection in projections for entity in projection.entities}
-        existing_entity_ids = all_entity_ids - new_entity_ids
-        for entity in new_entities:
-            entity_var = cypher_var(entity.id)
-            nodes.append(
-                f'({entity_var}:Entity {{id: "{quote(entity.id)}", '
-                f"vector_id: {self._entity_vector_id(user_identifier, entity.id)}, "
-                f'user_identifier: "{quote(user_identifier)}", '
-                f'entity_type: "{quote(entity.entity_type)}", '
-                f'canonical_name: "{quote(entity.canonical_name)}", '
-                f'display_name: "{quote(entity.display_name)}", '
-                f'content: "{quote(entity.content)}", confidence: {entity.confidence:.8f}, '
-                f'first_observed_at: "{quote(entity.observed_at)}", '
-                f'last_observed_at: "{quote(entity.observed_at)}", '
-                f'source_memory_id: "{quote(entity.source_memory_id)}", '
-                f'schema_version: "{quote(entity.schema_version)}", '
-                f'model: "{quote(entity.model)}", '
-                f'expires_at: "{quote(entity.expires_at)}", status: "active"}})'
+
+        # ArcadeDB edges are `CREATE EDGE ... FROM (SELECT ...) TO (SELECT ...)`
+        # subqueries (unlike the retired Cypher CREATE literal), so entities
+        # already committed in an earlier call and entities created moments
+        # ago in THIS same transaction both resolve identically -- no separate
+        # "which entities already exist" MATCH is needed (04-04 read-your-writes).
+        for entity, vector in zip(new_entities, entity_vectors, strict=True):
+            lexical_tokens, lexical_weights = sparse_vector(entity.content)
+            statements.append(
+                entity_create_statement(
+                    entity,
+                    embedding=vector,
+                    lexical_tokens=lexical_tokens,
+                    lexical_weights=lexical_weights,
+                )
             )
+
         facts = [fact for projection in projections for fact in projection.facts]
-        for fact in facts:
-            fact_var = cypher_var(fact.id)
-            nodes.append(
-                f'({fact_var}:Fact {{id: "{quote(fact.id)}", '
-                f"vector_id: {self._fact_vector_id(user_identifier, fact.id)}, "
-                f'user_identifier: "{quote(user_identifier)}", '
-                f'subject_entity_id: "{quote(fact.subject_entity_id)}", '
-                f'predicate: "{quote(fact.predicate)}", '
-                f'object_entity_id: "{quote(fact.object_entity_id)}", '
-                f'content: "{quote(fact.content)}", confidence: {fact.confidence:.8f}, '
-                f'observed_at: "{quote(fact.observed_at)}", '
-                f'valid_from: "{quote(fact.valid_from)}", '
-                f'valid_to: "{quote(fact.valid_to)}", '
-                f'valid_time_precision: "{quote(fact.valid_time_precision)}", '
-                f'source_memory_id: "{quote(fact.source_memory_id)}", '
-                f'session_id: "{quote(fact.session_id)}", speaker: "{quote(fact.speaker)}", '
-                f'source: "{quote(fact.source)}", '
-                f'tags_json: "{quote(self._json_dumps(list(fact.tags)))}", '
-                f'metadata_json: "{quote(self._json_dumps(fact.metadata))}", '
-                f'schema_version: "{quote(fact.schema_version)}", model: "{quote(fact.model)}", '
-                f'expires_at: "{quote(fact.expires_at)}", status: "active"}})'
+        for fact, vector in zip(facts, fact_vectors, strict=True):
+            lexical_tokens, lexical_weights = sparse_vector(fact.content)
+            statements.append(
+                fact_create_statement(
+                    fact,
+                    tags_json=self._json_dumps(list(fact.tags)),
+                    metadata_json=self._json_dumps(fact.metadata),
+                    embedding=vector,
+                    lexical_tokens=lexical_tokens,
+                    lexical_weights=lexical_weights,
+                )
             )
+
         for projection in projections:
-            edges.extend(self._projection_edge_literals(projection.edges))
-        match_nodes = ["(u:User)"] + [
-            f"({cypher_var(entity_id)}:Entity)" for entity_id in sorted(existing_entity_ids)
-        ]
-        where_terms = [f'u.identifier = "{quote(user_identifier)}"'] + [
-            f'{cypher_var(entity_id)}.id = "{quote(entity_id)}"'
-            for entity_id in sorted(existing_entity_ids)
-        ]
-        self._write(
-            "MATCH "
-            + ", ".join(match_nodes)
-            + " WHERE "
-            + " AND ".join(where_terms)
-            + " CREATE "
-            + ", ".join(nodes + edges)
-        )
+            statements.extend(projection_edge_statements(projection.edges))
+
+        self._write_many(statements)
         return items
 
     def _plan_memory_projections(
