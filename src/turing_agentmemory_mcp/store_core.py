@@ -1,21 +1,29 @@
 """Init/bootstrap and low-level query-write infra mixin for TuringAgentMemory.
 
 Split out of store.py (D-08/D-09, phase 01-01). Owns `__init__` (and therefore every
-`self.<attr>` the other `store_<concern>.py` mixins read), plus the TuringDB
-query/write/span/audit primitives every other mixin builds on.
+`self.<attr>` the other `store_<concern>.py` mixins read), plus the ArcadeDB
+query/write/span/audit primitives every other mixin builds on (ported 04-04 from
+TuringDB -- see `.planning/phases/04-arcadedb-direct-port/04-SPIKE-FINDINGS.md`).
+
+D-08: `_write_many` is ONE managed `begin`/`command`/`commit-retry-N` transaction
+(`ArcadeDBClient.run_in_transaction`), not TuringDB's per-batch submit-before-match
+loop -- the session-header transaction model gives read-your-writes across every
+`command` call scoped to that one session (spike-confirmed, not `sqlscript`'s
+self-contained `LET` chaining). `document_graph_batch_chunks`/`document_graph_batch_bytes`
+are repurposed as transaction-size (host-RAM) hygiene under this model, not a
+workaround for a submit-before-match visibility gap.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
-import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from turingdb import TuringDB
-
+from turing_agentmemory_mcp.arcadedb_client import ArcadeDBClient
+from turing_agentmemory_mcp.arcadedb_schema import bootstrap as schema_bootstrap
+from turing_agentmemory_mcp.arcadedb_schema import versioned_vector_index
 from turing_agentmemory_mcp.community_detection import NativeLeidenDetector
 from turing_agentmemory_mcp.embeddings import Embedder, OpenAICompatibleEmbedder
 from turing_agentmemory_mcp.entity_extraction import EntityProcessor, entity_processor_from_env
@@ -26,7 +34,6 @@ from turing_agentmemory_mcp.governance import (
     audit_sink_from_env,
     redactor_from_env,
 )
-from turing_agentmemory_mcp.ids import cypher_var, quote
 from turing_agentmemory_mcp.memory_extraction import (
     MEMORY_EXTRACTION_SCHEMA_VERSION,
     MemoryExtractor,
@@ -45,7 +52,7 @@ from turing_agentmemory_mcp.sparse_index import SparseIndex
 class _StoreCore:
     def __init__(
         self,
-        client: TuringDB,
+        client: ArcadeDBClient,
         *,
         turing_home: str | Path,
         graph: str = "agent_memory",
@@ -88,9 +95,14 @@ class _StoreCore:
             raise ValueError("document_graph_batch_chunks must be positive")
         if document_graph_batch_bytes < 1_024:
             raise ValueError("document_graph_batch_bytes must be at least 1024")
+        # D-08: these no longer bound a submit-before-match window (TuringDB
+        # invariant #4, retired) -- they bound how much a single managed
+        # transaction carries, since ArcadeDB keeps the whole transaction in
+        # host RAM until commit (transaction-size hygiene, not correctness).
         self.document_graph_batch_chunks = document_graph_batch_chunks
         self.document_graph_batch_bytes = document_graph_batch_bytes
-        self._ensured_vector_indexes: set[str] = set()
+        self._schema_bootstrapped = False
+        self._schema_version = 1  # D-07 versioned-index foundation; 04-08 bumps this.
         self.embedder = embedder or OpenAICompatibleEmbedder.from_env(dimensions=self.dimensions)
         self.reranker = reranker or OpenAICompatibleReranker.from_env()
         self.rerank_candidate_limit = max(
@@ -238,39 +250,26 @@ class _StoreCore:
                     pass
         self.client.set_graph(self.graph)
 
+    def _ensure_schema(self) -> None:
+        """Idempotently bootstrap the full ArcadeDB schema (D-09, delegated to
+        `arcadedb_schema.bootstrap`) once per process. Replaces the old
+        per-index-name `CREATE VECTOR INDEX` DDL loop -- ArcadeDB uses one
+        shared Type-level vector/lexical channel filtered by
+        `user_identifier`, not a separate named index per tenant."""
+        if self._schema_bootstrapped:
+            return
+        schema_bootstrap(self.client, dimensions=self.dimensions, version=self._schema_version)
+        self._schema_bootstrapped = True
+
     def _ensure_vector_index(self, name: str) -> None:
-        ensured = getattr(self, "_ensured_vector_indexes", None)
-        if ensured is None:
-            ensured = set()
-            self._ensured_vector_indexes = ensured
-        if name in ensured:
-            return
-        try:
-            self._query(
-                f"CREATE VECTOR INDEX {name} WITH DIMENSION {self.dimensions} METRIC COSINE",
-                operation="vector_index.ensure",
-            )
-        except Exception:
-            pass
-        rows = self._records(self._query("SHOW VECTOR INDEXES", operation="vector_index.verify"))
-        if not rows:
-            ensured.add(name)
-            return
-        matching = [row for row in rows if str(row.get("name") or "") == name]
-        if not matching:
-            raise RuntimeError(f"vector index {name} was not created")
-        actual = int(matching[0].get("dimension") or 0)
-        if actual != self.dimensions:
-            raise RuntimeError(
-                f"vector index {name} dimension mismatch: "
-                f"expected {self.dimensions}, found {actual}"
-            )
-        ensured.add(name)
+        """Back-compat shim for unported mixins (Wave 4) that still call this
+        by per-tenant index name -- delegates to the shared schema bootstrap
+        instead of issuing an inline DDL string."""
+        self._ensure_schema()
 
     @staticmethod
     def _tenant_vector_index(base_name: str, user_identifier: str) -> str:
-        digest = hashlib.blake2b(user_identifier.encode("utf-8"), digest_size=8).hexdigest()
-        return cypher_var(f"{base_name}_tenant_{digest}")
+        return versioned_vector_index(base_name, user_identifier, version=1)
 
     def _ensure_tenant_vector_index(
         self,
@@ -278,28 +277,22 @@ class _StoreCore:
         user_identifier: str,
     ) -> str:
         name = self._tenant_vector_index(base_name, user_identifier)
-        self._ensure_vector_index(name)
+        self._ensure_schema()
         return name
 
     def _ensure_user(self, user_identifier: str) -> None:
-        try:
-            rows = self._records(
-                self._query(
-                    f'MATCH (u:User) WHERE u.identifier = "{quote(user_identifier)}" '
-                    "RETURN u.identifier",
-                    operation="user.ensure",
-                )
+        rows = self._records(
+            self._query(
+                "SELECT identifier FROM User WHERE identifier = :identifier",
+                operation="user.ensure",
+                params={"identifier": user_identifier},
             )
-        except Exception as exc:
-            if "Unknown label: User" not in str(exc):
-                raise
-            rows = []
+        )
         if rows:
             return
-        user_var = cypher_var(f"user_{user_identifier}")
         self._write(
-            f'CREATE ({user_var}:User {{identifier: "{quote(user_identifier)}", '
-            f'display: "{quote(user_identifier)}"}})'
+            "CREATE VERTEX User SET identifier = :identifier, display = :identifier",
+            params={"identifier": user_identifier},
         )
 
     def _span(self, name: str, attributes: dict[str, object] | None = None) -> Any:
@@ -328,74 +321,54 @@ class _StoreCore:
             )
         )
 
-    def _query(self, query: str, *, operation: str) -> Any:
+    def _query(
+        self, query: str, *, operation: str, params: dict[str, object] | None = None
+    ) -> list[dict[str, Any]]:
         statement = query.lstrip().split(None, 1)[0].upper() if query.strip() else ""
         with self._span(
-            "turingdb.query",
+            "arcadedb.query",
             {"operation": operation, "statement": statement, "graph": self.graph},
         ):
-            return self.client.query(query)
+            return self.client.query(query, params=params)
 
-    def _write(self, query: str) -> None:
-        with self._span("turingdb.write_transaction", {"graph": self.graph}):
-            self.client.new_change()
-            try:
-                self._query(query, operation="write")
-                self._query("CHANGE SUBMIT", operation="write.submit")
-            finally:
-                self.client.checkout()
+    def _write(self, query: str, *, params: dict[str, object] | None = None) -> None:
+        with self._span("arcadedb.write_transaction", {"graph": self.graph}):
+            self._run_write_batch([(query, params)])
 
-    def _write_many(self, queries: list[str]) -> None:
-        if not queries:
+    def _write_many(self, statements: list[tuple[str, dict[str, object] | None]]) -> None:
+        if not statements:
             return
         with self._span(
-            "turingdb.write_batch",
-            {"graph": self.graph, "statement_count": len(queries)},
+            "arcadedb.write_batch",
+            {"graph": self.graph, "statement_count": len(statements)},
         ):
-            # Later chunk batches MATCH nodes created by earlier batches. TuringDB
-            # only exposes those nodes after CHANGE SUBMIT, so each bounded batch
-            # is its own transaction.
-            for query in queries:
-                self._write(query)
+            self._run_write_batch(statements)
 
-    def _load_vectors(
-        self, index_name: str, rows: list[tuple[int, list[float]]], stem: str
-    ) -> None:
-        if not rows:
-            return
-        self._ensure_vector_index(index_name)
-        with self._span(
-            "vector.load",
-            {"index": index_name, "rows": len(rows), "stem": stem, "dimensions": self.dimensions},
-        ):
-            filename = f"{cypher_var(stem)}_{int(time.time() * 1000)}.csv"
-            path = self.data_dir / filename
-            with path.open("w", encoding="utf-8", newline="\n") as handle:
-                for vid, vec in rows:
-                    handle.write(str(vid))
-                    handle.write(",")
-                    handle.write(",".join(f"{value:.8f}" for value in vec))
-                    handle.write("\n")
-            self._query(f'LOAD VECTOR FROM "{filename}" IN {index_name}', operation="vector.load")
+    def _run_write_batch(self, statements: list[tuple[str, dict[str, object] | None]]) -> None:
+        # D-08: one managed begin/command(s)/commit-retry-N transaction. The
+        # session-header model gives read-your-writes across every `command`
+        # call scoped to the same session (spike-confirmed) -- a later
+        # statement in this same batch can find an earlier one's write by
+        # ordinary property filter, not just a `sqlscript` `$var` reference.
+        def _run(session_id: str) -> None:
+            for statement, params in statements:
+                self.client.command(statement, params=params, session_id=session_id)
+
+        self.client.run_in_transaction(_run)
 
     @staticmethod
-    def _records(df: Any) -> list[dict[str, Any]]:
+    def _records(rows: Any) -> list[dict[str, Any]]:
         def clean(value: Any) -> Any:
-            if hasattr(value, "item"):
-                try:
-                    return value.item()
-                except Exception:
-                    pass
-            if value is None:
-                return None
             if isinstance(value, float) and value != value:
                 return None
-            if isinstance(value, (str, int, float, bool)):
-                return value
-            return str(value)
+            return value
 
+        if not isinstance(rows, list):
+            return []
         return [
-            {str(key): clean(value) for key, value in row.items()} for row in df.to_dict("records")
+            {str(key): clean(value) for key, value in row.items()}
+            for row in rows
+            if isinstance(row, dict)
         ]
 
     @staticmethod
