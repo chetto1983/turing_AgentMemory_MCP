@@ -3,6 +3,16 @@
 Split out of store.py (D-08/D-09, phase 01-02). `_rerank_documents`/
 `_reranked_score_details` moved here (rather than store_documents.py) per the
 RESEARCH.md sub-split note, to keep store_documents.py under the 600-LOC cap.
+
+Ported to ArcadeDB (04-07, ARC-04/ARC-05): the non-fused dense seed channel
+reads native HNSW (`vectorNeighbors`, D-03 over-fetch-then-filter) with no
+legacy synthetic-integer join property; rows come back keyed by ArcadeDB's bare (unqualified)
+property names (`"id"`, `"content"`, ...), matching `store_memory_read.py`'s
+04-05 convention (retiring the Cypher `RETURN m.id` alias shape this module
+used to consume). The fused path's seed-channel candidates now come entirely
+from `store_evidence.py`'s ArcadeDB-native collectors -- `retrieval_fusion.py`'s
+weighted RRF and `rerank.py`'s guard/blend below are UNCHANGED, only the
+upstream candidate fetch moved.
 """
 
 from __future__ import annotations
@@ -11,7 +21,6 @@ from datetime import datetime
 from typing import Any
 
 from turing_agentmemory_mcp.hybrid import blend_hybrid_score, lexical_score
-from turing_agentmemory_mcp.ids import quote
 from turing_agentmemory_mcp.models import (
     DocumentHit,
     MemoryItem,
@@ -26,6 +35,7 @@ from turing_agentmemory_mcp.search_controls import (
     validate_search_query,
     validate_threshold,
 )
+from turing_agentmemory_mcp.store_retrieval_queries import dense_search_statement
 
 
 class _SearchMixin:
@@ -79,49 +89,43 @@ class _SearchMixin:
                     threshold=threshold,
                     explain=explain,
                 )
-            literal = self._vector_literal(self._embed_text(query, operation="memory.search"))
-            memory_index = self._ensure_tenant_vector_index(self.memory_index, user_identifier)
-            try:
-                vector_rows = self._records(
-                    self._query(
-                        f"VECTOR SEARCH IN {memory_index} FOR {max(limit * 4, limit)} {literal} "
-                        f"YIELD ids, score MATCH (m:Memory) "
-                        f'WHERE m.vector_id = ids AND m.user_identifier = "{quote(user_identifier)}" '
-                        'AND m.status = "active" '
-                        "RETURN m.id, m.user_identifier, m.kind, m.content, m.session_id, m.role, "
-                        "m.created_at, m.updated_at, m.expires_at, m.source, "
-                        "m.tags_json, m.metadata_json, score",
-                        operation="memory.vector_search",
-                    )
-                )
-            except Exception as exc:
-                if "Unknown label: Memory" not in str(exc):
-                    raise
-                return []
+            embedding = self._embed_text(query, operation="memory.search")
+            # D-03: adaptive over-fetch-then-filter default -- filtered ANN
+            # k-underfills post-filter (spike-confirmed), matching
+            # store_documents.py's search_documents precedent.
+            statement, params = dense_search_statement(
+                type_name="Memory",
+                embedding=embedding,
+                k=max(limit * 4, limit),
+                user_identifier=user_identifier,
+            )
+            vector_rows = self._records(
+                self._query(statement, operation="memory.vector_search", params=params)
+            )
             allowed = set(memory_types or [])
             rows_by_id: dict[str, dict[str, Any]] = {}
             semantic_by_id: dict[str, float] = {}
             for row in vector_rows:
-                if self._row_is_expired(row, "m.expires_at"):
+                if self._row_is_expired(row, "expires_at"):
                     continue
-                memory_id = str(row.get("m.id", ""))
+                memory_id = str(row.get("id", ""))
                 if not memory_id:
                     continue
-                semantic_by_id[memory_id] = max(
-                    semantic_by_id.get(memory_id, 0.0),
-                    float(row.get("score") or 0.0),
-                )
+                # vectorNeighbors returns a cosine distance (0 = identical);
+                # convert to a similarity-style score for blend_hybrid_score.
+                semantic_score = max(0.0, 1.0 - float(row.get("distance") or 0.0))
+                semantic_by_id[memory_id] = max(semantic_by_id.get(memory_id, 0.0), semantic_score)
                 rows_by_id[memory_id] = row
             for row in self._active_memory_rows(user_identifier):
-                memory_id = str(row.get("m.id", ""))
+                memory_id = str(row.get("id", ""))
                 if memory_id and memory_id not in rows_by_id:
                     rows_by_id[memory_id] = row
 
             seeds: list[MemoryItem] = []
             for memory_id, row in rows_by_id.items():
-                if self._row_is_expired(row, "m.expires_at"):
+                if self._row_is_expired(row, "expires_at"):
                     continue
-                kind = str(row.get("m.kind", ""))
+                kind = str(row.get("kind", ""))
                 item = self._memory_from_row(row)
                 if not self._memory_matches_filters(
                     item,
@@ -138,9 +142,7 @@ class _SearchMixin:
                 semantic_score = semantic_by_id.get(memory_id, 0.0)
                 lexical = lexical_score(
                     query,
-                    self._row_search_text(
-                        row, text_key="m.content", metadata_key="m.metadata_json"
-                    ),
+                    self._row_search_text(row, text_key="content", metadata_key="metadata_json"),
                 )
                 final_score = blend_hybrid_score(
                     semantic_score=semantic_score, lexical_score=lexical
@@ -219,7 +221,7 @@ class _SearchMixin:
         rows_by_id = self._memory_rows_for_ids(user_identifier, source_ids)
         items_by_id: dict[str, MemoryItem] = {}
         for source_id, row in rows_by_id.items():
-            if self._row_is_expired(row, "m.expires_at"):
+            if self._row_is_expired(row, "expires_at"):
                 continue
             item = self._memory_from_row(row)
             if not self._memory_matches_filters(
