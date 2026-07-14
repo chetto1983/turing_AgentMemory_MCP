@@ -197,22 +197,29 @@ class _DocumentMixin:
                 raise ValueError("text is required")
             text, metadata = self._process_text_for_storage(text, metadata)
             existing = self.get_document(user_identifier=user_identifier, document_id=document_id)
+            # HI-03: hard-delete (not the soft `delete_document()` a
+            # user-facing delete uses -- a soft-deleted row still occupies
+            # its slot in Document[id]'s UNIQUE index, so recreating the
+            # SAME id right after would raise DuplicatedKeyException, Rule 1
+            # bug, found live via the 04-09 E2E capture) is folded into the
+            # SAME `_write_many` transaction as the recreate below, not a
+            # separate prior commit -- live-confirmed against a real
+            # ArcadeDB 26.7.1 container that an intra-transaction DELETE
+            # followed by a same-id CREATE VERTEX on a UNIQUE-indexed
+            # property succeeds (read-your-writes within one session). Two
+            # separate transactions left a window where a concurrent reader
+            # observed the document as fully absent, and a crash between
+            # them left it permanently deleted with no recreate.
+            extra_statements: list[tuple[str, dict[str, object]]] = []
             if existing is not None:
-                # Hard delete (not the soft `delete_document()` a user-facing
-                # delete uses): a soft-deleted row still occupies its slot in
-                # Document[id]'s UNIQUE index, so recreating the SAME id right
-                # after would raise DuplicatedKeyException (Rule 1 bug, found
-                # live via the 04-09 E2E capture).
-                self._write_many(
-                    [
-                        document_hard_delete_statement(
-                            document_id=document_id, user_identifier=user_identifier
-                        ),
-                        chunk_hard_delete_statement(
-                            document_id=document_id, user_identifier=user_identifier
-                        ),
-                    ]
-                )
+                extra_statements = [
+                    document_hard_delete_statement(
+                        document_id=document_id, user_identifier=user_identifier
+                    ),
+                    chunk_hard_delete_statement(
+                        document_id=document_id, user_identifier=user_identifier
+                    ),
+                ]
             chunks = self._chunk_document_text(text, chunk_chars=chunk_chars)
             item = self._create_document(
                 user_identifier=user_identifier,
@@ -231,6 +238,7 @@ class _DocumentMixin:
                 if existing is not None
                 else "",
                 created_at=existing.created_at if existing is not None else None,
+                extra_statements=extra_statements,
             )
             self._audit(
                 operation="document.reindex_text",
@@ -278,6 +286,7 @@ class _DocumentMixin:
         metadata: dict[str, object] | None = None,
         expires_at: str = "",
         created_at: str | None = None,
+        extra_statements: list[tuple[str, dict[str, object]]] | None = None,
     ) -> IngestedDocument:
         self._ensure_user(user_identifier)
         created_at = created_at or self._now_iso()
@@ -287,7 +296,11 @@ class _DocumentMixin:
         # PERF-01: one batched embedding round-trip for every chunk.
         vectors = self._embed_many(chunks)
 
-        statements: list[tuple[str, dict[str, object]]] = [
+        # HI-03: `extra_statements` (reindex_document_text's hard-delete of
+        # the old Document/Chunk rows) runs FIRST in the SAME transaction as
+        # the CREATE below -- not a separate prior commit.
+        statements: list[tuple[str, dict[str, object]]] = list(extra_statements or [])
+        statements += [
             document_create_statement(
                 document_id=document_id,
                 user_identifier=user_identifier,

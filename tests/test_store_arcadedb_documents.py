@@ -173,6 +173,43 @@ def test_reindex_document_text_hard_deletes_old_rows_before_recreating_same_id(
     assert fetched.title == "Runbook v2"
 
 
+# HI-03 regression: reindex_document_text used to hard-delete in one
+# _write_many call and recreate in a SEPARATE _write_many call inside
+# _create_document -- two distinct commits, not one. A concurrent reader
+# between them observed the document as fully absent, and a crash between
+# them left it permanently deleted with no recreate. Live-confirmed against
+# a real ArcadeDB 26.7.1 container that an intra-transaction DELETE followed
+# by a same-id CREATE VERTEX on a UNIQUE-indexed property succeeds -- folding
+# both into ONE managed transaction is safe.
+def test_reindex_document_text_hard_delete_and_recreate_are_one_transaction(
+    tmp_path: Path,
+) -> None:
+    client = _FakeArcadeDBClient()
+    store = make_document_store(client, tmp_path, CountingBatchEmbedder())
+    store.ingest_document_text(
+        user_identifier="alice",
+        document_id="doc-1",
+        title="Runbook v1",
+        text="original safety procedure content",
+        chunk_chars=1000,
+    )
+    client.begin_calls = 0
+    client.commit_calls = 0
+
+    store.reindex_document_text(
+        user_identifier="alice",
+        document_id="doc-1",
+        title="Runbook v2",
+        text="reindexed safety procedure content",
+        chunk_chars=1000,
+    )
+
+    assert client.begin_calls == 1, (
+        "the hard-delete and the recreate must be ONE managed transaction, not two"
+    )
+    assert client.commit_calls == 1
+
+
 # -- Task 1, Test 4: _chunk_context(chunk_id) resolves NEXT_CHUNK neighbors by
 # chunk_id traversal --
 
