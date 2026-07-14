@@ -35,7 +35,15 @@ from turing_agentmemory_mcp.search_controls import (
     validate_search_query,
     validate_threshold,
 )
+from turing_agentmemory_mcp.store_memory_queries import MEMORY_FIELDS
 from turing_agentmemory_mcp.store_retrieval_queries import dense_search_statement
+
+# The non-fused dense channel below feeds `dense_search_statement`'s rows
+# straight into `_memory_from_row` with no second full-row fetch -- it must
+# request every field that mixin reads, not just `id`/`distance` (Rule 1 bug:
+# the row was previously missing content/kind/session_id/... whenever a
+# memory was found via the dense channel, which is virtually always).
+_MEMORY_DENSE_EXTRA_FIELDS = tuple(field for field in MEMORY_FIELDS if field != "id")
 
 
 class _SearchMixin:
@@ -98,6 +106,7 @@ class _SearchMixin:
                 embedding=embedding,
                 k=max(limit * 4, limit),
                 user_identifier=user_identifier,
+                extra_fields=_MEMORY_DENSE_EXTRA_FIELDS,
             )
             vector_rows = self._records(
                 self._query(statement, operation="memory.vector_search", params=params)

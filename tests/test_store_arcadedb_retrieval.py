@@ -18,6 +18,7 @@ from typing import Any
 if "turingdb" not in sys.modules:
     sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
+from _batch_memory_shared import CountingBatchEmbedder
 from _retrieval_arcadedb_shared import (
     _FakeArcadeDBClient,
     _ScriptedExtractor,
@@ -25,8 +26,12 @@ from _retrieval_arcadedb_shared import (
 )
 
 import turing_agentmemory_mcp.store_search as store_search_module
+from turing_agentmemory_mcp.entity_extraction import NoopEntityProcessor
+from turing_agentmemory_mcp.governance import NoopAuditSink, NoopRedactor
 from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.models import RetrievalCandidate
+from turing_agentmemory_mcp.observability import InMemorySpanRecorder
+from turing_agentmemory_mcp.store import TuringAgentMemory
 
 _STORE_SEARCH_PATH = (
     Path(__file__).resolve().parents[1] / "src" / "turing_agentmemory_mcp" / "store_search.py"
@@ -96,6 +101,44 @@ def test_dense_channel_orders_by_native_hnsw_score_with_no_vector_id_join(
     dense_queries = [stmt for stmt, _ in client.queries if "vectorNeighbors" in stmt]
     assert dense_queries
     assert "vector_id" not in dense_queries[0]
+
+
+# 04-09 regression (found via the D-10 chaos-restart test against a live
+# ArcadeDB container, Rule 1 bug fix): the non-fused `search_memory` path
+# (the actual production default -- fusion is opt-in via
+# AGENTMEMORY_FUSION_ENABLED) fed `dense_search_statement`'s bare `id`/
+# `distance` rows straight into `_memory_from_row` with no `extra_fields`,
+# so every hit came back with empty content/kind/session_id/etc. whenever
+# the memory was found via the dense channel -- virtually always.
+def test_non_fused_search_memory_returns_full_content_not_just_id_and_distance(
+    tmp_path: Path,
+) -> None:
+    client = _FakeArcadeDBClient()
+    store = TuringAgentMemory(
+        client,  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        embedder=CountingBatchEmbedder(),
+        reranker=None,
+        entity_processor=NoopEntityProcessor(),
+        redactor=NoopRedactor(),
+        audit_sink=NoopAuditSink(),
+        observer=InMemorySpanRecorder(),
+        fusion_enabled=False,
+    )
+    written = store.store_message(
+        user_identifier="alice",
+        session_id="s1",
+        role="user",
+        content="the router is stable after the reset",
+    )
+
+    hits = store.search_memory(user_identifier="alice", query="router reset", limit=5)
+
+    assert hits
+    assert hits[0].id == written.id
+    assert hits[0].content == written.content
+    assert hits[0].kind == written.kind
+    assert hits[0].user_identifier == "alice"
 
 
 def test_bm25_channel_reads_native_arcadedb_lexical_not_sqlite_sparse_index(
