@@ -1,9 +1,20 @@
-"""In-process stub embed/rerank HTTP servers and the local TuringDB daemon wrapper
-used by the deterministic E2E score gate (`e2e_score.py`)."""
+"""In-process stub embed/rerank HTTP servers, the local TuringDB daemon
+wrapper, and the ArcadeDB E2E backend used by the deterministic E2E score
+gate (`e2e_score.py`) and the legacy synthetic benchmark harness
+(`benchmark.py`/`agent_quality_eval.py`, both still TuringDB-backed and out
+of this milestone's scope -- `turingdb` stays retained for Phase 6/7
+coexistence per ARC-10).
+
+`ArcadeE2EBackend` (04-09) is the ArcadeDB counterpart of `TuringDaemon`,
+added for `e2e_score.py`'s own ArcadeDB-backed rewire -- see its own
+docstring for why it connects to the EXISTING `arcadedb` compose service
+rather than spawning its own container.
+"""
 
 from __future__ import annotations
 
 import json
+import shutil
 import socket
 import subprocess
 import threading
@@ -14,7 +25,9 @@ from typing import Any
 
 from turingdb import TuringDB
 
+from turing_agentmemory_mcp.arcadedb_client import ArcadeDBClient
 from turing_agentmemory_mcp.embeddings import HashingEmbedder
+from turing_agentmemory_mcp.provider_config import provider_env
 
 
 def free_port() -> int:
@@ -206,3 +219,88 @@ class TuringDaemon:
 
     def client(self) -> TuringDB:
         return TuringDB(type="json", host=f"http://127.0.0.1:{self.port}")
+
+
+ARCADEDB_E2E_DATABASE = "e2e_agent_memory"
+ARCADEDB_E2E_IMAGE = "arcadedata/arcadedb:26.7.1"
+
+
+class ArcadeE2EBackend:
+    """Connects the E2E score gate to the EXISTING `arcadedb` compose service
+    (04-09) -- unlike the retired container-lifecycle approach, this does NOT
+    spawn its own Docker container: it reuses whatever `arcadedb` instance is
+    already running (`docker compose up -d arcadedb`), the same way the
+    production `turing-agentmemory-mcp` service and every live-container test
+    in this repo (`tests/test_arcadedb_client.py`, `tests/test_arcadedb_chaos_restart.py`)
+    already do. This sidesteps needing Docker-outside-of-Docker plumbing
+    (a docker socket mount + `docker` CLI baked into the mcp image) purely
+    for a throwaway ephemeral container -- the `arcadedb` service is already
+    the one lightweight, already-running dependency every other part of this
+    stack shares.
+
+    A dedicated, isolated database (`ARCADEDB_E2E_DATABASE`) is dropped and
+    recreated on `start()` for a clean slate (the same guarantee
+    `shutil.rmtree(home)` gave the retired `TuringDaemon` path), so repeated
+    runs never see stale data from a previous run.
+    """
+
+    def __init__(self) -> None:
+        self.client = ArcadeDBClient(
+            base_url=provider_env("ARCADEDB_URL", default="http://127.0.0.1:2480"),
+            database=ARCADEDB_E2E_DATABASE,
+            username=provider_env("ARCADEDB_USER", default="root"),
+            password=provider_env("ARCADEDB_PASSWORD", default="agentmemory-arcadedb-dev"),
+        )
+
+    def start(self) -> None:
+        if not self.client.is_ready():
+            raise RuntimeError(
+                f"ArcadeDB not reachable at {self.client.base_url} -- start it with "
+                "`docker compose up -d arcadedb` before running the E2E score gate."
+            )
+        try:
+            self.client._server_command(f"drop database {ARCADEDB_E2E_DATABASE}")
+        except RuntimeError:
+            pass
+        self.client.ensure_database()
+
+    def stop(self) -> dict[str, Any]:
+        # Nothing to shut down -- the `arcadedb` service is shared, long-lived
+        # infrastructure this backend does not own the lifecycle of.
+        return {"stopped": True, "owns_container_lifecycle": False}
+
+    def restart_backend_and_wait_ready(self, *, timeout_s: float = 60.0) -> None:
+        """Force-restarts the `arcadedb` compose service itself (the D-10
+        chaos-restart property `tests/test_arcadedb_chaos_restart.py` already
+        proves in isolation) so `run_e2e`'s own restart-durability check
+        exercises a REAL restart, not a same-process no-op. Requires `docker
+        compose` on PATH and this process to run on the host the `arcadedb`
+        service is orchestrated from (not nested inside another container
+        without a docker socket) -- raises with a clear, actionable message
+        otherwise; the calling `check()` records that as a failed check, not
+        a silent pass.
+        """
+        if shutil.which("docker") is None:
+            raise RuntimeError("docker is not on PATH -- cannot restart the arcadedb service")
+        stop_result = subprocess.run(
+            ["docker", "compose", "stop", "arcadedb"], capture_output=True, timeout=60
+        )
+        if stop_result.returncode != 0:
+            raise RuntimeError(
+                f"docker compose stop arcadedb failed: "
+                f"{stop_result.stderr.decode('utf-8', errors='replace')}"
+            )
+        start_result = subprocess.run(
+            ["docker", "compose", "start", "arcadedb"], capture_output=True, timeout=60
+        )
+        if start_result.returncode != 0:
+            raise RuntimeError(
+                f"docker compose start arcadedb failed: "
+                f"{start_result.stderr.decode('utf-8', errors='replace')}"
+            )
+        deadline = time.time() + timeout_s
+        while time.time() < deadline:
+            if self.client.is_ready():
+                return
+            time.sleep(0.5)
+        raise RuntimeError(f"arcadedb did not become ready again within {timeout_s}s")

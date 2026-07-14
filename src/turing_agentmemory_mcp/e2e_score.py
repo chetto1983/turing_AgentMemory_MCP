@@ -1,10 +1,25 @@
 """Deterministic E2E score gate. `main`/`run_e2e` are the CLI entrypoint and are
 imported unchanged by `scripts/e2e_score.py` and `cli.py` — do not remove them.
 
-Split by concern per D-08/D-09: the in-process stub embed/rerank HTTP servers and
-the local TuringDB daemon wrapper live in `e2e_score_stubs.py`; the MCP scenario
-checks live in `e2e_score_scenarios.py`. This module wires them together and owns
-the top-level run/score/CLI orchestration.
+Split by concern per D-08/D-09: the in-process stub embed/rerank HTTP servers,
+the local TuringDB daemon wrapper, and the ArcadeDB E2E backend live in
+`e2e_score_stubs.py`; the MCP scenario checks live in `e2e_score_scenarios.py`.
+This module wires them together and owns the top-level run/score/CLI
+orchestration.
+
+Rewired to ArcadeDB (04-09, scope item D): `run_e2e()` now drives the store
+through `ArcadeE2EBackend` (a dedicated, drop-and-recreate database on the
+already-running `arcadedb` compose service) instead of a local `turingdb` CLI
+daemon — the store has spoken ArcadeDB exclusively since 04-04, so a
+TuringDB-backed harness here would not exercise the real code path at all.
+Requires `docker compose up -d arcadedb` to already be running; the restart
+leg additionally requires `docker`/`docker compose` on PATH and host-level
+control of that service (see `ArcadeE2EBackend.restart_backend_and_wait_ready`).
+`TuringDaemon`/`LocalEmbedServer`/`LocalRerankServer`/`free_port`/`wait_rest`
+stay re-exported unchanged: they are still imported directly from this module
+by the legacy, still-TuringDB-backed `benchmark.py`/`agent_quality_eval.py`
+harnesses (out of this milestone's scope; `turingdb` stays retained for
+Phase 6/7 coexistence, ARC-10).
 """
 
 from __future__ import annotations
@@ -21,12 +36,15 @@ from turingdb import __version__ as turingdb_version
 
 from turing_agentmemory_mcp.e2e_score_scenarios import check, run_mcp_checks
 from turing_agentmemory_mcp.e2e_score_stubs import (  # noqa: F401 - preserved public import path
+    ARCADEDB_E2E_IMAGE,
+    ArcadeE2EBackend,
     LocalEmbedServer,
     LocalRerankServer,
     TuringDaemon,
     free_port,
     wait_rest,
 )
+from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.rerank import truncate_runes
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
@@ -34,14 +52,17 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def run_e2e(out: Path) -> dict[str, Any]:
-    home = Path(os.environ.get("TURINGDB_E2E_HOME", ROOT / ".turingdb" / "e2e"))
+    # Local scratch dir for the store's non-ArcadeDB file state (governance
+    # audit JSONL, observability spans, document staging) -- unrelated to the
+    # ArcadeDB backend itself, which ArcadeE2EBackend owns via a dedicated
+    # drop-and-recreate database on the already-running `arcadedb` service.
+    home = Path(os.environ.get("ARCADEDB_E2E_HOME", ROOT / ".arcadedb" / "e2e"))
     if home.exists():
         shutil.rmtree(home)
-    daemon = TuringDaemon(home)
+    backend = ArcadeE2EBackend()
     embed_server: LocalEmbedServer | None = None
     rerank_server: LocalRerankServer | None = None
     checks: list[dict[str, Any]] = []
-    cleanup: dict[str, Any] = {}
     store_holder: dict[str, TuringAgentMemory] = {}
     previous_env = {
         key: os.environ.get(key)
@@ -67,8 +88,8 @@ def run_e2e(out: Path) -> dict[str, Any]:
             os.environ["RERANK_MODEL"] = "local-rerank"
 
         def start_infra() -> dict[str, Any]:
-            daemon.start()
-            store = TuringAgentMemory(daemon.client(), turing_home=home, graph="e2e_agent_memory")
+            backend.start()
+            store = TuringAgentMemory(backend.client, turing_home=home, graph="e2e_agent_memory")
             store.bootstrap()
             vector = store.embedder.embed("embedding provider contract ping")
             scored = store.reranker.rerank(
@@ -82,7 +103,7 @@ def run_e2e(out: Path) -> dict[str, Any]:
                 raise RuntimeError(f"rerank provider did not reorder seed pool: {scored}")
             store_holder["store"] = store
             return {
-                "port": daemon.port,
+                "arcadedb_url": backend.client.base_url,
                 "graph": store.graph,
                 "embedding_base_url": os.environ.get("EMBED_BASE_URL"),
                 "embedding_dimensions": len(vector),
@@ -90,22 +111,17 @@ def run_e2e(out: Path) -> dict[str, Any]:
                 "rerank_top_index": scored[0].index,
             }
 
-        check(checks, "turingdb_starts_schema_embed_and_rerank_contracts", start_infra)
+        check(checks, "arcadedb_starts_schema_embed_and_rerank_contracts", start_infra)
         store = store_holder.get("store")
         if store is not None:
             asyncio.run(run_mcp_checks(store, checks))
-            cleanup = daemon.stop()
 
-            daemon = TuringDaemon(home)
-            daemon.start()
-            restarted = TuringAgentMemory(
-                daemon.client(), turing_home=home, graph="e2e_agent_memory"
-            )
-            restarted.load_graph_after_restart()
-            memory = restarted.search_memory(
+            backend.restart_backend_and_wait_ready()
+            store.reconnect()
+            memory = store.search_memory(
                 user_identifier="alice", query="espresso TuringDB memory", limit=1
             )
-            docs = restarted.search_documents(
+            docs = store.search_documents(
                 user_identifier="alice", query="green reset token lockout", limit=1
             )
             check(
@@ -113,11 +129,14 @@ def run_e2e(out: Path) -> dict[str, Any]:
                 "restart_preserves_memory_and_document_retrieval",
                 lambda: (
                     memory[0].content.startswith("Davide prefers espresso")
-                    and docs[0].chunk_id == "doc-machine-safety#1"
+                    # ARC-08: chunk ids are stable_id()-based, not the
+                    # human-readable f"{document_id}#{ordinal}" a pre-port
+                    # TuringDB stack used (04-09 fix, found live).
+                    and docs[0].chunk_id == stable_id("chunk", "alice", "doc-machine-safety", "1")
                 ),
             )
     finally:
-        cleanup = daemon.stop()
+        cleanup = backend.stop()
         if embed_server is not None:
             embed_server.stop()
         if rerank_server is not None:
@@ -136,6 +155,12 @@ def run_e2e(out: Path) -> dict[str, Any]:
         "score": score,
         "score_gate": "10/10",
         "check_count": len(checks),
+        "backend": "arcadedb",
+        "arcadedb_image": ARCADEDB_E2E_IMAGE,
+        # Kept for baseline/03-turingdb field-shape parity (Phase-6
+        # diffability, scope item D) -- turingdb stays an installed, retained
+        # dependency (ARC-10) even though the store itself no longer connects
+        # through it.
         "turingdb_version": turingdb_version,
         "checks": checks,
         "cleanup": cleanup,

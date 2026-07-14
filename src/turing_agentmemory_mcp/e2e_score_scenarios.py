@@ -8,57 +8,21 @@ in-process MCP client and records one `check()` entry per scenario assertion.
 from __future__ import annotations
 
 import json
-import time
-from collections.abc import Callable
 from typing import Any
 
 from fastmcp import Client
 
+from turing_agentmemory_mcp.e2e_score_check import check, payload  # noqa: F401 - re-exported
+from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.memoryarena import answer_marker, load_sample
 from turing_agentmemory_mcp.server import create_mcp_app
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
 
-def payload(result: Any) -> Any:
-    if hasattr(result, "structured_content") and result.structured_content is not None:
-        value = result.structured_content
-        if isinstance(value, dict) and set(value) == {"result"}:
-            return value["result"]
-        return value
-    if hasattr(result, "data") and result.data is not None:
-        return result.data
-    if hasattr(result, "content"):
-        text = "".join(getattr(item, "text", "") for item in result.content)
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            return text
-    return result
-
-
-def check(checks: list[dict[str, Any]], name: str, fn: Callable[[], Any]) -> None:
-    started = time.perf_counter()
-    try:
-        detail = fn()
-        checks.append(
-            {
-                "name": name,
-                "ok": bool(detail),
-                "points": 1.0,
-                "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
-                "detail": detail,
-            }
-        )
-    except Exception as exc:
-        checks.append(
-            {
-                "name": name,
-                "ok": False,
-                "points": 1.0,
-                "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
-                "error": {"type": type(exc).__name__, "message": str(exc)[:1000]},
-            }
-        )
+def _chunk_id(user_identifier: str, document_id: str, ordinal: int) -> str:
+    # Mirrors store_documents.py's stable_id() chunk-id construction (ARC-08)
+    # -- not the retired f"{document_id}#{ordinal}" literal (04-09 fix).
+    return stable_id("chunk", user_identifier, document_id, str(ordinal))
 
 
 async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]]) -> None:
@@ -377,9 +341,10 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
             checks,
             "document_search_retrieves_exact_top1_with_citation_and_neighbor_context",
             lambda: (
-                doc_hits[0]["chunk_id"] == "doc-machine-safety#1"
+                doc_hits[0]["chunk_id"] == _chunk_id("alice", "doc-machine-safety", 1)
                 and doc_hits[0]["locator"] == "chunk=1"
-                and doc_hits[0]["context"][0]["chunk_id"] == "doc-machine-safety#2"
+                and doc_hits[0]["context"][0]["chunk_id"]
+                == _chunk_id("alice", "doc-machine-safety", 2)
             ),
         )
 
@@ -421,7 +386,7 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
             "document_search_hybrid_exact_code_match_explains_lexical_score",
             lambda: (
                 hybrid_doc["chunk_count"] == 2
-                and hybrid_doc_hits[0]["chunk_id"] == "doc-incident-runbook#1"
+                and hybrid_doc_hits[0]["chunk_id"] == _chunk_id("alice", "doc-incident-runbook", 1)
                 and hybrid_doc_details["lexical_score"] > 0.0
                 and hybrid_doc_details["final_score"] >= hybrid_doc_details["semantic_score"]
             ),
@@ -519,7 +484,7 @@ async def run_mcp_checks(store: TuringAgentMemory, checks: list[dict[str, Any]])
                 reindexed_doc["chunk_count"] == 2
                 and reindexed_doc["source"] == "e2e-reindex"
                 and reindexed_doc["metadata"]["revision"] == "2"
-                and reindexed_hits[0]["chunk_id"] == "doc-machine-safety#1"
+                and reindexed_hits[0]["chunk_id"] == _chunk_id("alice", "doc-machine-safety", 1)
                 and all("Monthly maintenance records" not in row["text"] for row in stale_hits)
             ),
         )
