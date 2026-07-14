@@ -142,6 +142,64 @@ def test_non_fused_search_memory_returns_full_content_not_just_id_and_distance(
     assert hits[0].user_identifier == "alice"
 
 
+# LO-02 regression: non-fused search_memory used to full-scan every active
+# memory (_active_memory_rows) as its lexical candidate supplement; ported to
+# the native SEARCH_INDEX Lucene channel, mirroring search_documents'
+# precedent. Crowds the dense over-fetch top-k with near-identical-length
+# noise so the target memory (very different length -> far dense distance)
+# can ONLY be found via the native lexical channel, proving equivalence with
+# the old full-scan's "find it regardless of dense proximity" behavior.
+def test_non_fused_search_memory_finds_lexical_only_hit_via_native_search_index(
+    tmp_path: Path,
+) -> None:
+    client = _FakeArcadeDBClient()
+    store = TuringAgentMemory(
+        client,  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        embedder=CountingBatchEmbedder(),
+        reranker=None,
+        entity_processor=NoopEntityProcessor(),
+        redactor=NoopRedactor(),
+        audit_sink=NoopAuditSink(),
+        observer=InMemorySpanRecorder(),
+        fusion_enabled=False,
+    )
+    query = "zephyrion"
+    # Distance 1 to the query embedding (CountingBatchEmbedder's vector is
+    # [len(text), 1.0, 0.0]) clamps to a zero semantic_score AND ranks ahead
+    # of the target in the dense channel's internal ascending-distance sort
+    # -- 25 of these fill the k=20 dense over-fetch, genuinely excluding the
+    # target from the dense channel's returned rows.
+    noise_content = "a" * (len(query) - 1)
+    for index in range(25):
+        store.store_message(
+            user_identifier="alice",
+            session_id=f"noise-{index}",
+            role="user",
+            content=noise_content,
+        )
+    target = store.store_message(
+        user_identifier="alice",
+        session_id="target",
+        role="user",
+        content=(
+            "zephyrion incident report filed under the router maintenance "
+            "window and general chatter padding text"
+        ),
+    )
+
+    hits = store.search_memory(user_identifier="alice", query=query, limit=5)
+
+    assert any(hit.id == target.id for hit in hits), (
+        "lexical-only match was not found -- the native SEARCH_INDEX channel "
+        "must surface it even though it is far outside the dense over-fetch top-k"
+    )
+    lexical_queries = [
+        stmt for stmt, _ in client.queries if "SEARCH_INDEX" in stmt and "Memory[content]" in stmt
+    ]
+    assert lexical_queries, "expected the non-fused path to query the native lexical channel"
+
+
 def test_bm25_channel_reads_native_arcadedb_lexical_not_sqlite_sparse_index(
     tmp_path: Path,
 ) -> None:
@@ -467,6 +525,19 @@ def test_store_search_and_evidence_contain_no_vector_id_or_helper_calls() -> Non
 def test_store_search_does_not_read_sqlite_sparse_index() -> None:
     source = _STORE_SEARCH_PATH.read_text(encoding="utf-8")
     assert "sparse_index" not in source
+
+
+def test_store_search_no_longer_full_scans_active_memory_rows_for_lexical() -> None:
+    """LO-02: the non-fused lexical candidate supplement must read the native
+    SEARCH_INDEX channel, not the old unconditional full active-memory-rows
+    table scan (list_memories' own call to _active_memory_rows in
+    store_memory_read.py is unrelated and unaffected -- only store_search.py's
+    call SITE is retired, checked here as a call pattern, not the bare
+    identifier, since this module's docstring legitimately still names the
+    retired call for context)."""
+    source = _STORE_SEARCH_PATH.read_text(encoding="utf-8")
+    assert "self._active_memory_rows(" not in source
+    assert "lucene_search_statement" in source
 
 
 def test_store_evidence_has_no_string_built_or_list() -> None:

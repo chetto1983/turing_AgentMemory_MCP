@@ -13,6 +13,15 @@ used to consume). The fused path's seed-channel candidates now come entirely
 from `store_evidence.py`'s ArcadeDB-native collectors -- `retrieval_fusion.py`'s
 weighted RRF and `rerank.py`'s guard/blend below are UNCHANGED, only the
 upstream candidate fetch moved.
+
+LO-02 (04-close-the-port cleanup): the non-fused dense channel's lexical
+candidate supplement also now reads the native `SEARCH_INDEX` Lucene channel
+(`lucene_search_statement`, `store_retrieval_queries.py`) instead of an
+unconditional full active-memory-rows table scan (`_active_memory_rows`) --
+mirrors `search_documents`' precedent, which the port already fixed "for
+free" for documents but had left un-ported here. The blended score is still
+computed by Python's `lexical_score()` against each candidate row's text, not
+the native `$score`, matching `search_documents`' convention.
 """
 
 from __future__ import annotations
@@ -36,7 +45,10 @@ from turing_agentmemory_mcp.search_controls import (
     validate_threshold,
 )
 from turing_agentmemory_mcp.store_memory_queries import MEMORY_FIELDS
-from turing_agentmemory_mcp.store_retrieval_queries import dense_search_statement
+from turing_agentmemory_mcp.store_retrieval_queries import (
+    dense_search_statement,
+    lucene_search_statement,
+)
 
 # The non-fused dense channel below feeds `dense_search_statement`'s rows
 # straight into `_memory_from_row` with no second full-row fetch -- it must
@@ -125,7 +137,22 @@ class _SearchMixin:
                 semantic_score = max(0.0, 1.0 - float(row.get("distance") or 0.0))
                 semantic_by_id[memory_id] = max(semantic_by_id.get(memory_id, 0.0), semantic_score)
                 rows_by_id[memory_id] = row
-            for row in self._active_memory_rows(user_identifier):
+            # LO-02: native Lucene lexical channel replaces the old
+            # unconditional full active-memory-rows table scan -- mirrors
+            # search_documents' precedent (store_documents.py), which the
+            # port already fixed "for free" for documents but not here.
+            lucene_statement, lucene_params = lucene_search_statement(
+                type_name="Memory",
+                query=query,
+                limit=max(limit * 4, limit),
+                user_identifier=user_identifier,
+                extra_fields=_MEMORY_DENSE_EXTRA_FIELDS,
+            )
+            for row in self._records(
+                self._query(
+                    lucene_statement, operation="memory.lexical_search", params=lucene_params
+                )
+            ):
                 memory_id = str(row.get("id", ""))
                 if memory_id and memory_id not in rows_by_id:
                     rows_by_id[memory_id] = row
