@@ -269,6 +269,33 @@ def chunk_delete_statement(*, document_id: str, user_identifier: str, updated_at
     )
 
 
+def document_hard_delete_statement(*, document_id: str, user_identifier: str) -> Statement:
+    """Genuinely removes the Document vertex (and its incident edges --
+    ArcadeDB's `DELETE FROM <VertexType>` cascades edge removal, confirmed
+    live) instead of the soft `status = 'deleted'` flip `document_delete_statement`
+    does. `reindex_document_text` (04-09 Rule 1 fix) uses this, not the soft
+    delete, before recreating a Document with the SAME `id`: a soft-deleted
+    row still occupies its slot in `Document[id]`'s UNIQUE index, so a
+    same-id `CREATE VERTEX` after a soft delete raises
+    `DuplicatedKeyException` -- found live via the D-10 chaos-restart/E2E
+    capture, not by inspection."""
+    return (
+        "DELETE FROM Document WHERE id = :id AND user_identifier = :user_identifier",
+        {"id": document_id, "user_identifier": user_identifier},
+    )
+
+
+def chunk_hard_delete_statement(*, document_id: str, user_identifier: str) -> Statement:
+    """Genuinely removes every Chunk of `document_id` (see
+    `document_hard_delete_statement`'s docstring for why reindex needs a hard,
+    not soft, delete -- Chunk ids are also UNIQUE-indexed and deterministic
+    per (document_id, ordinal), so they hit the exact same conflict)."""
+    return (
+        "DELETE FROM Chunk WHERE document_id = :document_id AND user_identifier = :user_identifier",
+        {"document_id": document_id, "user_identifier": user_identifier},
+    )
+
+
 def chunk_context_statement(*, chunk_id: str) -> Statement:
     return (
         "SELECT id AS chunk_id, locator, text FROM "

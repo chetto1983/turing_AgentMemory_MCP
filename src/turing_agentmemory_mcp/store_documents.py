@@ -39,12 +39,14 @@ from turing_agentmemory_mcp.sparse_encoder import sparse_vector
 from turing_agentmemory_mcp.store_documents_queries import (
     chunk_create_statement,
     chunk_delete_statement,
+    chunk_hard_delete_statement,
     chunk_lucene_search_statement,
     chunk_metadata_update_statement,
     chunk_vector_search_statement,
     document_create_statement,
     document_delete_statement,
     document_edge_statement,
+    document_hard_delete_statement,
     document_select_statement,
     document_update_statement,
     has_chunk_edge_statement,
@@ -196,7 +198,21 @@ class _DocumentMixin:
             text, metadata = self._process_text_for_storage(text, metadata)
             existing = self.get_document(user_identifier=user_identifier, document_id=document_id)
             if existing is not None:
-                self.delete_document(user_identifier=user_identifier, document_id=document_id)
+                # Hard delete (not the soft `delete_document()` a user-facing
+                # delete uses): a soft-deleted row still occupies its slot in
+                # Document[id]'s UNIQUE index, so recreating the SAME id right
+                # after would raise DuplicatedKeyException (Rule 1 bug, found
+                # live via the 04-09 E2E capture).
+                self._write_many(
+                    [
+                        document_hard_delete_statement(
+                            document_id=document_id, user_identifier=user_identifier
+                        ),
+                        chunk_hard_delete_statement(
+                            document_id=document_id, user_identifier=user_identifier
+                        ),
+                    ]
+                )
             chunks = self._chunk_document_text(text, chunk_chars=chunk_chars)
             item = self._create_document(
                 user_identifier=user_identifier,

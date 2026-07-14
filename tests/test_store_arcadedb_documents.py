@@ -45,6 +45,7 @@ _STORE_DOCUMENTS_QUERIES_PATH = (
 _CREATE_TYPE_RE = re.compile(r"CREATE VERTEX (\w+)", re.IGNORECASE)
 _CREATE_EDGE_RE = re.compile(r"CREATE EDGE (\w+)", re.IGNORECASE)
 _UPDATE_TYPE_RE = re.compile(r"UPDATE (\w+)", re.IGNORECASE)
+_DELETE_TYPE_RE = re.compile(r"DELETE FROM (\w+)", re.IGNORECASE)
 _SELECT_FROM_RE = re.compile(r"FROM (\w+)", re.IGNORECASE)
 _MATCH_KEYS = ("id", "user_identifier", "identifier", "document_id")
 
@@ -150,6 +151,19 @@ class _FakeArcadeDBClient:
                     continue
                 if all(row.get(k) == v for k, v in match_params.items()):
                     row.update({k: v for k, v in (params or {}).items() if k not in ("id",)})
+            return []
+        if upper.startswith("DELETE FROM"):
+            match = _DELETE_TYPE_RE.match(statement)
+            record_type = match.group(1) if match else ""
+            bucket = session_id or "__no_session__"
+            match_params = {k: v for k, v in (params or {}).items() if k in _MATCH_KEYS}
+            for target in (self._committed, self._session_rows.setdefault(bucket, [])):
+                target[:] = [
+                    row
+                    for row in target
+                    if row.get("_type") != record_type
+                    or not all(row.get(k) == v for k, v in match_params.items())
+                ]
             return []
         if upper.startswith("CREATE EDGE"):
             match = _CREATE_EDGE_RE.match(statement)
@@ -360,6 +374,51 @@ def test_reingesting_same_title_and_text_dedupes_by_hash(tmp_path: Path) -> None
         entry for entry in client.commands if entry[0].startswith("CREATE VERTEX Document")
     ]
     assert len(document_creates) == 1
+
+
+# 04-09 regression (Rule 1 bug, found live via the ArcadeDB E2E capture):
+# reindex_document_text used to call the soft `delete_document()` (an UPDATE
+# setting status='deleted') before recreating a Document/Chunk with the SAME
+# id -- but a soft-deleted row still occupies its slot in the UNIQUE `id`
+# index, so the recreate raised a live DuplicatedKeyException. Fixed to hard
+# DELETE the old Document/Chunk rows (confirmed live: ArcadeDB's
+# `DELETE FROM <VertexType>` cascades edge removal too) before recreating.
+def test_reindex_document_text_hard_deletes_old_rows_before_recreating_same_id(
+    tmp_path: Path,
+) -> None:
+    client = _FakeArcadeDBClient()
+    store = _make_store(client, tmp_path, CountingBatchEmbedder())
+    store.ingest_document_text(
+        user_identifier="alice",
+        document_id="doc-1",
+        title="Runbook v1",
+        text="original safety procedure content",
+        chunk_chars=1000,
+    )
+
+    reindexed = store.reindex_document_text(
+        user_identifier="alice",
+        document_id="doc-1",
+        title="Runbook v2",
+        text="reindexed safety procedure content",
+        chunk_chars=1000,
+    )
+
+    hard_deletes = [entry[0] for entry in client.commands if entry[0].startswith("DELETE FROM")]
+    assert any("DELETE FROM Document" in stmt for stmt in hard_deletes)
+    assert any("DELETE FROM Chunk" in stmt for stmt in hard_deletes)
+    soft_deletes = [
+        entry[0]
+        for entry in client.commands
+        if entry[0].startswith("UPDATE") and "status = 'deleted'" in entry[0]
+    ]
+    assert not soft_deletes, "reindex must not use the soft delete_document() path"
+    assert reindexed.document_id == "doc-1"
+    assert len(_committed_by_type(client, "Document")) == 1
+
+    fetched = store.get_document(user_identifier="alice", document_id="doc-1")
+    assert fetched is not None
+    assert fetched.title == "Runbook v2"
 
 
 # -- Task 1, Test 4: _chunk_context(chunk_id) resolves NEXT_CHUNK neighbors by
