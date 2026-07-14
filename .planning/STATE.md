@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 13
-current_phase_name: Harden UTCP support
-status: executing
-stopped_at: Completed 04-10-PLAN.md (ARC-06 gap closure, phase 04 fully verified-complete)
+current_phase: 05
+current_phase_name: Per-Tenant ArcadeDB Isolation
+status: planning
+stopped_at: Completed Phase 04 (arcadedb-direct-port) — verified 4/4; next Phase 05
 last_updated: "2026-07-14T06:25:18.553Z"
 last_activity: 2026-07-14
-last_activity_desc: Phase 04 complete, transitioned to Phase 13
+last_activity_desc: Phase 04 complete (10/10, verified 4/4); next Phase 05 Per-Tenant ArcadeDB Isolation
 progress:
   total_phases: 13
   completed_phases: 4
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 04 — arcadedb-direct-port
+**Current focus:** Phase 05 — Per-Tenant ArcadeDB Isolation
 
 ## Current Position
 
-Phase: 13 — Harden UTCP support
+Phase: 05 — Per-Tenant ArcadeDB Isolation
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-14 — Phase 04 complete, transitioned to Phase 13
+Status: Ready to plan (needs /gsd-discuss-phase 5)
+Last activity: 2026-07-14 — Phase 04 complete (verified 4/4); next Phase 05
 
 Progress: [█████████░] 94%
 
