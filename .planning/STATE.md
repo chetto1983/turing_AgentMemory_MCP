@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 04
 current_phase_name: arcadedb-direct-port
 status: executing
-stopped_at: Completed 04-09-PLAN.md (phase 04 complete)
-last_updated: "2026-07-14T00:54:55.460Z"
+stopped_at: Completed 04-10-PLAN.md (ARC-06 gap closure, phase 04 fully verified-complete)
+last_updated: "2026-07-14T05:33:13.601Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 13
   completed_phases: 4
-  total_plans: 25
-  completed_plans: 25
+  total_plans: 26
+  completed_plans: 26
   percent: 31
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 04 (arcadedb-direct-port) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 04 execution started
 
@@ -80,6 +80,7 @@ Progress: [█████████░] 94%
 | Phase 04 P07 | 95min | 2 tasks | 9 files |
 | Phase 04 P08 | 95min | 2 tasks | 8 files |
 | Phase 04-arcadedb-direct-port P09 | 75min | 3 tasks | 15 files |
+| Phase 04 P10 | 35min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-08: ported _fact_ids_for_memory/_existing_entity_ids/_community_graph_inputs/_active_community_ids/_canonical_vector_records to bound-param ArcadeDB SQL as a Rule-1 bug fix -- these were live call sites from already-ported store_memory_read.py/store_memory_write.py still issuing invalid Cypher
 - [Phase ?]: ArcadeE2EBackend connects to the already-running arcadedb compose service instead of owning a throwaway container lifecycle
 - [Phase ?]: GPU-backed quality-parity e2e capture and real_document_benchmark.json were not attempted this session; documented reproduction commands instead of fabricating
+- [Phase ?]: Confirmed retire-directly disposition for ARC-06 write-side outbox: source inspection showed store_evidence.py/store_search.py already fed lexical retrieval from native ArcadeDB channels, requiring pure removal, not a wire-in-first step.
 
 ### Pending Todos
 
@@ -174,6 +176,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-14T00:54:55.446Z
-Stopped at: Completed 04-09-PLAN.md (phase 04 complete)
+Last session: 2026-07-14T05:33:13.592Z
+Stopped at: Completed 04-10-PLAN.md (ARC-06 gap closure, phase 04 fully verified-complete)
 Resume file: None

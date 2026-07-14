@@ -137,9 +137,11 @@ Plans:
   3. Vector search runs on ArcadeDB native `LSM_VECTOR` (HNSW) with the TuringDB `vector_id` int-join deleted (not ported), built on a versioned/namespaced index foundation; full-text runs on native Lucene with the analyzer validated against golden queries and the SQLite-FTS5 outbox retired.
   4. `stable_id()` remains the sole cross-record identifier, stored as an indexed ArcadeDB property (never ArcadeDB's native RID); no vector-ID drift across the port.
 
-**Plans:** 9/9 plans complete
+**Plans:** 10/10 plans complete
 
 Plans:
+
+- [x] 04-10-PLAN.md
 
 **Wave 1** *(hard gate — D-02 spike alone; blocks every other plan)*
 
@@ -287,7 +289,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
-| 4. ArcadeDB Direct Port | 9/9 | Complete   | 2026-07-14 |
+| 4. ArcadeDB Direct Port | 10/10 | Complete   | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
