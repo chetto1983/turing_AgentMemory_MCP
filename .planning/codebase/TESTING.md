@@ -1,268 +1,146 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-07-11
+**Analysis Date:** 2026-07-14
 
 ## Test Framework
 
 **Runner:**
-- pytest 8.2+ (configured in `pyproject.toml`)
-- Config: `pyproject.toml` with `[tool.pytest.ini_options]`
-- Test paths: `testpaths = ["tests"]`
-- Python path: `pythonpath = ["src"]` (allows direct imports of package)
+- pytest 8.2+, declared in `pyproject.toml`.
+- Config: `pyproject.toml` sets `testpaths`, `pythonpath`, and `slow`, `integration`, and `gpu` markers.
 
 **Assertion Library:**
-- pytest built-in assertions
-- Uses `assert` statements for all validations
+- Native pytest assertions, `pytest.raises`, and `pytest.approx`; see `tests/test_document_processing.py` and `tests/test_arcadedb_client.py`.
 
 **Run Commands:**
 ```bash
-pytest                          # Run all tests
-pytest tests/test_embeddings.py # Run specific test file
-pytest -xvs                     # Run with verbose output and stop on first failure
-pytest --tb=short               # Run with short traceback format
+python -m pytest
+python -m pytest -p no:cacheprovider -q
+bash scripts/run-fast-tests.sh
+python -m pytest -m "not integration and not gpu" --cov=src/turing_agentmemory_mcp --cov-fail-under=78 -q
 ```
+
+No watch command is configured in `pyproject.toml`, `Makefile`, or `lefthook.yml`.
 
 ## Test File Organization
 
 **Location:**
-- Tests co-located in `/d/Repo/turing_AgentMemory_MCP/tests/` directory (separate from source)
-- 30+ test files, one per major module
+- Keep tests in `tests/`, mirroring production subjects: `src/turing_agentmemory_mcp/models.py` maps to `tests/test_models.py`.
+- Put reusable fakes in non-collected modules such as `tests/_batch_memory_shared.py`; keep global policy hooks in `tests/conftest.py`.
 
 **Naming:**
-- Files prefixed with `test_`: `test_embeddings.py`, `test_models.py`, `test_auth.py`
-- Test functions prefixed with `test_`: `test_hashing_embedder_is_deterministic_and_normalized()`
-- Descriptive names indicate what's being tested
+- Use `test_<subject>.py` files and `test_<behavior>()` functions.
+- Give doubles behavior-revealing names such as `FakeMarkItDown` in `tests/test_document_processing.py` and `RecordingMemoryStore` in `tests/_batch_memory_shared.py`.
 
-**File List:**
-- `test_embeddings.py` - Embedding system
-- `test_models.py` - Data model serialization
-- `test_document_processing.py` - Document conversion
-- `test_governance.py` - Audit/redaction systems
-- `test_auth.py` - Authentication
-- `test_batch_memory.py` - Batch operations
-- `test_community_detection.py` - Graph community detection
-- (30+ total test files)
+**Structure:**
+```text
+tests/
+├── conftest.py
+├── test_<production_subject>.py
+├── test_<integration_subject>.py
+└── _<domain>_shared.py
+```
 
 ## Test Structure
 
 **Suite Organization:**
-
 ```python
-# Tests are function-based, not class-based
-def test_hashing_embedder_is_deterministic_and_normalized() -> None:
-    embedder = HashingEmbedder(dimensions=16)
-    first = embedder.embed("espresso memory")
-    second = embedder.embed("espresso memory")
-    assert first == second
-    assert round(sum(value * value for value in first), 6) == 1.0
-    assert len(first) == 16
+def test_convert_document_to_markdown_rejects_empty_output(tmp_path):
+    source = tmp_path / "empty.pdf"
+    source.write_bytes(b"%PDF")
+    with pytest.raises(ValueError, match="empty markdown"):
+        convert_document_to_markdown(source, converter=FakeMarkItDown("  \n"))
 ```
+This arrange/act/assert pattern appears in `tests/test_document_processing.py`.
 
 **Patterns:**
-- **Setup:** Create objects directly in test function (no fixtures, no setup methods)
-- **Teardown:** Pytest fixtures handle cleanup (e.g., `tmp_path` auto-cleanup)
-- **Assertion:** Standard `assert` statements with inline conditions
-- **Naming:** Descriptive test names explain behavior: `test_convert_document_to_markdown_uses_markitdown_convert_local()`
+- Arrange explicit inputs/fakes, call one behavior, then assert outputs and important side effects.
+- Use `tmp_path` for filesystem, SQLite, uploads, and projections, as in `tests/test_document_jobs.py`.
+- Use `monkeypatch` for environment and dependency seams, as in `tests/test_auth.py`.
+- Use `@pytest.mark.parametrize` for validation matrices, as in `tests/test_community_detection.py`.
+- Use module-scoped fixtures only for expensive live resources and tear them down explicitly, as in `tests/test_arcadedb_client.py`.
 
 ## Mocking
 
-**Framework:** No external mocking library; uses custom fake/mock classes defined in test files
+**Framework:** pytest `monkeypatch` plus hand-written fakes, stubs, and recording implementations.
 
 **Patterns:**
-
-Create explicit mock classes inline:
 ```python
-class FakeMarkItDown:
-    def __init__(self, text: str) -> None:
-        self.text = text
-        self.paths: list[str] = []
-
-    def convert_local(self, path: str) -> object:
-        self.paths.append(path)
-        return SimpleNamespace(text_content=self.text)
-
-# Use in test
-converter = FakeMarkItDown("# Release Notes")
-result = convert_document_to_markdown(source, converter=converter)
-assert converter.paths == [str(source)]
+monkeypatch.setattr("turing_agentmemory_mcp.arcadedb_client.urlopen", transport)
+with pytest.raises(RuntimeError, match="ArcadeDB HTTP 500"):
+    client.command("SELECT FROM V")
 ```
-
-**Monkeypatch Usage (pytest fixture):**
-```python
-def test_openai_compatible_embedder_reads_provider_agnostic_env(monkeypatch) -> None:
-    monkeypatch.setenv("EMBED_BASE_URL", "http://embed.example.test")
-    monkeypatch.setenv("EMBED_DIMENSIONS", "384")
-    
-    embedder = OpenAICompatibleEmbedder.from_env()
-    
-    assert embedder.dimensions == 384
-```
-
-**HTTP Server Mocking:**
-```python
-class Handler(BaseHTTPRequestHandler):
-    def do_POST(self) -> None:
-        length = int(self.headers.get("Content-Length", "0"))
-        inputs = json.loads(self.rfile.read(length).decode("utf-8"))["input"]
-        # ... response logic
-        self.send_response(200)
-
-server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-thread = threading.Thread(target=server.serve_forever, daemon=True)
-thread.start()
-try:
-    # ... test code
-finally:
-    server.shutdown()
-    server.server_close()
-    thread.join(timeout=5)
-```
+This transport seam is used in `tests/test_arcadedb_client_transport.py`.
 
 **What to Mock:**
-- External HTTP services (embed servers, reranking services)
-- File system operations (document converters)
-- Database clients (TuringDB)
-- Environment variables (via monkeypatch)
+- Mock network transports, providers, environment configuration, and narrow protocols when testing local behavior.
+- Use recording fakes for batching, transaction sessions, bound parameters, and call order, as in `tests/test_store_arcadedb_core.py`.
 
 **What NOT to Mock:**
-- Business logic functions (test the actual implementation)
-- Internal helper functions (test through public API)
-- Standard library functions (unless specifically testing error paths)
+- Do not mock the live ArcadeDB capability contract in `@pytest.mark.integration` tests such as `tests/test_arcadedb_client.py`.
+- Use real temporary bytes, hashes, cleanup, and SQLite state where `tmp_path` suffices, as in `tests/test_document_file_pipe.py`.
+- Never count skipped integration/GPU tests as CI success; `tests/conftest.py` converts marked skips to failures under `CI=true`.
 
 ## Fixtures and Factories
 
 **Test Data:**
-
-Custom mock classes in tests serve as factories:
 ```python
-class CountingBatchEmbedder:
-    dimensions = 3
-
-    def __init__(self) -> None:
-        self.embed_calls: list[str] = []
-        self.embed_many_calls: list[list[str]] = []
-
-    def embed(self, text: str) -> list[float]:
-        self.embed_calls.append(text)
-        return [float(len(text)), 1.0, 0.0]
-
-    def embed_many(self, texts: list[str]) -> list[list[float]]:
-        self.embed_many_calls.append(list(texts))
-        return [self._vector(text) for text in texts]
+class RecordingMemoryStore(TuringAgentMemory):
+    def __init__(self, tmp_path: Path, embedder: CountingBatchEmbedder) -> None:
+        super().__init__(client=object(), turing_home=tmp_path, embedder=embedder, reranker=None)
+        self.write_queries: list[str] = []
 ```
-
-**Built-in Pytest Fixtures:**
-- `tmp_path` - Temporary directory for file operations
-- `monkeypatch` - Environment variable and module patching
+The full recording-fake pattern is in `tests/_batch_memory_shared.py`.
 
 **Location:**
-- No `conftest.py` file (fixtures defined inline or via monkeypatch)
-- Mock classes defined directly in test file where used
+- Shared domain fixtures live in `tests/_*_shared.py`.
+- Local fakes/factories stay beside their consumer, such as `_make_store()` in `tests/test_store_arcadedb_core.py`.
+- Repository-wide hooks live in `tests/conftest.py`.
 
 ## Coverage
 
-**Requirements:** Not enforced in tooling
+**Requirements:** `.github/workflows/ci.yml` enforces 78% coverage of `src/turing_agentmemory_mcp` for the non-integration/non-GPU suite. `pyproject.toml` omits `*/e2e_score*.py`.
 
-**Observed Coverage:**
-- Core business logic well-covered (embeddings, document processing, models)
-- Integration points have dedicated tests (auth, storage operations)
-- Edge cases tested (empty inputs, invalid values, error conditions)
+**View Coverage:**
+```bash
+python -m pytest -m "not integration and not gpu" --cov=src/turing_agentmemory_mcp --cov-report=term-missing --cov-fail-under=78 -q
+```
 
 ## Test Types
 
 **Unit Tests:**
-- Scope: Individual functions/classes
-- Approach: Direct instantiation, mock dependencies, assert output
-- Example: `test_hashing_embedder_is_deterministic_and_normalized()` tests `HashingEmbedder.embed()`
+- Default tests emphasize deterministic in-memory fakes, local SQLite/filesystem state, and monkeypatched transports.
+- Run the narrowest affected file first, then the full gate in `CONTRIBUTING.md`.
 
 **Integration Tests:**
-- Scope: Multiple components working together
-- Approach: Create mock store/server, exercise multiple layers
-- Example: `test_governance.py` creates full MCP app and tests auth flow
-- Uses: `RecordingMemoryStore`, `RecordingDocumentStore` to capture interactions
+- Mark live-service tests `@pytest.mark.integration`; `tests/test_arcadedb_client.py` is canonical.
+- Mark GPU-provider tests `@pytest.mark.gpu`; apply the same no-skip-as-green rule from `tests/conftest.py`.
+- Mark expensive deterministic tests `slow`; `scripts/run-fast-tests.sh` excludes them only from the fast pre-push subset.
 
-**End-to-End Tests:**
-- Scope: Full system with real dependencies
-- Framework: Not used for automated E2E; manual benchmarking via `e2e_score.py`
-- Benchmark suite: `benchmark.py` provides real-world performance tests
+**E2E Tests:**
+- `scripts/e2e_score.py` is the deterministic E2E score gate, called by `make e2e` and `.github/workflows/ci.yml`.
+- CI requires valid JSON, exactly 19 checks, score >= 9.8, and verdict `VALIDATED_10_10` against live ArcadeDB.
+- Operator-run real-document benchmarks live in `scripts/real_document_benchmark.py`, with tests in `tests/test_real_document_benchmark.py`.
 
 ## Common Patterns
 
 **Async Testing:**
-
-Uses `asyncio.run()` for testing async functions:
 ```python
-def test_auth_from_env_builds_static_token_verifier(monkeypatch) -> None:
-    monkeypatch.setenv("AGENTMEMORY_AUTH_TOKEN", "dev-secret")
-    
-    verifier = auth_from_env()
-    
-    accepted = asyncio.run(verifier.verify_token("dev-secret"))
-    assert accepted is not None
+accepted = asyncio.run(verifier.verify_token("dev-secret"))
+assert accepted is not None
 ```
+Tests drive async boundaries with `asyncio.run()`, as in `tests/test_auth.py`; no async pytest plugin is configured.
 
 **Error Testing:**
-
 ```python
-# Test exception is raised with pytest.raises
-def test_convert_document_to_markdown_rejects_empty_output(tmp_path):
-    source = tmp_path / "empty.pdf"
-    source.write_bytes(b"%PDF")
-    
-    with pytest.raises(ValueError, match="empty markdown"):
-        convert_document_to_markdown(source, converter=FakeMarkItDown("  \n"))
-
-# Test ValueError on invalid input
-def test_openai_compatible_embedder_bounds_provider_batches(monkeypatch) -> None:
-    # Test that batch_size must be positive
-    embedder = OpenAICompatibleEmbedder(batch_size=0)  # raises in __post_init__
+with pytest.raises(ValueError, match="empty markdown"):
+    convert_document_to_markdown(source, converter=FakeMarkItDown("  \n"))
 ```
+Assert exception type and stable diagnostic text, as in `tests/test_document_processing.py` and `tests/test_document_jobs.py`.
 
-**Module Mocking for Conditionals:**
-
-For optional dependencies (e.g., turingdb not always available):
-```python
-import sys
-import types
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
-
-from turing_agentmemory_mcp.store import TuringAgentMemory  # Can now import safely
-```
-
-**Temporary Files:**
-
-Use pytest's `tmp_path` fixture:
-```python
-def test_convert_document_to_markdown_uses_markitdown_convert_local(tmp_path):
-    source = tmp_path / "release-notes.docx"
-    source.write_bytes(b"fake docx")
-    
-    result = convert_document_to_markdown(source, converter=converter)
-    
-    assert result.metadata["source_path"] == str(source)
-```
-
-**State Capture for Verification:**
-
-Tests often create recording/counting mocks to verify behavior:
-```python
-class RecordingMemoryStore(TuringAgentMemory):
-    def __init__(self, tmp_path: Path, embedder: Embedder) -> None:
-        super().__init__(...)
-        self.write_queries: list[str] = []
-        self.vector_loads: list[list[tuple[int, list[float]]]] = []
-    
-    def _write(self, query: str) -> None:
-        self.write_queries.append(query)
-
-# In test:
-store = RecordingMemoryStore(tmp_path, embedder)
-store.store_message(...)
-assert len(store.write_queries) > 0
-```
+**Policy tests:**
+- Encode workflow invariants in `tests/test_ci_hook_wiring.py`, `tests/test_compose_config.py`, `tests/test_docker_hardening.py`, and `tests/test_no_skip_as_green_guard.py`.
+- Test security/durability directly in `tests/test_arcadedb_tenant_isolation.py`, `tests/test_document_file_pipe.py`, and `tests/test_store_arcadedb_core.py`.
 
 ---
 
-*Testing analysis: 2026-07-11*
+*Testing analysis: 2026-07-14*

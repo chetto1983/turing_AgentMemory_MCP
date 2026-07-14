@@ -1,186 +1,96 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-07-11
+**Analysis Date:** 2026-07-14
 
 ## Naming Patterns
 
 **Files:**
-- Snake_case for all module names (e.g., `embeddings.py`, `document_processing.py`, `community_detection.py`)
-- Test files prefixed with `test_` (e.g., `test_embeddings.py`, `test_models.py`)
+- Use lowercase `snake_case.py` modules and `test_<subject>.py` tests, as in `src/turing_agentmemory_mcp/document_job_manager.py` and `tests/test_document_jobs.py`.
+- Split large domains by concern with a shared stem: `src/turing_agentmemory_mcp/store_core.py`, `src/turing_agentmemory_mcp/store_search.py`, and `src/turing_agentmemory_mcp/store_memory_write.py`.
+- Prefix non-collected shared test helpers with `_`, as in `tests/_batch_memory_shared.py`.
 
 **Functions:**
-- Snake_case for all function names
-- Private functions prefixed with underscore: `_internal_helper()`, `_ensure_graph_loaded()`
-- Example: `convert_document_to_markdown()`, `aggregate_weighted_edges()`, `rank_hybrid()`
-
-**Classes:**
-- PascalCase for all class names
-- Dataclasses heavily used with descriptive names: `RetrievalCandidate`, `MemoryItem`, `DocumentHit`
-- Protocol classes for interfaces: `Embedder`, `ExtractProvider`, `CommunityRebuilder`
-- Exception classes inherit from standard exceptions: `class RequestFailure(ValueError)`, `class ProviderFailure(ValueError)`
+- Use `snake_case`; reserve leading `_` for private helpers and seams such as `_env_bool()` in `src/turing_agentmemory_mcp/server.py`.
+- Name tests `test_<observable_behavior>`, as in `tests/test_document_processing.py`.
+- Name environment factories `<object>_from_env`, such as `store_from_env()` in `src/turing_agentmemory_mcp/server.py`.
 
 **Variables:**
-- Snake_case for all variables and attributes
-- Constants: SCREAMING_SNAKE_CASE
-  - `DEFAULT_MODEL_NAME = "lion-ai/gliner2-base-v1-onnx"`
-  - `MAX_BODY_BYTES = 1024 * 1024`
-  - `LOGGER = logging.getLogger(__name__)`
+- Use descriptive `snake_case` and preserve domain terms (`user_identifier`, `document_id`, `session_id`) across `src/turing_agentmemory_mcp/models.py` and store modules.
+- Use uppercase constants for fixed contracts, such as `MEMORY_EXTRACTION_SCHEMA_VERSION` in `src/turing_agentmemory_mcp/memory_extraction.py`.
+- Prefix internal test doubles with `_`, such as `_FakeArcadeDBClient` in `tests/test_store_arcadedb_core.py`.
 
-**Type Hints:**
-- Uses `from __future__ import annotations` in all files
-- Pipe union syntax: `str | None`, `list[str]`, `dict[str, object]`
-- Generic type hints for collections
-- Protocol classes define interfaces: `class Embedder(Protocol):`
+**Types:**
+- Use `PascalCase` for classes, dataclasses, and protocols: `MemoryItem` in `src/turing_agentmemory_mcp/models.py` and `SpanRecorder` in `src/turing_agentmemory_mcp/observability.py`.
+- Prefer built-in generics (`list[str]`, `dict[str, object]`) and `X | None`; Python 3.11 is the minimum in `pyproject.toml`.
+- Model immutable values with `@dataclass(frozen=True)` and use `slots=True` where established, as in `src/turing_agentmemory_mcp/community_detection.py`.
 
 ## Code Style
 
 **Formatting:**
-- Tool: ruff
-- Line length: 100 characters
-- No semicolons for statement termination
-- Uses `from __future__ import annotations` for forward compatibility
+- Use Ruff formatter with 100-character lines and Python 3.11 target from `pyproject.toml`.
+- Run `python -m ruff format --check src tests scripts`; `.github/workflows/ci.yml` and `lefthook.yml` enforce it.
+- Keep every tracked Python file at or below 600 lines. `scripts/check-file-size.sh` enforces this without exemptions.
+- Start modern modules with `from __future__ import annotations`, as in `src/turing_agentmemory_mcp/server.py`.
 
 **Linting:**
-- Tool: ruff
-- Configured rules: E (pycodestyle), F (pyflakes), I (isort), B (flake8-bugbear), UP (pyupgrade)
-- Ignored: E501 (line too long - manually controlled via 100-char limit)
-- Target: Python 3.11+
-
-**Dataclass Usage:**
-- Heavily used throughout codebase for data containers
-- Use `frozen=True` for immutable data: `@dataclass(frozen=True)` in `models.py`, `embeddings.py`
-- Use `slots=True` for performance in performance-critical classes: `@dataclass(frozen=True, slots=True)` in `community_detection.py`
-- Default factory for mutable defaults: `field(default_factory=dict)`, `field(default_factory=list)`
-
-**Docstring Style:**
-- Module-level docstrings present for complex modules
-- Minimal inline documentation (code is self-documenting)
-- Class docstrings when behavior is non-obvious: `"""Adapt FastGLiNER2's one-text API to the provider batch contract."""` in `gliner_provider.py`
-- No mandatory function-level docstrings
+- Use Ruff 0.15.21 with `E`, `F`, `I`, `B`, and `UP` rules from `pyproject.toml`; `E501` is ignored because formatting owns wrapping.
+- Run `python -m ruff check src tests scripts` or `make lint`; `lefthook.yml` checks staged Python files.
+- Use targeted `# type: ignore[arg-type]` only at deliberate test-double boundaries, as in `tests/_batch_memory_shared.py`.
 
 ## Import Organization
 
 **Order:**
-1. `from __future__ import annotations`
-2. Standard library imports (dataclasses, pathlib, datetime, typing, etc.)
-3. Third-party imports (fastmcp, turingdb, markitdown, etc.)
-4. Local package imports using relative imports (from .models import, from .embeddings import)
+1. Future imports.
+2. Standard library imports.
+3. Third-party imports.
+4. Absolute `turing_agentmemory_mcp` package imports.
 
 **Path Aliases:**
-- Relative imports within package: `from .embeddings import Embedder`
-- Absolute imports for CLI entry points: `from turing_agentmemory_mcp.utcp import build_utcp_manual`
-
-**Example from `store.py`:**
-```python
-from __future__ import annotations
-
-import hashlib
-import json
-import re
-import time
-from dataclasses import dataclass
-from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
-
-from turingdb import TuringDB
-
-from turing_agentmemory_mcp.community_detection import (
-    CommunityEntity,
-    ...
-)
-from .hybrid import blend_hybrid_score, lexical_score
-```
+- No aliases are configured. Use absolute package imports; `pythonpath = ["src"]` in `pyproject.toml` supports tests.
+- Avoid eager package re-exports. `src/turing_agentmemory_mcp/__init__.py` lazily exposes only `TuringAgentMemory`.
 
 ## Error Handling
 
 **Patterns:**
-- Raise specific exception types with descriptive messages:
-  - `raise ValueError("embedding dimensions must be positive")`
-  - `raise FileNotFoundError(str(vector_dir))`
-  - `raise NotADirectoryError(str(vector_dir))`
-  - `raise RuntimeError("graspologic native leiden backend not available")`
-
-- Validation in `__post_init__` for dataclasses:
-  ```python
-  def __post_init__(self) -> None:
-      if self.batch_size <= 0:
-          raise ValueError("embedding batch size must be positive")
-  ```
-
-- Try-except for external API calls and imports:
-  ```python
-  try:
-      from graspologic.partition import hierarchical_leiden
-  except ImportError as exc:
-      raise RuntimeError("graspologic native leiden backend not available") from exc
-  ```
-
-- Use context managers for resource cleanup (file handles, server connections)
+- Validate boundary inputs and raise `ValueError` with actionable messages, as in `src/turing_agentmemory_mcp/document_jobs.py` and `src/turing_agentmemory_mcp/community_detection.py`.
+- Translate dependency failures to contextual `RuntimeError` and preserve causes with `raise ... from exc`, as in `src/turing_agentmemory_mcp/embeddings.py`.
+- Catch narrow exceptions; catch `Exception` only at lifecycle/observability boundaries that record, roll back, or convert failure, as in `src/turing_agentmemory_mcp/observability.py`.
+- Fail closed for tenant, authentication, integrity, schema, and configuration validation; see `CONTRIBUTING.md` and `tests/test_arcadedb_tenant_isolation.py`.
 
 ## Logging
 
-**Framework:** Python's standard `logging` module
+**Framework:** Structured span recorders in `src/turing_agentmemory_mcp/observability.py`.
 
-**Pattern:** Module-level logger initialization
-```python
-LOGGER = logging.getLogger(__name__)
-```
-
-**Usage:** Minimal - primarily in `gliner_provider.py` for HTTP server operations. Most code relies on exception raising rather than logging.
+**Patterns:**
+- Wrap meaningful operations in observer spans with content-free attributes; use `NoopSpanRecorder` when disabled.
+- Emit deterministic JSON through `JsonlSpanRecorder` or `StderrJsonSpanRecorder`.
+- Record error type/message and re-raise so observability never changes behavior.
+- Keep health signals free of memory/document content; `RuntimeSignals` stores identities, counts, and error types.
 
 ## Comments
 
 **When to Comment:**
-- Complex algorithmic logic (lexical scoring, community detection)
-- Non-obvious performance optimizations
-- Workarounds for known issues
+- Explain invariants, platform constraints, and why workarounds exist, as in `src/turing_agentmemory_mcp/server.py` and `lefthook.yml`.
+- Document the contract proved by complex fakes or protocol simulations, as in `tests/test_store_arcadedb_core.py`.
+- Do not narrate straightforward code; prefer domain names and focused helpers.
 
-**When NOT to Comment:**
-- Self-documenting code (types and names convey intent)
-- Simple business logic
-- Standard patterns (for loops, conditionals)
-
-**Example pattern:**
-```python
-# Normalize line endings from different PDF sources
-normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip()
-
-# Leiden backend returned groups; assign to entity nodes
-if node not in communities:
-    raise ValueError("Leiden backend returned an unknown node")
-```
+**JSDoc/TSDoc:**
+- Not applicable. Python docstrings are selective for modules, contracts, and complex fakes, as in `tests/conftest.py` and `tests/test_arcadedb_client.py`.
 
 ## Function Design
 
-**Size:** Functions range from 5-50 lines; helper functions extracted at 50+ lines
+**Size:** Keep functions focused and extract validation, serialization, and environment parsing helpers. The hard module cap is 600 lines via `scripts/check-file-size.sh`.
 
-**Parameters:**
-- Explicit keyword-only arguments for clarity: `def lexical_score(query: str, text: str) -> float:`
-- Use keyword-only for optional/configuration parameters: `def convert_document_to_markdown(path: str | Path, *, converter: Any | None = None):`
+**Parameters:** Prefer keyword-only parameters for multi-field operations and configuration, as in `src/turing_agentmemory_mcp/server.py`. Annotate inputs/returns and accept narrow protocols.
 
-**Return Values:**
-- Type hints always present
-- Return single objects or simple types; avoid tuple unpacking for clarity
-- Use dataclasses for complex return values
-- Example: `def store_message(...) -> MemoryItem:` returns a data object
+**Return Values:** Return typed dataclasses and explicit `to_dict()` serialization, as in `src/turing_agentmemory_mcp/models.py`. Use `None` only when absence is contractual.
 
 ## Module Design
 
-**Exports:**
-- Public APIs exported directly from modules
-- Private helpers prefixed with underscore: `_ensure_graph_loaded()`, `_convert_pdfium()`, `_pdfium_document()`
-- No `__all__` declarations; rely on naming convention
+**Exports:** Keep helpers private with `_`; import APIs from defining modules. Use protocols for providers (`src/turing_agentmemory_mcp/embeddings.py`) and concern-specific store seams (`src/turing_agentmemory_mcp/store_*.py`).
 
-**Barrel Files:**
-- `__init__.py` files present but minimal
-- No re-exports in `__init__.py` files
-
-**Example module structure (`document_processing.py`):**
-- Public dataclass: `ConvertedDocument`
-- Private converters: `_markitdown_converter()`, `_pdfium_document()`, `_convert_pdfium()`
-- Public main function: `convert_document_to_markdown()`
+**Barrel Files:** Barrels are minimal. `src/turing_agentmemory_mcp/__init__.py` exposes only `TuringAgentMemory`; add exports only for public package contracts.
 
 ---
 
-*Convention analysis: 2026-07-11*
+*Convention analysis: 2026-07-14*
