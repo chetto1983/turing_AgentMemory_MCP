@@ -426,7 +426,7 @@ def _benchmark_restart(
         from turing_agentmemory_mcp.store import TuringAgentMemory
 
         store = TuringAgentMemory(restarted.client(), turing_home=home, graph=graph)
-        store.load_graph_after_restart()
+        store.reconnect()
         memory = store.search_memory(
             user_identifier="bench-memory-user",
             query=_memory_query(0, 1),

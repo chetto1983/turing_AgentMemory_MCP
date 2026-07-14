@@ -21,10 +21,9 @@ from turing_agentmemory_mcp.sparse_index import SparseIndex
 
 
 class FakeClient:
-    def __init__(self, *, type: str, host: str, token: str | None) -> None:
-        self.type = type
-        self.host = host
-        self.token = token
+    @classmethod
+    def from_env(cls) -> FakeClient:
+        return cls()
 
 
 class FakeStore:
@@ -56,7 +55,7 @@ def test_store_from_env_wires_the_fused_pipeline_once(
     monkeypatch.setenv("AGENTMEMORY_LEIDEN_RESOLUTION", "1.25")
     monkeypatch.setenv("AGENTMEMORY_LEIDEN_MAX_CLUSTER_SIZE", "64")
     monkeypatch.setenv("AGENTMEMORY_COMMUNITY_REBUILD_ON_BATCH", "1")
-    monkeypatch.setattr(server, "TuringDB", FakeClient)
+    monkeypatch.setattr(server, "ArcadeDBClient", FakeClient)
     monkeypatch.setattr(server, "TuringAgentMemory", FakeStore)
 
     store = server.store_from_env()
@@ -110,7 +109,7 @@ def test_store_from_env_rejects_invalid_fused_configuration(
     monkeypatch.setenv("TURINGDB_HOME", str(tmp_path))
     monkeypatch.setenv("AGENTMEMORY_FUSION_ENABLED", "1")
     monkeypatch.setenv(name, value)
-    monkeypatch.setattr(server, "TuringDB", FakeClient)
+    monkeypatch.setattr(server, "ArcadeDBClient", FakeClient)
     monkeypatch.setattr(server, "TuringAgentMemory", FakeStore)
 
     with pytest.raises(ValueError):
@@ -175,23 +174,10 @@ def test_http_health_route_returns_runtime_readiness() -> None:
     assert response.json()["runtime"]["stages"]["embedding"]["identity"]["model"] == "granite"
 
 
-def test_vector_bootstrap_rejects_an_existing_dimension_mismatch() -> None:
-    from turing_agentmemory_mcp.store import TuringAgentMemory
-
-    class Rows:
-        def to_dict(self, orient: str) -> list[dict[str, object]]:
-            assert orient == "records"
-            return [{"name": "entity_vectors", "dimension": 3}]
-
-    class IndexStore(TuringAgentMemory):
-        def __init__(self) -> None:
-            self.dimensions = 768
-
-        def _query(self, query: str, *, operation: str) -> Rows:
-            if query.startswith("CREATE VECTOR INDEX"):
-                raise RuntimeError("already exists")
-            assert query == "SHOW VECTOR INDEXES"
-            return Rows()
-
-    with pytest.raises(RuntimeError, match="entity_vectors.*expected 768.*found 3"):
-        IndexStore()._ensure_vector_index("entity_vectors")
+# test_vector_bootstrap_rejects_an_existing_dimension_mismatch (retired 04-09):
+# asserted TuringDB's per-name "SHOW VECTOR INDEXES" dimension check on
+# `_ensure_vector_index`, which now (04-04) delegates entirely to
+# `arcadedb_schema.bootstrap()`'s own dimension-mismatch guard -- superseded
+# by `tests/test_arcadedb_schema.py::test_dimension_mismatch_against_existing_data_raises_value_error`,
+# which exercises the exact same "expected N, found M" ValueError against the
+# real ArcadeDB-shaped bootstrap() this store now calls.
