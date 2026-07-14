@@ -62,7 +62,14 @@ jobs:
       # Coverage floor measured against the post-decomposition suite (D-07/CI-09):
       # 364 tests, 78.12% covered (e2e_score.py omitted per [tool.coverage.run]).
       # Never guessed; ratchets up only, never silently lowered.
-      - run: python -m pytest --cov=src/turing_agentmemory_mcp --cov-fail-under=78 -q
+      #
+      # `integration`/`gpu`-marked tests need a live external service / GPU that this
+      # runner does not have. Deselect them here (same tier as the local fast-tests
+      # hook) so they are NOT collected -- a deselect is not a skip, so GitHub's
+      # default CI=true does not trip the tests/conftest.py no-skip-as-green guard.
+      # `slow` still runs. The real ArcadeDB path is exercised in CI by the
+      # dockerized-integration E2E job below (which restarts a live arcadedb).
+      - run: python -m pytest -m "not integration and not gpu" --cov=src/turing_agentmemory_mcp --cov-fail-under=78 -q
       - name: no-skip-as-green guard self-test
         env:
           CI: "true" # arms the tests/conftest.py no-skip-as-green hookwrapper guard
@@ -90,24 +97,40 @@ jobs:
       CI: "true" # arms the no-skip-as-green guard for this job too
     steps:
       - uses: actions/checkout@v7
-      - name: Build the E2E image
-        # `docker compose run` does NOT build on its own; on a clean runner it would
-        # try to PULL turing-agentmemory-mcp:local (a local-only tag with no registry)
-        # and fail with "pull access denied". Build the image (deps + turingdb, Linux)
-        # up front so the run step has it locally.
-        run: docker compose build e2e
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Start the ArcadeDB service (published on 127.0.0.1:2480, health-gated)
+        # 04-09 rewired the E2E off the retired in-process turingdb daemon onto a real
+        # arcadedb container. `--wait` blocks on the service healthcheck
+        # (GET /api/v1/ready) so the score run never races container startup. Only the
+        # `arcadedb` service starts here; the `e2e` compose service (build image) is
+        # intentionally NOT used -- see the run step for why the E2E runs on the host.
+        run: docker compose up -d --wait arcadedb
       - name: "E2E score gate — VALIDATED_10_10 (D-05/D-06): 19/19 checks executed, score >= 9.8, never a silent skip"
+        env:
+          # Run scripts/e2e_score.py ON THE HOST, not via `docker compose run e2e`:
+          # the D-10 restart leg (restart_backend_and_wait_ready) shells out to
+          # `docker compose stop/start arcadedb`, which needs docker on PATH and
+          # host-level control of the sibling service -- impossible from inside the
+          # e2e container (no docker socket), which is why the in-container run can
+          # only reach 18/19. On the host the restart is real, so the run reaches the
+          # full 19/19. In-process stub embed/rerank (HashingEmbedder) keep it
+          # GPU-free and deterministic. ARCADEDB_URL uses the published host port.
+          ARCADEDB_URL: http://127.0.0.1:2480
+          ARCADEDB_USER: root
+          ARCADEDB_PASSWORD: agentmemory-arcadedb-dev
+          ARCADEDB_E2E_HOME: /tmp/arcadedb-e2e
         run: |
           # The script's own exit code already asserts VALIDATED_10_10 (score>=9.8,
           # 19/19 checks). `|| true` keeps this step alive so the explicit assertions
           # below can report a precise diagnostic (which guard failed) instead of a
-          # bare non-zero exit. Container stdout is pure JSON; compose orchestration
-          # noise goes to stderr (kept for debug).
-          docker compose run --rm e2e > e2e-result.json 2> e2e-run.log || true
+          # bare non-zero exit.
+          python scripts/e2e_score.py --out e2e-result.json || true
           if ! jq -e . e2e-result.json >/dev/null 2>&1; then
-            echo "FAIL: E2E produced no valid JSON result (image build or container run failed)."
-            echo "--- compose/run stderr ---"; cat e2e-run.log || true
-            echo "--- captured stdout ---"; cat e2e-result.json || true
+            echo "FAIL: E2E produced no valid JSON result (script crashed)."
+            echo "--- captured file ---"; cat e2e-result.json || true
             exit 1
           fi
           score=$(jq '.score' e2e-result.json)
@@ -116,10 +139,12 @@ jobs:
           echo "E2E: score=$score check_count=$check_count verdict=$verdict"
           if [ "$check_count" != "19" ]; then
             echo "FAIL: expected 19 executed checks, got $check_count (a check may have been skipped — never a silent skip)"
+            jq '.checks[] | {name, ok}' e2e-result.json
             exit 1
           fi
           if ! awk -v s="$score" 'BEGIN { exit !(s >= 9.8) }'; then
             echo "FAIL: score $score is below the VALIDATED_10_10 bar of 9.8"
+            jq '.checks[] | select(.ok == false)' e2e-result.json
             exit 1
           fi
           if [ "$verdict" != "VALIDATED_10_10" ]; then
@@ -127,3 +152,9 @@ jobs:
             exit 1
           fi
           echo "PASS: VALIDATED_10_10 (19/19 checks, score $score)"
+      - name: ArcadeDB logs (on failure)
+        if: failure()
+        run: docker compose logs arcadedb | tail -120
+      - name: Teardown
+        if: always()
+        run: docker compose down -v
