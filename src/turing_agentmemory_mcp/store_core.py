@@ -250,24 +250,9 @@ class _StoreCore:
         schema_bootstrap(self.client, dimensions=self.dimensions, version=self._schema_version)
         self._schema_bootstrapped = True
 
-    def _ensure_vector_index(self, name: str) -> None:
-        """Back-compat shim for unported mixins (Wave 4) that still call this
-        by per-tenant index name -- delegates to the shared schema bootstrap
-        instead of issuing an inline DDL string."""
-        self._ensure_schema()
-
     @staticmethod
     def _tenant_vector_index(base_name: str, user_identifier: str) -> str:
         return versioned_vector_index(base_name, user_identifier, version=1)
-
-    def _ensure_tenant_vector_index(
-        self,
-        base_name: str,
-        user_identifier: str,
-    ) -> str:
-        name = self._tenant_vector_index(base_name, user_identifier)
-        self._ensure_schema()
-        return name
 
     def _ensure_user(self, user_identifier: str) -> None:
         rows = self._records(

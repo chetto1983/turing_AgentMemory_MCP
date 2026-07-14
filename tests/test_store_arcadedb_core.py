@@ -439,6 +439,26 @@ def test_document_graph_batch_knobs_are_removed(tmp_path: Path) -> None:
         raise AssertionError("document_graph_batch_chunks must no longer be a constructor kwarg")
 
 
+# LO-01: _ensure_vector_index/_ensure_tenant_vector_index were an explicit
+# "back-compat shim for unported mixins (Wave 4)" -- Wave 4 (04-05..04-08) is
+# complete and no mixin calls either method anymore. _tenant_vector_index is
+# kept: test_batch_memory.py's
+# test_tenant_vector_index_names_are_deterministic_and_isolated calls it
+# directly.
+def test_dead_vector_index_shims_are_removed_but_tenant_vector_index_remains(
+    tmp_path: Path,
+) -> None:
+    client = _FakeArcadeDBClient()
+    store = _make_store(client, tmp_path)
+
+    assert not hasattr(store, "_ensure_vector_index")
+    assert not hasattr(store, "_ensure_tenant_vector_index")
+    assert hasattr(store, "_tenant_vector_index")
+    assert store._tenant_vector_index("base", "alice") == store._tenant_vector_index(
+        "base", "alice"
+    )
+
+
 def test_document_graph_batch_knobs_absent_from_source_and_env_wiring() -> None:
     server_path = (
         Path(__file__).resolve().parents[1] / "src" / "turing_agentmemory_mcp" / "server.py"
