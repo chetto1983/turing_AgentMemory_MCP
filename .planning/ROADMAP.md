@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: CI + Git-Hook Discipline** - lefthook hooks + GitHub Actions with no-skip-as-green, guarding every downstream change (completed 2026-07-11)
 - [x] **Phase 2: UTCP Spike** - Early findings-gated verdict on deeper UTCP support; no build commitment (completed 2026-07-12)
 - [x] **Phase 3: TuringDB Retrieval Baseline** - Recorded, versioned baseline snapshot before any ArcadeDB work (completed 2026-07-13)
-- [ ] **Phase 4: ArcadeDB Direct Port** - `store.py` on ArcadeDB graph + native vector + native full-text, stable IDs preserved
+- [x] **Phase 4: ArcadeDB Direct Port** - `store.py` on ArcadeDB graph + native vector + native full-text, stable IDs preserved (completed 2026-07-14)
 - [ ] **Phase 5: Per-Tenant ArcadeDB Isolation** - One database per tenant with mandatory `user_identifier` scoping still enforced
 - [ ] **Phase 6: Migration-Correctness Gate** - Ported stack provably meets-or-exceeds the baseline (hard exit criterion)
 - [ ] **Phase 7: Remove TuringDB + Dependency Hardening** - TuringDB cut, invariants rewritten, at-risk deps version-gated
@@ -137,7 +137,7 @@ Plans:
   3. Vector search runs on ArcadeDB native `LSM_VECTOR` (HNSW) with the TuringDB `vector_id` int-join deleted (not ported), built on a versioned/namespaced index foundation; full-text runs on native Lucene with the analyzer validated against golden queries and the SQLite-FTS5 outbox retired.
   4. `stable_id()` remains the sole cross-record identifier, stored as an indexed ArcadeDB property (never ArcadeDB's native RID); no vector-ID drift across the port.
 
-**Plans:** 8/9 plans executed
+**Plans:** 9/9 plans complete
 
 Plans:
 
@@ -163,7 +163,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4)*
 
-- [ ] 04-09-PLAN.md — Delete vector_id dead code + ID-drift/tenant-isolation/chaos-restart guards (D-10) + parity-comparable ArcadeDB capture (ARC-05, ARC-08)
+- [x] 04-09-PLAN.md — Delete vector_id dead code + ID-drift/tenant-isolation/chaos-restart guards (D-10) + parity-comparable ArcadeDB capture (ARC-05, ARC-08)
 
 ### Phase 5: Per-Tenant ArcadeDB Isolation
 
@@ -287,7 +287,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
-| 4. ArcadeDB Direct Port | 8/9 | In Progress|  |
+| 4. ArcadeDB Direct Port | 9/9 | Complete   | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
