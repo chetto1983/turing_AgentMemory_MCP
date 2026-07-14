@@ -14,7 +14,6 @@ from turing_agentmemory_mcp.store_evidence import _EvidenceMixin
 from turing_agentmemory_mcp.store_memory_read import _MemoryReadMixin
 from turing_agentmemory_mcp.store_memory_write import _MemoryWriteMixin
 from turing_agentmemory_mcp.store_rebuild import _RebuildMixin
-from turing_agentmemory_mcp.store_rebuild_sparse import _RebuildSparseMixin
 from turing_agentmemory_mcp.store_search import _SearchMixin
 from turing_agentmemory_mcp.store_utils import _UtilsMixin
 
@@ -29,7 +28,6 @@ class TuringAgentMemory(
     _DocumentMixin,
     _ChunkingMixin,
     _RebuildMixin,
-    _RebuildSparseMixin,
     _UtilsMixin,
     _StoreCore,
 ):

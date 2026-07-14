@@ -9,8 +9,6 @@ if "turingdb" not in sys.modules:
 
 from _batch_memory_shared import CountingBatchEmbedder, RecordingMemoryStore
 
-from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseIndex
-
 
 def test_tenant_vector_index_names_are_deterministic_and_isolated(tmp_path: Path) -> None:
     store = RecordingMemoryStore(tmp_path, CountingBatchEmbedder())
@@ -23,43 +21,17 @@ def test_tenant_vector_index_names_are_deterministic_and_isolated(tmp_path: Path
     assert store.memory_index != alice
 
 
-def test_rebuild_sparse_projection_replaces_index_from_canonical_graph_documents(
-    tmp_path: Path,
-) -> None:
-    class RebuildStore(RecordingMemoryStore):
-        def _canonical_sparse_documents(self) -> list[SparseDocument]:
-            return [
-                SparseDocument(
-                    "alice:episode:canonical",
-                    "alice",
-                    "canonical",
-                    "episode",
-                    "canonical graph memory",
-                )
-            ]
-
-    sparse = SparseIndex(tmp_path / "fts.sqlite3")
-    sparse.initialize()
-    sparse.upsert_many(
-        [
-            SparseDocument(
-                "alice:episode:stale",
-                "alice",
-                "stale",
-                "episode",
-                "stale memory",
-            )
-        ]
-    )
-    store = RebuildStore(tmp_path, CountingBatchEmbedder(), sparse_index=sparse)
-
-    status = store.rebuild_sparse_projection()
-
-    assert status["document_count"] == 1
-    assert sparse.search(user_identifier="alice", query="stale", limit=10) == []
-    assert [
-        hit.source_id for hit in sparse.search(user_identifier="alice", query="canonical", limit=10)
-    ] == ["canonical"]
+# `test_rebuild_sparse_projection_replaces_index_from_canonical_graph_documents`
+# was deleted here (04-10, ARC-06 gap closure): it exercised
+# `rebuild_sparse_projection`/`_canonical_sparse_documents`, the legacy
+# SQLite-FTS5 outbox rebuild mixin (`store_rebuild_sparse.py`), which this
+# plan deletes entirely -- nothing reads that projection anymore (04-07
+# retired the read side; this plan retires the write side). Superseded by
+# `tests/test_store_arcadedb_rebuild.py::test_community_rebuild_succeeds_with_
+# uninitialized_sparse_index_and_populates_lexical_channels` and
+# `tests/test_community_detection.py`'s updated
+# `test_store_rebuilds_embeds_and_grounds_communities_via_native_lexical_channel`,
+# which prove `rebuild_communities` succeeds without touching the outbox at all.
 
 
 # `test_rebuild_vector_projection_reembeds_each_active_canonical_kind` and

@@ -177,8 +177,12 @@ class _ReadyClient:
 class CommunityStore(TuringAgentMemory):
     def __init__(self, tmp_path: Path) -> None:
         self.community_embedder = CommunityEmbedder()
+        # Deliberately never `.initialize()`'d (04-10, ARC-06 gap closure): a
+        # SparseIndex with no schema mirrors a fresh deployment volume.
+        # `rebuild_communities` must never touch it -- the outbox write path
+        # is retired, lexical retrieval is carried entirely by the native
+        # `lexical_tokens`/`lexical_weights` channel populated below.
         self.sparse = SparseIndex(tmp_path / "communities.sqlite3")
-        self.sparse.initialize()
         super().__init__(
             client=_ReadyClient(),  # type: ignore[arg-type]
             turing_home=tmp_path,
@@ -226,7 +230,7 @@ class CommunityStore(TuringAgentMemory):
         return set()
 
 
-def test_store_rebuilds_embeds_and_sparse_indexes_grounded_communities(
+def test_store_rebuilds_embeds_and_grounds_communities_via_native_lexical_channel(
     tmp_path: Path,
 ) -> None:
     store = CommunityStore(tmp_path)
@@ -243,15 +247,14 @@ def test_store_rebuilds_embeds_and_sparse_indexes_grounded_communities(
     # D-07/04-08: the community embedding + both lexical channels are inline
     # in the prepared payload `_replace_community_graph` writes -- no more
     # separate `_load_vectors`/tenant-vector-index CSV step to assert against.
+    # 04-10 (ARC-06 gap closure): `store.sparse` is deliberately never
+    # `.initialize()`'d above -- `rebuild_communities` succeeding at all,
+    # and still populating a native `lexical_tokens` channel, is itself the
+    # proof that lexical grounding no longer depends on the legacy outbox.
     assert isinstance(projection["embedding"], list) and projection["embedding"]
-    assert projection["lexical_tokens"], "both lexical channels populated via shared sparse_encoder"
-    hits = store.sparse.search(
-        user_identifier="alice",
-        query="Alice Hiking",
-        kinds=["community"],
-        limit=10,
+    assert projection["lexical_tokens"], (
+        "native lexical channel populated via shared sparse_encoder"
     )
-    assert [hit.source_id for hit in hits] == [projection["id"]]
 
 
 def test_batch_community_refresh_records_degradation_without_failing_ingest(

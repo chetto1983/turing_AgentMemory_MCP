@@ -17,13 +17,13 @@ docstring for the full mechanism. `_replace_community_graph` (Task 2) is one
 bound-param ArcadeDB SQL here -- they were still Cypher-shaped (a real,
 currently-live bug: these are called from already-ported write/read paths).
 
-The legacy SQLite-FTS5 sparse-index outbox rebuild (`rebuild_sparse_projection`,
-`_canonical_sparse_documents`, `_prepare_sparse_projection`, `_sparse_doc_key`,
-`_sparse_kind`) moved to the sibling `store_rebuild_sparse.py` mixin, purely to
-keep this file under the 600-LOC cap while porting -- it is deliberately LEFT
-untouched and still Cypher-shaped there, matching 04-05-SUMMARY.md's explicit
-precedent: ARC-06's bootstrap-time outbox retirement is a separate, later
-concern, out of this plan's declared scope (ARC-04/ARC-05/INFRA-03).
+The legacy SQLite-FTS5 sparse-index outbox rebuild (formerly a sibling
+`store_rebuild_sparse.py` mixin) is retired (04-10, ARC-06 gap closure):
+`rebuild_communities` no longer stages, commits, replays, or discards an
+outbox batch -- lexical retrieval is carried entirely by the native
+`lexical_tokens`/`lexical_weights` channel computed below via the shared
+`sparse_encoder.sparse_vector()`, unconditionally, and read by
+`store_evidence.py`'s native sparse-vector + Lucene channels (04-07).
 """
 
 from __future__ import annotations
@@ -36,7 +36,6 @@ from turing_agentmemory_mcp.community_detection import (
     build_community_projection,
 )
 from turing_agentmemory_mcp.sparse_encoder import sparse_vector
-from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseMutation
 from turing_agentmemory_mcp.temporal_graph import EntityProjection, TemporalProjection
 
 
@@ -263,29 +262,6 @@ class _RebuildMixin:
         ]
         vectors = self._embed_many([projection.content for projection in projections])
         previous_ids = self._active_community_ids(user_identifier)
-        sparse_batch_id = None
-        if self.sparse_index is not None:
-            mutations: list[SparseMutation] = [
-                SparseMutation.delete(
-                    self._sparse_doc_key(user_identifier, "community", community_id)
-                )
-                for community_id in sorted(previous_ids)
-            ]
-            mutations.extend(
-                SparseMutation.upsert(
-                    SparseDocument(
-                        doc_key=self._sparse_doc_key(user_identifier, "community", projection.id),
-                        user_identifier=user_identifier,
-                        source_id=projection.id,
-                        kind="community",
-                        content=projection.content,
-                        created_at=self._now_iso(),
-                    )
-                )
-                for projection in projections
-            )
-            if mutations:
-                sparse_batch_id = self.sparse_index.prepare(mutations)
         prepared = [
             {
                 "id": projection.id,
@@ -305,18 +281,7 @@ class _RebuildMixin:
             for projection, vector in zip(projections, vectors, strict=True)
             for tokens, weights in (sparse_vector(projection.content),)
         ]
-        try:
-            self._replace_community_graph(user_identifier, prepared, previous_ids)
-        except Exception as exc:
-            if sparse_batch_id is not None and self.sparse_index is not None:
-                try:
-                    self.sparse_index.discard_prepared(sparse_batch_id)
-                except Exception as discard_exc:
-                    exc.add_note(f"sparse community cleanup failed: {discard_exc}")
-            raise
-        if sparse_batch_id is not None and self.sparse_index is not None:
-            self.sparse_index.commit_batch(sparse_batch_id)
-            self.sparse_index.replay(batch_id=sparse_batch_id)
+        self._replace_community_graph(user_identifier, prepared, previous_ids)
         result = {
             "user_identifier": user_identifier,
             "community_count": len(projections),

@@ -30,6 +30,12 @@ from _arcadedb_rebuild_fake import (
 )
 from _batch_memory_shared import CountingBatchEmbedder
 
+from turing_agentmemory_mcp.entity_extraction import NoopEntityProcessor
+from turing_agentmemory_mcp.governance import NoopAuditSink, NoopRedactor
+from turing_agentmemory_mcp.observability import InMemorySpanRecorder
+from turing_agentmemory_mcp.sparse_index import SparseIndex
+from turing_agentmemory_mcp.store import TuringAgentMemory
+
 _STORE_REBUILD_PATH = (
     Path(__file__).resolve().parents[1] / "src" / "turing_agentmemory_mcp" / "store_rebuild.py"
 )
@@ -39,6 +45,7 @@ _STORE_REBUILD_QUERIES_PATH = (
     / "turing_agentmemory_mcp"
     / "store_rebuild_queries.py"
 )
+_STORE_PATH = Path(__file__).resolve().parents[1] / "src" / "turing_agentmemory_mcp" / "store.py"
 
 
 # -- Task 1, Test 1: builds a NEW versioned index, populates, swaps, drops --
@@ -404,3 +411,81 @@ def test_rebuild_files_contain_no_vector_id_or_load_vector() -> None:
             "_load_vectors",
         ):
             assert forbidden not in source, f"{path_.name} still references {forbidden!r}"
+
+
+# -- 04-10 gap closure (ARC-06): the write-side legacy SQLite-FTS5 outbox is
+# retired from rebuild_communities, and its dedicated rebuild mixin is deleted
+# entirely --
+
+
+def test_community_rebuild_succeeds_with_uninitialized_sparse_index(tmp_path: Path) -> None:
+    """T-04-10-01: rebuild_communities must not touch the legacy outbox at
+    all -- a SparseIndex present but never `.initialize()`'d (as on a fresh
+    deployment volume) has no outbox schema and would raise
+    SparseSchemaMismatch on first touch if any prepare/commit/replay/discard
+    call remained."""
+    client = FakeArcadeDBClient()
+    sparse = SparseIndex(tmp_path / "communities.sqlite3")  # deliberately never .initialize()'d
+    store = TuringAgentMemory(
+        client,  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        embedder=CountingBatchEmbedder(),
+        reranker=None,
+        entity_processor=NoopEntityProcessor(),
+        redactor=NoopRedactor(),
+        audit_sink=NoopAuditSink(),
+        observer=InMemorySpanRecorder(),
+        sparse_index=sparse,
+    )
+    assert store.fusion_enabled is True
+    seed_vertex(client, "Entity", id="a", user_identifier="alice", display_name="Alice")
+    seed_vertex(client, "Entity", id="b", user_identifier="alice", display_name="Hiking")
+    seed_edge(client, "MENTIONS", "m1", "a")
+    seed_edge(client, "MENTIONS", "m1", "b")
+    seed_vertex(client, "Memory", id="m1", user_identifier="alice", content="Alice loves hiking")
+    seed_vertex(
+        client,
+        "Fact",
+        id="f1",
+        user_identifier="alice",
+        subject_entity_id="a",
+        predicate="prefers",
+        object_entity_id="b",
+        content="Alice prefers Hiking",
+        confidence=0.9,
+        observed_at="2026-07-10T10:00:00Z",
+        source_memory_id="m1",
+    )
+
+    result = store.rebuild_communities(user_identifier="alice")
+
+    assert result["community_count"] >= 1
+    community_rows = [item for item in all_rows(client) if item.get("_type") == "Community"]
+    assert community_rows
+    assert community_rows[0]["lexical_tokens"], (
+        "native lexical channel unaffected by outbox removal"
+    )
+
+
+def test_store_rebuild_sparse_module_deleted_and_mixin_removed_from_mro() -> None:
+    rebuild_sparse_path = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "turing_agentmemory_mcp"
+        / "store_rebuild_sparse.py"
+    )
+    assert not rebuild_sparse_path.exists()
+    store_source = _STORE_PATH.read_text(encoding="utf-8")
+    assert "_RebuildSparseMixin" not in store_source
+    assert "store_rebuild_sparse" not in store_source
+
+
+def test_rebuild_file_contains_no_sparse_outbox_calls() -> None:
+    source = _STORE_REBUILD_PATH.read_text(encoding="utf-8")
+    for forbidden in (
+        "sparse_index.prepare(",
+        "sparse_index.commit_batch(",
+        "sparse_index.replay(",
+        "sparse_index.discard_prepared(",
+    ):
+        assert forbidden not in source, f"store_rebuild.py still references {forbidden!r}"
