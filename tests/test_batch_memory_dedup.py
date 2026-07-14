@@ -251,19 +251,32 @@ def test_temporal_graph_write_failure_publishes_no_vectors(tmp_path: Path) -> No
     assert store.vector_loads == []
 
 
-def test_temporal_store_projects_episode_entities_and_fact_to_sparse_index(
+# ARC-06 (gap closure, 04-10): store_messages/update_memory/delete_memory must
+# never touch the legacy SQLite-FTS5 sparse-index outbox
+# (prepare/commit_batch/replay/discard_prepared) -- the native
+# lexical_tokens/lexical_weights channel already carries lexical retrieval
+# unconditionally (04-05), and store_evidence.py's bm25 channel (04-07)
+# reads only ArcadeDB's native sparse-vector + Lucene channels, never
+# sparse_index. On a fresh deployment volume (store_core.py's bootstrap no
+# longer calls `sparse_index.initialize()`, 04-04) the outbox file has no
+# schema, so any surviving outbox touch raises SparseSchemaMismatch --
+# these tests construct a SparseIndex that is deliberately never
+# `.initialize()`'d to prove no such touch remains (T-04-10-01).
+
+
+def test_store_messages_succeeds_with_uninitialized_sparse_index_and_populates_lexical_channels(
     tmp_path: Path,
 ) -> None:
-    sparse = SparseIndex(tmp_path / "fts.sqlite3")
-    sparse.initialize()
+    sparse = SparseIndex(tmp_path / "fts.sqlite3")  # deliberately never .initialize()'d
     store = RecordingMemoryStore(
         tmp_path,
         CountingBatchEmbedder(),
         RecordingMemoryExtractor(),
         sparse,
     )
+    assert store.fusion_enabled is True
 
-    store.store_messages(
+    items = store.store_messages(
         user_identifier="alice",
         messages=[
             {
@@ -275,42 +288,40 @@ def test_temporal_store_projects_episode_entities_and_fact_to_sparse_index(
         ],
     )
 
-    hits = sparse.search(user_identifier="alice", query="Alice hiking", limit=20)
-    assert {hit.kind for hit in hits} == {"episode", "entity", "fact"}
-    assert {hit.source_id for hit in hits} >= {"e1"}
-    assert sparse.status()["document_count"] == 4
-    assert sparse.status()["pending_count"] == 0
+    assert [item.id for item in items] == ["e1"]
+    memory_params = [
+        params
+        for query, params in zip(store.write_queries, store.write_params, strict=True)
+        if query.startswith("CREATE VERTEX Memory") and params is not None
+    ]
+    assert len(memory_params) == 1
+    assert memory_params[0]["lexical_tokens"], "native lexical channel unaffected by outbox removal"
+    assert memory_params[0]["lexical_weights"]
 
 
-def test_graph_failure_discards_prepared_sparse_projection(tmp_path: Path) -> None:
-    class FailingWriteStore(RecordingMemoryStore):
-        def _write_many(self, statements: list[object]) -> None:
-            raise RuntimeError("graph commit failed")
-
-    sparse = SparseIndex(tmp_path / "fts.sqlite3")
-    sparse.initialize()
-    store = FailingWriteStore(
+def test_update_and_delete_memory_succeed_with_uninitialized_sparse_index(
+    tmp_path: Path,
+) -> None:
+    sparse = SparseIndex(tmp_path / "fts.sqlite3")  # deliberately never .initialize()'d
+    store = RecordingMemoryStore(
         tmp_path,
         CountingBatchEmbedder(),
-        RecordingMemoryExtractor(),
+        None,
         sparse,
     )
+    item = store.add_preference(user_identifier="alice", category="hobby", preference="hiking")
+    store._fact_ids_for_memory = types.MethodType(  # type: ignore[method-assign]
+        lambda self, user_identifier, memory_id: [],
+        store,
+    )
 
-    with pytest.raises(RuntimeError, match="graph commit failed"):
-        store.store_messages(
-            user_identifier="alice",
-            messages=[
-                {
-                    "memory_id": "e1",
-                    "session_id": "s1",
-                    "role": "user",
-                    "content": "Alice likes hiking.",
-                }
-            ],
-        )
+    updated = store.update_memory(
+        user_identifier="alice", memory_id=item.id, content="hobby: trail running."
+    )
+    assert updated.content == "hobby: trail running."
 
-    assert sparse.status()["document_count"] == 0
-    assert sparse.status()["pending_count"] == 0
+    result = store.delete_memory(user_identifier="alice", memory_id=item.id)
+    assert result["deleted"] is True
 
 
 def test_temporal_update_rejects_raw_episode_mutation(tmp_path: Path) -> None:
@@ -343,55 +354,9 @@ def test_temporal_update_rejects_raw_episode_mutation(tmp_path: Path) -> None:
     assert len(store.write_queries) == 12
 
 
-def test_delete_removes_episode_and_supported_facts_from_sparse_projection(
-    tmp_path: Path,
-) -> None:
-    sparse = SparseIndex(tmp_path / "fts.sqlite3")
-    sparse.initialize()
-    store = RecordingMemoryStore(
-        tmp_path,
-        CountingBatchEmbedder(),
-        RecordingMemoryExtractor(),
-        sparse,
-    )
-    store.store_messages(
-        user_identifier="alice",
-        messages=[
-            {
-                "memory_id": "e1",
-                "session_id": "s1",
-                "role": "user",
-                "content": "Alice likes hiking.",
-            }
-        ],
-    )
-    fact_ids = [
-        hit.source_id
-        for hit in sparse.search(
-            user_identifier="alice",
-            query="hiking",
-            kinds=["fact"],
-            limit=10,
-        )
-    ]
-    store._fact_ids_for_memory = types.MethodType(  # type: ignore[method-assign]
-        lambda self, user_identifier, memory_id: fact_ids,
-        store,
-    )
-
-    result = store.delete_memory(user_identifier="alice", memory_id="e1")
-
-    assert result["deleted"] is True
-    assert (
-        sparse.search(
-            user_identifier="alice",
-            query="hiking",
-            kinds=["episode", "fact"],
-            limit=10,
-        )
-        == []
-    )
-    assert (
-        len(sparse.search(user_identifier="alice", query="hiking", kinds=["entity"], limit=10)) == 1
-    )
-    assert sparse.status()["pending_count"] == 0
+# `test_delete_removes_episode_and_supported_facts_from_sparse_projection` was
+# deleted here (04-10, ARC-06 gap closure): it asserted `delete_memory`
+# staged/committed/replayed a legacy SQLite-FTS5 outbox mutation -- exactly
+# the behavior retired by this plan. Superseded by
+# `test_update_and_delete_memory_succeed_with_uninitialized_sparse_index`
+# above, which proves `delete_memory` succeeds with no outbox touch at all.

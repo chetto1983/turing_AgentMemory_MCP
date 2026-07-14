@@ -1,7 +1,7 @@
 """Memory write-path mixin for TuringAgentMemory: store/batch-store/add-* operations.
 
 Split out of store.py (D-08/D-09, phase 01-01). Cross-mixin calls (`self.get_memory`,
-`self.update_memory`, `self._unique_projection_entities`, `self._prepare_sparse_projection`,
+`self.update_memory`, `self._unique_projection_entities`,
 `self._refresh_communities_after_batch`, ...) resolve via the TuringAgentMemory MRO at
 runtime against the sibling mixins that define them.
 
@@ -232,33 +232,16 @@ class _MemoryWriteMixin:
             }
 
             item_by_id: dict[str, MemoryItem] = {}
-            sparse_batch_id = self._prepare_sparse_projection(
+            for item in self._create_memories_batch(
                 user_identifier=user_identifier,
                 payloads=new_payloads,
                 projections=projections,
                 entities=entities,
-            )
-            try:
-                for item in self._create_memories_batch(
-                    user_identifier=user_identifier,
-                    payloads=new_payloads,
-                    projections=projections,
-                    entities=entities,
-                    vector_by_id=vector_by_id,
-                    entity_vectors=entity_vectors,
-                    fact_vectors=fact_vectors,
-                ):
-                    item_by_id[item.id] = item
-            except Exception as exc:
-                if sparse_batch_id is not None and self.sparse_index is not None:
-                    try:
-                        self.sparse_index.discard_prepared(sparse_batch_id)
-                    except Exception as discard_exc:
-                        exc.add_note(f"sparse prepared-batch cleanup failed: {discard_exc}")
-                raise
-            if sparse_batch_id is not None and self.sparse_index is not None:
-                self.sparse_index.commit_batch(sparse_batch_id)
-                self.sparse_index.replay(batch_id=sparse_batch_id)
+                vector_by_id=vector_by_id,
+                entity_vectors=entity_vectors,
+                fact_vectors=fact_vectors,
+            ):
+                item_by_id[item.id] = item
             for payload in unique_payloads:
                 memory_id = str(payload["memory_id"])
                 if memory_id in item_by_id:

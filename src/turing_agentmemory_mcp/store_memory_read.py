@@ -25,7 +25,6 @@ from typing import Any
 
 from turing_agentmemory_mcp.models import MemoryItem
 from turing_agentmemory_mcp.sparse_encoder import sparse_vector
-from turing_agentmemory_mcp.sparse_index import SparseDocument, SparseMutation
 from turing_agentmemory_mcp.store_memory_queries import (
     memory_delete_statements,
     memory_list_statement,
@@ -146,29 +145,6 @@ class _MemoryReadMixin:
                 else self._embed_text(next_content, operation="memory.update")
             )
         lexical_tokens, lexical_weights = sparse_vector(next_content)
-        sparse_batch_id = None
-        if self.sparse_index is not None:
-            sparse_batch_id = self.sparse_index.prepare(
-                [
-                    SparseMutation.upsert(
-                        SparseDocument(
-                            doc_key=self._sparse_doc_key(
-                                user_identifier,
-                                self._sparse_kind(next_kind),
-                                memory_id,
-                            ),
-                            user_identifier=user_identifier,
-                            source_id=memory_id,
-                            kind=self._sparse_kind(next_kind),
-                            content=next_content,
-                            source=next_source,
-                            session_id=next_session_id,
-                            created_at=existing.created_at,
-                            expires_at=next_expires_at,
-                        )
-                    )
-                ]
-            )
         statement = memory_update_statement(
             memory_id=memory_id,
             user_identifier=user_identifier,
@@ -185,15 +161,7 @@ class _MemoryReadMixin:
             lexical_weights=lexical_weights,
             embedding=embedding,
         )
-        try:
-            self._write_many([statement])
-        except Exception:
-            if sparse_batch_id is not None and self.sparse_index is not None:
-                self.sparse_index.discard_prepared(sparse_batch_id)
-            raise
-        if sparse_batch_id is not None and self.sparse_index is not None:
-            self.sparse_index.commit_batch(sparse_batch_id)
-            self.sparse_index.replay(batch_id=sparse_batch_id)
+        self._write_many([statement])
         item = MemoryItem(
             id=memory_id,
             user_identifier=user_identifier,
@@ -223,36 +191,13 @@ class _MemoryReadMixin:
             return {"memory_id": memory_id, "deleted": False}
         updated_at = self._now_iso()
         fact_ids = self._fact_ids_for_memory(user_identifier, memory_id)
-        sparse_batch_id = None
-        if self.sparse_index is not None:
-            sparse_batch_id = self.sparse_index.prepare(
-                [
-                    SparseMutation.delete(
-                        self._sparse_doc_key(user_identifier, "episode", memory_id)
-                    ),
-                    *[
-                        SparseMutation.delete(
-                            self._sparse_doc_key(user_identifier, "fact", fact_id)
-                        )
-                        for fact_id in fact_ids
-                    ],
-                ]
-            )
         statements = memory_delete_statements(
             memory_id=memory_id,
             user_identifier=user_identifier,
             fact_ids=fact_ids,
             updated_at=updated_at,
         )
-        try:
-            self._write_many(statements)
-        except Exception:
-            if sparse_batch_id is not None and self.sparse_index is not None:
-                self.sparse_index.discard_prepared(sparse_batch_id)
-            raise
-        if sparse_batch_id is not None and self.sparse_index is not None:
-            self.sparse_index.commit_batch(sparse_batch_id)
-            self.sparse_index.replay(batch_id=sparse_batch_id)
+        self._write_many(statements)
         self._audit(
             operation="memory.delete",
             user_identifier=user_identifier,

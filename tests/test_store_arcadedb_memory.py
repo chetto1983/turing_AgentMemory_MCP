@@ -436,3 +436,21 @@ def test_memory_read_file_contains_no_vector_id() -> None:
 def test_memory_queries_builders_carry_user_identifier_scope() -> None:
     source = _MEMORY_QUERIES_PATH.read_text(encoding="utf-8")
     assert source.count("user_identifier") >= 1
+
+
+def test_memory_write_and_read_files_no_longer_touch_the_sparse_outbox() -> None:
+    """ARC-06 gap closure (04-10): the write-side legacy SQLite-FTS5 outbox
+    staging/commit/replay/discard calls and their staging-helper method name
+    must be gone from both mixins -- lexical retrieval is carried entirely by
+    the native lexical_tokens/lexical_weights channel (04-05) and read by
+    store_evidence.py's native sparse-vector + Lucene channels (04-07)."""
+    for path in (_MEMORY_WRITE_PATH, _MEMORY_READ_PATH):
+        source = path.read_text(encoding="utf-8")
+        for forbidden in (
+            "sparse_index.prepare(",
+            "sparse_index.commit_batch(",
+            "sparse_index.replay(",
+            "sparse_index.discard_prepared(",
+            "_prepare_sparse_projection",
+        ):
+            assert forbidden not in source, f"{path.name} still references {forbidden!r}"
