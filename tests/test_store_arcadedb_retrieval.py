@@ -292,6 +292,88 @@ def test_fact_sources_by_ids_binds_array_param_single_quote_safe(tmp_path: Path)
     assert fact_queries[0][1]["fact_ids"] == [tricky_id]
 
 
+def test_expand_entity_evidence_never_crosses_tenant_via_intermediate_hops(
+    tmp_path: Path,
+) -> None:
+    """CR-01 regression: a cross-tenant `SUBJECT_OF`/`SUPPORTED_BY` edge
+    planted directly (bypassing the normal write path -- simulating "the
+    invariant that currently prevents this breaks") must never surface
+    tenant B's fact/memory through tenant A's seed entity, at hop=1 OR
+    hop=2 (the `.both()` intermediate-entity step)."""
+    client = _FakeArcadeDBClient()
+    store = make_retrieval_store(client, tmp_path)
+    alice_entity = stable_id("ent", "alice", "person", "alice")
+    bob_bridge_entity = stable_id("ent", "bob", "person", "bridge")
+    client._committed.extend(
+        [
+            {
+                "_type": "Entity",
+                "id": alice_entity,
+                "user_identifier": "alice",
+                "status": "active",
+            },
+            # Cross-tenant intermediate entity (hop=2 `.both()` step) --
+            # belongs to bob, not alice.
+            {
+                "_type": "Entity",
+                "id": bob_bridge_entity,
+                "user_identifier": "bob",
+                "status": "active",
+            },
+            # Cross-tenant Fact/Memory -- belong to bob, reached only via
+            # edges planted directly below (never through alice's own write
+            # batch).
+            {
+                "_type": "Fact",
+                "id": "fact-bob-direct",
+                "user_identifier": "bob",
+                "confidence": 1.0,
+                "status": "active",
+            },
+            {
+                "_type": "Memory",
+                "id": "mem-bob-direct",
+                "user_identifier": "bob",
+                "status": "active",
+            },
+            {
+                "_type": "Fact",
+                "id": "fact-bob-two-hop",
+                "user_identifier": "bob",
+                "confidence": 1.0,
+                "status": "active",
+            },
+            {
+                "_type": "Memory",
+                "id": "mem-bob-two-hop",
+                "user_identifier": "bob",
+                "status": "active",
+            },
+        ]
+    )
+    client._edges.extend(
+        [
+            # hop=1: alice's own entity directly SUBJECT_OF a bob-owned fact.
+            ("SUBJECT_OF", alice_entity, "fact-bob-direct"),
+            ("SUPPORTED_BY", "fact-bob-direct", "mem-bob-direct"),
+            # hop=2: alice's entity bridges through a bob-owned intermediate
+            # entity to reach another bob-owned fact/memory.
+            ("MENTIONS", alice_entity, bob_bridge_entity),
+            ("SUBJECT_OF", bob_bridge_entity, "fact-bob-two-hop"),
+            ("SUPPORTED_BY", "fact-bob-two-hop", "mem-bob-two-hop"),
+        ]
+    )
+
+    evidence = store._expand_entity_evidence("alice", {alice_entity: 1.0}, limit=10)
+
+    assert evidence == [], (
+        f"cross-tenant fact/memory leaked through an unscoped intermediate hop: {evidence!r}"
+    )
+
+    hits = store.search_memory(user_identifier="alice", query="anything", limit=5)
+    assert all(hit.user_identifier == "alice" for hit in hits)
+
+
 def test_dense_evidence_channels_order_by_native_score_with_no_vector_id_join(
     tmp_path: Path,
 ) -> None:

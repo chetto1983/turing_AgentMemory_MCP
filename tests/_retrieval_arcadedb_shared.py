@@ -337,13 +337,18 @@ class _FakeArcadeDBClient:
         def is_active(row: dict[str, object]) -> bool:
             return row.get("status", "active") == "active"
 
+        # CR-01 fix: every hop's `where:` clause binds `user_identifier =
+        # :user_identifier`, not just the seed. Mirror that here so a
+        # cross-tenant edge planted directly (bypassing the normal write
+        # path) is a regression this fake can actually catch.
+        def is_scoped(row: dict[str, object]) -> bool:
+            return row.get("user_identifier") == user_identifier and is_active(row)
+
         rows: list[dict[str, object]] = []
         starts = [
             entity_id
             for entity_id in entity_ids
-            if entity_id in entities
-            and entities[entity_id].get("user_identifier") == user_identifier
-            and is_active(entities[entity_id])
+            if entity_id in entities and is_scoped(entities[entity_id])
         ]
         for entity_id in starts:
             hop_starts = [entity_id]
@@ -351,16 +356,16 @@ class _FakeArcadeDBClient:
                 hop_starts = [
                     neighbor
                     for neighbor in any_neighbors(entity_id)
-                    if neighbor in entities and is_active(entities[neighbor])
+                    if neighbor in entities and is_scoped(entities[neighbor])
                 ]
             for n_id in hop_starts:
                 for fact_id in targets(edge_kind, n_id):
                     fact = facts.get(fact_id)
-                    if fact is None or not is_active(fact):
+                    if fact is None or not is_scoped(fact):
                         continue
                     for memory_id in targets("SUPPORTED_BY", fact_id):
                         memory = memories.get(memory_id)
-                        if memory is None or not is_active(memory):
+                        if memory is None or not is_scoped(memory):
                             continue
                         rows.append(
                             {

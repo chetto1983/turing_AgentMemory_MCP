@@ -139,10 +139,17 @@ def entity_traversal_statement(
         # Undirected any-edge-type hop to an intermediate entity -- mirrors the
         # retired Cypher `(e:Entity)--(n:Entity)` step (dynamic per-predicate
         # entity-to-entity edges are unbounded vocabulary, store_memory_queries.py).
-        pattern += ".both(){as: n, where: (status = 'active')}"
+        # Every hop re-asserts user_identifier -- CLAUDE.md invariant #1 is the
+        # only isolation backstop in this single-shared-database model, so no
+        # intermediate vertex may rely solely on the seed's scoping (CR-01).
+        pattern += (
+            ".both(){as: n, where: (user_identifier = :user_identifier AND status = 'active')}"
+        )
     pattern += (
-        f".out('{edge_kind}'){{as: f, where: (status = 'active')}}"
-        ".out('SUPPORTED_BY'){as: m, where: (status = 'active')}"
+        f".out('{edge_kind}'){{as: f, where: "
+        "(user_identifier = :user_identifier AND status = 'active')}}"
+        ".out('SUPPORTED_BY'){as: m, where: "
+        "(user_identifier = :user_identifier AND status = 'active')}"
     )
     return (
         f"MATCH {pattern} RETURN m.id AS memory_id, f.id AS fact_id, "
