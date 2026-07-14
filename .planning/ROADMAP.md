@@ -178,7 +178,27 @@ Plans:
   2. Every query still carries explicit `user_identifier` scoping and fails closed on an empty identifier — DB-level isolation never replaces the invariant-#1 contract.
   3. Concurrent multi-tenant isolation tests pass with no cross-tenant leakage under concurrency.
 
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+
+**Wave 1 — Contracts and defense-in-depth**
+- [ ] 05-01-PLAN.md — Define exact opaque tenant identity and keyed physical database naming (ARC-07)
+- [ ] 05-02-PLAN.md — Persist a pseudonymous, fail-closed tenant registry and lifecycle state (ARC-07)
+- [ ] 05-03-PLAN.md — Audit and enforce explicit `user_identifier` predicates across every query surface (ARC-07, TEST-05)
+
+**Wave 2 — Provisioning**
+- [ ] 05-04-PLAN.md — Provision and reconcile tenant databases with ready-last lifecycle semantics (ARC-07)
+
+**Wave 3 — Runtime routing**
+- [ ] 05-05-PLAN.md — Build immutable tenant store views with single-flight provisioning and bounded caching (ARC-07)
+
+**Wave 4 — Foreground and background integration**
+- [ ] 05-06-PLAN.md — Route foreground server tools through exact tenant-bound stores and layered health checks (ARC-07)
+- [ ] 05-07-PLAN.md — Route uploads and document workers without identity transformation or cross-tenant reuse (ARC-07, TEST-05)
+
+**Wave 5 — Live isolation gate**
+- [ ] 05-08-PLAN.md — Prove live A/B/C physical isolation, lifecycle chaos resilience, and operational contracts (ARC-07, TEST-05)
 
 ### Phase 6: Migration-Correctness Gate
 
