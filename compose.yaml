@@ -80,6 +80,15 @@ services:
   arcadedb:
     image: arcadedata/arcadedb:26.7.1
     environment:
+      # LO-03: ARCADEDB_PASSWORD's dev-only fallback is documented once,
+      # canonically, in .env.example (with the "MUST be overridden for any
+      # non-loopback deployment" caveat) -- this literal `agentmemory-
+      # arcadedb-dev` string is repeated here and at the turing-agentmemory-mcp
+      # and e2e services below only because Compose's `${VAR:-default}`
+      # interpolation syntax has no cross-referencing mechanism (YAML anchors
+      # do not resolve inside an interpolated string). The 127.0.0.1-only port
+      # publish below is the primary guard for local dev, not this password's
+      # strength -- matching the spike's already-accepted risk posture.
       - JAVA_OPTS=-Darcadedb.server.rootPassword=${ARCADEDB_PASSWORD:-agentmemory-arcadedb-dev}
     ports:
       - "127.0.0.1:2480:2480"
@@ -186,6 +195,9 @@ services:
       - ARCADEDB_URL=http://arcadedb:2480
       - ARCADEDB_DATABASE=${ARCADEDB_DATABASE:-agent_memory}
       - ARCADEDB_USER=${ARCADEDB_USER:-root}
+      # LO-03: dev-only fallback documented canonically in .env.example and
+      # at the arcadedb service above -- MUST be overridden for any
+      # non-loopback deployment.
       - ARCADEDB_PASSWORD=${ARCADEDB_PASSWORD:-agentmemory-arcadedb-dev}
       - ARCADEDB_MEMORY_INDEX=${ARCADEDB_MEMORY_INDEX:-agent_memory_episode_vectors_768}
       - ARCADEDB_DOCUMENT_INDEX=${ARCADEDB_DOCUMENT_INDEX:-agent_memory_document_vectors_768}
@@ -644,6 +656,9 @@ services:
       ARCADEDB_E2E_HOME: /tmp/arcadedb-e2e
       ARCADEDB_URL: http://arcadedb:2480
       ARCADEDB_USER: root
+      # LO-03: dev-only fallback documented canonically in .env.example and
+      # at the arcadedb service above -- MUST be overridden for any
+      # non-loopback deployment.
       ARCADEDB_PASSWORD: ${ARCADEDB_PASSWORD:-agentmemory-arcadedb-dev}
       HOME: /tmp
       XDG_CACHE_HOME: /tmp/.cache
