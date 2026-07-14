@@ -629,11 +629,24 @@ services:
       args:
         PYPROJECT_EXTRAS: ${PYPROJECT_EXTRAS:-dev}
     image: turing-agentmemory-mcp:local
+    depends_on:
+      arcadedb:
+        condition: service_healthy
     entrypoint: ["python", "scripts/e2e_score.py", "--out", "/tmp/e2e-results.json"]
     volumes:
       - .:/work
     environment:
-      TURINGDB_E2E_HOME: /tmp/turing-agentmemory-e2e
+      # ArcadeDB (04-09): e2e_score.py connects to the compose-network arcadedb
+      # service instead of spawning a local turingdb daemon (ARCADEDB_E2E_HOME
+      # replaces the retired TURINGDB_E2E_HOME). The restart leg additionally
+      # needs `docker compose` on the host this container runs alongside --
+      # not available inside this container itself, so that one check reports
+      # ok=false (not fabricated, not a script crash) when run this way; run
+      # scripts/e2e_score.py directly on the host for the full restart check.
+      ARCADEDB_E2E_HOME: /tmp/arcadedb-e2e
+      ARCADEDB_URL: http://arcadedb:2480
+      ARCADEDB_USER: root
+      ARCADEDB_PASSWORD: ${ARCADEDB_PASSWORD:-agentmemory-arcadedb-dev}
       HOME: /tmp
       XDG_CACHE_HOME: /tmp/.cache
       PYTHONPYCACHEPREFIX: /tmp/pycache
