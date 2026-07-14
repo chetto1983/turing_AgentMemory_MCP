@@ -281,7 +281,18 @@ class ArcadeDBClient:
                 with urlopen(req, timeout=self.timeout_s) as resp:
                     raw = resp.read()
                     returned_session = resp.headers.get(_SESSION_HEADER)
-                    decoded = json.loads(raw.decode("utf-8")) if raw else {}
+                    # MD-03: a malformed or non-UTF-8 2xx response (a proxy/
+                    # load-balancer health page instead of ArcadeDB JSON, a
+                    # truncated read) must not raise UnicodeDecodeError/
+                    # JSONDecodeError directly out of this method -- that would
+                    # bypass run_in_transaction's `except RuntimeError` guard,
+                    # leaving the session dangling with no rollback attempted.
+                    try:
+                        decoded = json.loads(raw.decode("utf-8")) if raw else {}
+                    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                        raise RuntimeError(
+                            f"ArcadeDB {path} returned an undecodable response"
+                        ) from exc
                     if not isinstance(decoded, dict):
                         raise RuntimeError(f"ArcadeDB {path} returned a non-object response")
                     return decoded, returned_session
