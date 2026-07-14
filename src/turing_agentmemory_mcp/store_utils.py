@@ -12,34 +12,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from turing_agentmemory_mcp.entity_extraction import ProcessedText, entity_metadata_search_text
-from turing_agentmemory_mcp.ids import cypher_var, quote, vector_id
 from turing_agentmemory_mcp.models import MemoryItem
-from turing_agentmemory_mcp.temporal_graph import EdgeProjection
 
 
 class _UtilsMixin:
-    @classmethod
-    def _projection_edge_literals(cls, edges: tuple[EdgeProjection, ...]) -> list[str]:
-        literals: list[str] = []
-        for edge in edges:
-            source_var = cypher_var(edge.source_id)
-            target_var = cypher_var(edge.target_id)
-            properties = {"id": edge.id, **edge.properties}
-            property_text = ", ".join(
-                f"{cypher_var(name)}: {cls._cypher_value(value)}"
-                for name, value in properties.items()
-            )
-            literals.append(f"({source_var})-[:{edge.kind} {{{property_text}}}]->({target_var})")
-        return literals
-
-    @staticmethod
-    def _cypher_value(value: object) -> str:
-        if isinstance(value, bool):
-            return "true" if value else "false"
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            return str(value)
-        return f'"{quote(str(value))}"'
-
     def _process_text_for_storage(
         self,
         text: str,
@@ -194,26 +170,6 @@ class _UtilsMixin:
             return int(value or 0)
         except (TypeError, ValueError):
             return 0
-
-    @staticmethod
-    def _memory_vector_id(user_identifier: str, memory_id: str) -> int:
-        return vector_id("memory", f"{user_identifier}:{memory_id}")
-
-    @staticmethod
-    def _entity_vector_id(user_identifier: str, entity_id: str) -> int:
-        return vector_id("entity", f"{user_identifier}:{entity_id}")
-
-    @staticmethod
-    def _fact_vector_id(user_identifier: str, fact_id: str) -> int:
-        return vector_id("fact", f"{user_identifier}:{fact_id}")
-
-    @staticmethod
-    def _community_vector_id(user_identifier: str, community_id: str) -> int:
-        return vector_id("community", f"{user_identifier}:{community_id}")
-
-    @staticmethod
-    def _document_vector_id(user_identifier: str, chunk_id: str) -> int:
-        return vector_id("chunk", f"{user_identifier}:{chunk_id}")
 
     @staticmethod
     def _document_text_hash(text: str) -> str:
