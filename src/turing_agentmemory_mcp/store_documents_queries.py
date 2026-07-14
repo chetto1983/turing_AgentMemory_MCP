@@ -296,11 +296,13 @@ def chunk_hard_delete_statement(*, document_id: str, user_identifier: str) -> St
     )
 
 
-def chunk_context_statement(*, chunk_id: str) -> Statement:
+def chunk_context_statement(*, chunk_id: str, user_identifier: str) -> Statement:
     return (
         "SELECT id AS chunk_id, locator, text FROM "
-        "(SELECT expand(out('NEXT_CHUNK')) FROM Chunk WHERE id = :id) WHERE status = 'active'",
-        {"id": chunk_id},
+        "(SELECT expand(out('NEXT_CHUNK')) FROM Chunk "
+        "WHERE id = :id AND user_identifier = :user_identifier) "
+        "WHERE status = 'active' AND user_identifier = :user_identifier",
+        {"id": chunk_id, "user_identifier": user_identifier},
     )
 
 

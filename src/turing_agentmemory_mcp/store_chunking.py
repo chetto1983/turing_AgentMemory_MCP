@@ -90,10 +90,12 @@ class _ChunkingMixin:
             chunks.append(current)
         return chunks
 
-    def _chunk_context(self, chunk_id: str) -> list[dict[str, object]]:
+    def _chunk_context(self, chunk_id: str, *, user_identifier: str) -> list[dict[str, object]]:
         if not chunk_id:
             return []
-        statement, params = chunk_context_statement(chunk_id=chunk_id)
+        statement, params = chunk_context_statement(
+            chunk_id=chunk_id, user_identifier=user_identifier
+        )
         rows = self._records(
             self._query(statement, operation="document.chunk_context", params=params)
         )

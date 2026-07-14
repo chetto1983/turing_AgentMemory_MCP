@@ -525,7 +525,7 @@ class _DocumentMixin:
                     continue
                 if not passes_threshold(final_score, threshold):
                     continue
-                context = self._chunk_context(chunk_id)
+                context = self._chunk_context(chunk_id, user_identifier=user_identifier)
                 tags_value = self._json_loads(row.get("tags_json"), [])
                 metadata_value = self._json_loads(row.get("metadata_json"), {})
                 seeds.append(

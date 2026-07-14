@@ -71,7 +71,7 @@ class DocumentFilterStore(TuringAgentMemory):
             return list(self.chunk_rows)
         return []
 
-    def _chunk_context(self, chunk_id: str) -> list[dict[str, object]]:
+    def _chunk_context(self, chunk_id: str, *, user_identifier: str) -> list[dict[str, object]]:
         return []
 
 
