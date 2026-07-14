@@ -289,7 +289,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 1. CI + Git-Hook Discipline | 9/9 | Complete    | 2026-07-11 |
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
-| 4. ArcadeDB Direct Port | 10/10 | Complete   | 2026-07-14 |
+| 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
