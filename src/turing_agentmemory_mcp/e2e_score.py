@@ -116,24 +116,35 @@ def run_e2e(out: Path) -> dict[str, Any]:
         if store is not None:
             asyncio.run(run_mcp_checks(store, checks))
 
-            backend.restart_backend_and_wait_ready()
-            store.reconnect()
-            memory = store.search_memory(
-                user_identifier="alice", query="espresso TuringDB memory", limit=1
-            )
-            docs = store.search_documents(
-                user_identifier="alice", query="green reset token lockout", limit=1
-            )
-            check(
-                checks,
-                "restart_preserves_memory_and_document_retrieval",
-                lambda: (
+            def restart_and_verify_retrieval() -> bool:
+                # The D-10 restart leg needs host-level `docker compose` control of
+                # the arcadedb service. When docker is unavailable (e.g. this process
+                # is nested inside a container without a docker socket), the restart
+                # raises RuntimeError; running it INSIDE this check() callable means
+                # check() records an honest failed check (ok=false) rather than
+                # crashing run_e2e with no JSON output -- never a silent pass, never a
+                # script crash. On the host (CI dockerized-integration, local) docker
+                # is present, so a real restart happens and this returns true.
+                backend.restart_backend_and_wait_ready()
+                store.reconnect()
+                memory = store.search_memory(
+                    user_identifier="alice", query="espresso TuringDB memory", limit=1
+                )
+                docs = store.search_documents(
+                    user_identifier="alice", query="green reset token lockout", limit=1
+                )
+                return (
                     memory[0].content.startswith("Davide prefers espresso")
                     # ARC-08: chunk ids are stable_id()-based, not the
                     # human-readable f"{document_id}#{ordinal}" a pre-port
                     # TuringDB stack used (04-09 fix, found live).
                     and docs[0].chunk_id == stable_id("chunk", "alice", "doc-machine-safety", "1")
-                ),
+                )
+
+            check(
+                checks,
+                "restart_preserves_memory_and_document_retrieval",
+                restart_and_verify_retrieval,
             )
     finally:
         cleanup = backend.stop()
