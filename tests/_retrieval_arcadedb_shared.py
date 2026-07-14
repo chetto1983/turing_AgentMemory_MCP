@@ -415,6 +415,7 @@ def make_retrieval_store(
     *,
     memory_extractor: Any | None = None,
     reranker: Any | None = None,
+    sparse_index: Any | None = None,
 ) -> TuringAgentMemory:
     return TuringAgentMemory(
         client,  # type: ignore[arg-type]
@@ -427,4 +428,5 @@ def make_retrieval_store(
         memory_extractor=memory_extractor,
         observer=InMemorySpanRecorder(),
         fusion_enabled=True,
+        sparse_index=sparse_index,
     )

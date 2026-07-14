@@ -18,8 +18,6 @@ flowchart LR
     Worker --> StoreWorker[Independent worker store]
     Store --> DB[(TuringDB graph and vectors)]
     StoreWorker --> DB
-    Store --> FTS[(SQLite FTS5 projection)]
-    StoreWorker --> FTS
     Store --> Embed[Embedding provider]
     StoreWorker --> Embed
     Store --> Rerank[Rerank provider]
@@ -39,8 +37,10 @@ tokens are configured.
 
 `TuringAgentMemory` owns graph writes, vector loads, hybrid retrieval, lifecycle
 operations, retention filtering, and audit hooks. Canonical records live in
-TuringDB. SQLite FTS5 is a rebuildable read projection, not a second source of
-truth.
+TuringDB. Lexical retrieval is served natively -- both a native sparse-vector
+channel and native full-text (Lucene) index feed the same weighted-RRF fusion
+as the dense channels -- with no separate SQLite-FTS5 outbox in the write or
+read path.
 
 ### Retrieval pipeline
 

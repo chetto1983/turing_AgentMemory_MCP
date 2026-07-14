@@ -41,6 +41,15 @@ after the first stable release; pre-1.0 releases may change interfaces.
 - Remove staged bytes after success or cancellation and sanitize persisted job
   errors.
 
+### Removed
+
+- Retired the legacy SQLite-FTS5 outbox's write path (`prepare`/`commit_batch`/
+  `replay`/`discard_prepared`) from memory writes, memory updates/deletes, and
+  community rebuild -- lexical retrieval was already fully served by the
+  native sparse-vector and Lucene channels, so the outbox write calls were
+  dead weight (and, on a fresh deployment volume with fusion enabled, an
+  unhandled crash) rather than a second source of truth.
+
 ## 0.1.0
 
 Initial pre-release implementation of TuringDB-backed AgentMemory MCP.

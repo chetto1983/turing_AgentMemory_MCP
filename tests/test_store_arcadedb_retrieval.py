@@ -31,6 +31,7 @@ from turing_agentmemory_mcp.governance import NoopAuditSink, NoopRedactor
 from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.models import RetrievalCandidate
 from turing_agentmemory_mcp.observability import InMemorySpanRecorder
+from turing_agentmemory_mcp.sparse_index import SparseIndex
 from turing_agentmemory_mcp.store import TuringAgentMemory
 
 _STORE_SEARCH_PATH = (
@@ -157,6 +158,35 @@ def test_bm25_channel_reads_native_arcadedb_lexical_not_sqlite_sparse_index(
 
     assert "bm25" in channels
     assert "bm25" not in degraded
+
+
+def test_write_then_search_round_trips_lexical_hit_with_uninitialized_sparse_index(
+    tmp_path: Path,
+) -> None:
+    """04-10 (ARC-06 gap closure), T-04-10-02: end-to-end proof that lexical
+    retrieval is unaffected by retiring the write-side SQLite-FTS5 outbox.
+    A SparseIndex is present (so `fusion_enabled` is True) but deliberately
+    never `.initialize()`'d, mirroring a fresh deployment volume -- the real
+    write path (store_memory_write.py, 04-10) must not touch it, and the real
+    read path (store_search.py/store_evidence.py, already-correct since 04-07)
+    must still find the memory via the native sparse-vector + Lucene channels
+    alone.
+    """
+    client = _FakeArcadeDBClient()
+    sparse = SparseIndex(tmp_path / "fts.sqlite3")  # deliberately never .initialize()'d
+    store = make_retrieval_store(client, tmp_path, sparse_index=sparse)
+
+    written = store.store_message(
+        user_identifier="alice",
+        session_id="s1",
+        role="user",
+        content="zephyrion incident report filed by the router team",
+    )
+
+    hits = store.search_memory(user_identifier="alice", query="zephyrion", limit=5)
+
+    assert hits
+    assert any(hit.id == written.id for hit in hits)
 
 
 def test_fused_search_applies_adaptive_overfetch_multiplier_to_dense_channel(
