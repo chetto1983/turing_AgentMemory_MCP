@@ -121,12 +121,6 @@ The client retries known transient statuses with bounded backoff. If the job
 ultimately fails, restore provider capacity or credentials and use the job retry
 tool. Do not broaden tenant scope or silently switch embedding dimensions.
 
-### TuringDB rejects a graph payload
-
-Lower `AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES` or
-`AGENTMEMORY_DOCUMENT_GRAPH_BATCH_CHUNKS`. Each dependent batch is a submitted
-transaction so later batches can match earlier nodes.
-
 ### Model changed
 
 Create new vector index names or rebuild every affected tenant. Update model

@@ -179,12 +179,6 @@ def store_from_env() -> TuringAgentMemory:
         community_rebuild_on_batch=_env_bool(
             "AGENTMEMORY_COMMUNITY_REBUILD_ON_BATCH", default=fusion_enabled
         ),
-        document_graph_batch_chunks=_env_int(
-            "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_CHUNKS", default=250, minimum=1
-        ),
-        document_graph_batch_bytes=_env_int(
-            "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES", default=256 << 10, minimum=1024
-        ),
     )
     store.bootstrap()
     return store

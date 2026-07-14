@@ -49,6 +49,17 @@ after the first stable release; pre-1.0 releases may change interfaces.
   native sparse-vector and Lucene channels, so the outbox write calls were
   dead weight (and, on a fresh deployment volume with fusion enabled, an
   unhandled crash) rather than a second source of truth.
+- Removed the dead `AGENTMEMORY_DOCUMENT_GRAPH_BATCH_CHUNKS`/`_BYTES`
+  transaction-size knobs (and the `document_graph_batch_chunks`/
+  `document_graph_batch_bytes` constructor params they wired into) -- a
+  TuringDB-era workaround for a submit-before-match visibility gap that does
+  not exist under ArcadeDB's single-managed-transaction ingest (D-08); the
+  values were validated and stored but never consulted, so every document was
+  already committed as one unbounded transaction regardless of the setting.
+  Wiring them into real batch splitting would have opened a partial-
+  document-visible-mid-ingest window with no status guard to close it, which
+  was judged riskier than documenting unbounded-per-document as the accepted
+  design for this milestone.
 
 ## 0.1.0
 

@@ -411,3 +411,44 @@ def test_sparse_outbox_replay_calls_absent_from_source() -> None:
     source = _STORE_CORE_PATH.read_text(encoding="utf-8")
     assert "sparse_index.initialize" not in source
     assert "sparse_index.replay" not in source
+
+
+# MD-01: document_graph_batch_chunks/document_graph_batch_bytes were validated
+# and env-wired but never consulted -- every document was already committed
+# as one unbounded transaction regardless of the setting. Removed rather than
+# wired into real batch splitting, since splitting would open a
+# partial-document-visible-mid-ingest window with no status guard to close it.
+def test_document_graph_batch_knobs_are_removed(tmp_path: Path) -> None:
+    client = _FakeArcadeDBClient()
+    store = _make_store(client, tmp_path)
+
+    assert not hasattr(store, "document_graph_batch_chunks")
+    assert not hasattr(store, "document_graph_batch_bytes")
+    try:
+        _StoreCore(
+            client,  # type: ignore[arg-type]
+            turing_home=tmp_path,
+            embedder=_StubEmbedder(),  # type: ignore[arg-type]
+            reranker=object(),  # type: ignore[arg-type]
+            entity_processor=object(),  # type: ignore[arg-type]
+            document_graph_batch_chunks=50,  # type: ignore[call-arg]
+        )
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("document_graph_batch_chunks must no longer be a constructor kwarg")
+
+
+def test_document_graph_batch_knobs_absent_from_source_and_env_wiring() -> None:
+    server_path = (
+        Path(__file__).resolve().parents[1] / "src" / "turing_agentmemory_mcp" / "server.py"
+    )
+    for path in (_STORE_CORE_PATH, server_path):
+        source = path.read_text(encoding="utf-8")
+        for forbidden in (
+            "document_graph_batch_chunks",
+            "document_graph_batch_bytes",
+            "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_CHUNKS",
+            "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES",
+        ):
+            assert forbidden not in source, f"{path.name} still references {forbidden!r}"

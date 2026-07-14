@@ -9,9 +9,20 @@ D-08: `_write_many` is ONE managed `begin`/`command`/`commit-retry-N` transactio
 (`ArcadeDBClient.run_in_transaction`), not TuringDB's per-batch submit-before-match
 loop -- the session-header transaction model gives read-your-writes across every
 `command` call scoped to that one session (spike-confirmed, not `sqlscript`'s
-self-contained `LET` chaining). `document_graph_batch_chunks`/`document_graph_batch_bytes`
-are repurposed as transaction-size (host-RAM) hygiene under this model, not a
-workaround for a submit-before-match visibility gap.
+self-contained `LET` chaining).
+
+MD-01: a document is committed as one unbounded `_write_many` transaction.
+This mixin used to also validate and store a pair of TuringDB-era
+transaction-size constructor knobs (see CHANGELOG.md's Removed section for
+the retired names) that nothing ever consulted -- deleted rather than wired
+into `_create_document`'s statement list, because splitting a document's
+statements across multiple `_write_many` calls would open a partial-
+document-visible-mid-ingest window (a concurrent reader could see a
+`Document` row claiming a total chunk count with only some of its `Chunk`
+rows committed) -- there is no document-level "searchable only once fully
+committed" status guard in this model, only the transaction boundary itself.
+Building one was judged a larger, riskier change than documenting
+unbounded-per-document as the accepted design for this milestone.
 """
 
 from __future__ import annotations
@@ -79,8 +90,6 @@ class _StoreCore:
         rerank_blend: bool | None = None,
         rerank_preserve_seed_margin: float | None = None,
         rerank_candidate_limit: int | None = None,
-        document_graph_batch_chunks: int = 250,
-        document_graph_batch_bytes: int = 256 << 10,
     ) -> None:
         self.client = client
         self.turing_home = Path(turing_home)
@@ -91,16 +100,6 @@ class _StoreCore:
         self.entity_index = entity_index
         self.fact_index = fact_index
         self.community_index = community_index
-        if document_graph_batch_chunks < 1:
-            raise ValueError("document_graph_batch_chunks must be positive")
-        if document_graph_batch_bytes < 1_024:
-            raise ValueError("document_graph_batch_bytes must be at least 1024")
-        # D-08: these no longer bound a submit-before-match window (TuringDB
-        # invariant #4, retired) -- they bound how much a single managed
-        # transaction carries, since ArcadeDB keeps the whole transaction in
-        # host RAM until commit (transaction-size hygiene, not correctness).
-        self.document_graph_batch_chunks = document_graph_batch_chunks
-        self.document_graph_batch_bytes = document_graph_batch_bytes
         self._schema_bootstrapped = False
         self._schema_version = 1  # D-07 versioned-index foundation; 04-08 bumps this.
         self.embedder = embedder or OpenAICompatibleEmbedder.from_env(dimensions=self.dimensions)

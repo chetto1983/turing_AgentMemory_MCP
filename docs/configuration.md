@@ -92,8 +92,6 @@ Leiden controls are `AGENTMEMORY_LEIDEN_SEED`,
 | `AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS` | `15` | Lease renewal cadence. |
 | `AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS` | `1` | Idle worker cadence. |
 | `AGENTMEMORY_DOCUMENT_JOB_MAX_ATTEMPTS` | `3` | Automatic attempt limit. |
-| `AGENTMEMORY_DOCUMENT_GRAPH_BATCH_CHUNKS` | `250` | Maximum chunks per graph statement. |
-| `AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES` | `262144` | Maximum graph statement bytes. |
 | `AGENTMEMORY_UPLOAD_ROOT` | `/tmp/agentmemory-uploads` | Ephemeral in-progress uploads. |
 | `AGENTMEMORY_UPLOAD_MAX_FILE_BYTES` | `134217728` | Declared upload limit. |
 | `AGENTMEMORY_UPLOAD_CHUNK_BYTES` | `524288` | Maximum decoded upload chunk. |
