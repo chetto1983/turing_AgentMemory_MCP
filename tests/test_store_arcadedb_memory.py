@@ -323,6 +323,47 @@ def test_tenant_scoped_read_never_returns_other_tenants_memory(tmp_path: Path) -
     assert all(item.content != "alice's secret" for item in bob_memories)
 
 
+# HI-02 regression: memory_delete_statements' Fact soft-delete UPDATE had no
+# user_identifier filter, unlike its sibling Memory-status UPDATE two lines
+# above it in the same function. If _fact_ids_for_memory ever returned a
+# cross-tenant fact id (the invariant that currently prevents this from being
+# reachable breaking), the delete must still never touch another tenant's
+# Fact row.
+def test_delete_memory_never_soft_deletes_another_tenants_fact(tmp_path: Path) -> None:
+    client = _FakeArcadeDBClient()
+    store = _make_store(client, tmp_path, CountingBatchEmbedder())
+    alice_item = store.store_message(
+        user_identifier="alice", session_id="s1", role="user", content="alice memory"
+    )
+    bob_fact_id = stable_id("fact", "bob", "some-cross-tenant-fact")
+    client._committed.append(
+        {
+            "_type": "Fact",
+            "id": bob_fact_id,
+            "user_identifier": "bob",
+            "status": "active",
+        }
+    )
+    store._fact_ids_for_memory = lambda user_identifier, memory_id: [bob_fact_id]  # type: ignore[method-assign]
+    bob_fact_before = dict(client._committed[-1])
+
+    store.delete_memory(user_identifier="alice", memory_id=alice_item.id)
+
+    # The fake's UPDATE modeling only merges bound params into a matched row
+    # (it doesn't parse literal SET clauses like `status = 'deleted'`), so the
+    # meaningful regression signal is whether the row was matched/touched at
+    # all -- unchanged means the WHERE's user_identifier scope excluded it.
+    bob_fact_after = next(row for row in client._committed if row.get("id") == bob_fact_id)
+    assert bob_fact_after == bob_fact_before, (
+        f"cross-tenant fact row was touched by the delete: {bob_fact_after!r}"
+    )
+    fact_update_commands = [
+        stmt for stmt, params, _ in client.commands if stmt.startswith("UPDATE Fact")
+    ]
+    assert fact_update_commands
+    assert "user_identifier = :user_identifier" in fact_update_commands[0]
+
+
 # -- Task 2, Test 1: a batch of N writes calls embed_many exactly once --
 
 

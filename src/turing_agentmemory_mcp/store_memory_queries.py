@@ -307,6 +307,10 @@ def memory_delete_statements(
     ]
     if fact_ids:
         statements.append(
-            ("UPDATE Fact SET status = 'deleted' WHERE id IN :fact_ids", {"fact_ids": fact_ids})
+            (
+                "UPDATE Fact SET status = 'deleted' WHERE id IN :fact_ids "
+                "AND user_identifier = :user_identifier",
+                {"fact_ids": fact_ids, "user_identifier": user_identifier},
+            )
         )
     return statements
