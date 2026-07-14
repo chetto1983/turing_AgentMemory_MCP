@@ -193,11 +193,13 @@ Plans:
 **Wave 3 — Runtime routing**
 - [ ] 05-05-PLAN.md — Build immutable tenant store views with single-flight provisioning and bounded caching (ARC-07)
 
-**Wave 4 — Foreground and background integration**
+**Wave 4 — Foreground integration**
 - [ ] 05-06-PLAN.md — Route foreground server tools through exact tenant-bound stores and layered health checks (ARC-07)
+
+**Wave 5 — Background integration** *(blocked on Wave 4's document-manager resolver contract)*
 - [ ] 05-07-PLAN.md — Route uploads and document workers without identity transformation or cross-tenant reuse (ARC-07, TEST-05)
 
-**Wave 5 — Live isolation gate**
+**Wave 6 — Live isolation gate**
 - [ ] 05-08-PLAN.md — Prove live A/B/C physical isolation, lifecycle chaos resilience, and operational contracts (ARC-07, TEST-05)
 
 ### Phase 6: Migration-Correctness Gate
