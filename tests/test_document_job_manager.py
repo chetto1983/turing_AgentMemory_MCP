@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+import pytest
 
 from turing_agentmemory_mcp.document_job_manager import DocumentIngestManager
 from turing_agentmemory_mcp.document_jobs import DocumentJobStore
 from turing_agentmemory_mcp.document_processing import ConvertedDocument
 from turing_agentmemory_mcp.models import IngestedDocument
+from turing_agentmemory_mcp.tenant_router import TenantStoreView
 
 
 class RecordingMemory:
@@ -25,6 +29,29 @@ class RecordingMemory:
             metadata=dict(kwargs.get("metadata") or {}),
             expires_at=str(kwargs.get("expires_at") or ""),
         )
+
+
+class RecordingResolver:
+    def __init__(
+        self,
+        memories: dict[str, RecordingMemory],
+        *,
+        barrier: threading.Barrier | None = None,
+    ) -> None:
+        self.memories = memories
+        self.barrier = barrier
+        self.calls: list[str] = []
+        self._lock = threading.Lock()
+
+    def resolve(self, user_identifier: str) -> TenantStoreView:
+        with self._lock:
+            self.calls.append(user_identifier)
+        if self.barrier is not None:
+            self.barrier.wait(timeout=2.0)
+        return TenantStoreView(None, None, self.memories[user_identifier])  # type: ignore[arg-type]
+
+    def runtime_status(self) -> dict[str, object]:
+        return {"ready": True}
 
 
 def test_enqueue_stages_file_and_processes_it_after_source_is_removed(tmp_path: Path) -> None:
@@ -102,6 +129,91 @@ def test_duplicate_enqueue_reuses_job_and_staged_file(tmp_path: Path) -> None:
     assert duplicate.job_id == first.job_id
     assert duplicate.staged_path == first.staged_path
     assert list((tmp_path / "staging").rglob("manual.pdf")) == [Path(first.staged_path)]
+
+
+def test_enqueue_rejects_invalid_identity_before_source_or_staging_access(tmp_path: Path) -> None:
+    manager = DocumentIngestManager(
+        DocumentJobStore(tmp_path / "jobs.sqlite3"),
+        staging_root=tmp_path / "staging",
+        store_factory=RecordingMemory,
+    )
+
+    with pytest.raises(ValueError, match="surrounding whitespace"):
+        manager.enqueue_file(
+            tmp_path / "missing.pdf",
+            user_identifier=" tenant-a",
+            title="Manual",
+        )
+
+    assert list((tmp_path / "staging").iterdir()) == []
+
+
+def test_concurrent_jobs_resolve_once_into_only_their_exact_tenant_store(tmp_path: Path) -> None:
+    source = tmp_path / "manual.pdf"
+    source.write_bytes(b"shared collision-prone document")
+    identifiers = ["tenant-a", "Tenant-A", "tenant-\u00e9"]
+    memories = {identifier: RecordingMemory() for identifier in identifiers}
+    resolver = RecordingResolver(memories, barrier=threading.Barrier(len(identifiers)))
+    manager = DocumentIngestManager(
+        DocumentJobStore(tmp_path / "jobs.sqlite3"),
+        staging_root=tmp_path / "staging",
+        store_factory=lambda: resolver,
+        converter=lambda _path: ConvertedDocument(text="shared text", metadata={}),
+    )
+    queued = [
+        manager.enqueue_file(
+            source,
+            user_identifier=identifier,
+            title="Shared manual",
+            document_id="shared-document",
+        )
+        for identifier in identifiers
+    ]
+
+    with ThreadPoolExecutor(max_workers=len(identifiers)) as pool:
+        processed = list(
+            pool.map(
+                lambda worker: manager.process_next(worker_id=f"worker-{worker}"),
+                range(len(identifiers)),
+            )
+        )
+
+    assert all(job is not None and job.status == "succeeded" for job in processed)
+    assert sorted(resolver.calls) == sorted(identifiers)
+    assert len(resolver.calls) == len(queued)
+    for identifier, memory in memories.items():
+        assert [call["user_identifier"] for call in memory.calls] == [identifier]
+
+
+def test_tenant_failure_does_not_reuse_or_reset_the_next_tenant_store(tmp_path: Path) -> None:
+    source = tmp_path / "manual.pdf"
+    source.write_bytes(b"document")
+
+    class FailingMemory(RecordingMemory):
+        def ingest_document_text(self, **kwargs: object) -> IngestedDocument:
+            self.calls.append(dict(kwargs))
+            raise RuntimeError("tenant-a database unavailable")
+
+    failing = FailingMemory()
+    succeeding = RecordingMemory()
+    resolver = RecordingResolver({"tenant-a": failing, "tenant-b": succeeding})
+    manager = DocumentIngestManager(
+        DocumentJobStore(tmp_path / "jobs.sqlite3"),
+        staging_root=tmp_path / "staging",
+        store_factory=lambda: resolver,
+        converter=lambda _path: ConvertedDocument(text="document", metadata={}),
+    )
+    manager.enqueue_file(source, user_identifier="tenant-a", title="A")
+    manager.enqueue_file(source, user_identifier="tenant-b", title="B")
+
+    first = manager.process_next(worker_id="worker-a")
+    second = manager.process_next(worker_id="worker-b")
+
+    assert first is not None and first.error_code == "document_indexing_unavailable"
+    assert second is not None and second.status == "succeeded"
+    assert resolver.calls == ["tenant-a", "tenant-b"]
+    assert [call["user_identifier"] for call in failing.calls] == ["tenant-a"]
+    assert [call["user_identifier"] for call in succeeding.calls] == ["tenant-b"]
 
 
 def test_canceling_a_queued_job_removes_the_staged_file(tmp_path: Path) -> None:

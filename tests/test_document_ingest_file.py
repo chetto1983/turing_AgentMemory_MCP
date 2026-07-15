@@ -16,8 +16,10 @@ if "turingdb" not in sys.modules:
 from turing_agentmemory_mcp.document_job_manager import DocumentIngestManager
 from turing_agentmemory_mcp.document_jobs import DocumentJobStore
 from turing_agentmemory_mcp.document_processing import ConvertedDocument
+from turing_agentmemory_mcp.file_upload import DocumentUploadStore
 from turing_agentmemory_mcp.models import IngestedDocument
 from turing_agentmemory_mcp.server import create_mcp_app
+from turing_agentmemory_mcp.tenant_router import StaticStoreResolver
 
 
 def payload(result: Any) -> Any:
@@ -167,3 +169,32 @@ def test_document_ingest_file_enqueues_then_reports_background_result(
             "expires_at": "2099-01-02T00:00:00Z",
         }
     ]
+
+
+def test_production_app_gives_document_worker_the_foreground_resolver(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    import turing_agentmemory_mcp.server as server_module
+
+    memory = RecordingDocumentMemory()
+    resolver = StaticStoreResolver(memory)  # type: ignore[arg-type]
+    legacy_store = RecordingDocumentMemory()
+    captured: dict[str, object] = {}
+
+    def manager_from_env(*, store_factory: Any) -> object:
+        captured["worker_dependency"] = store_factory()
+        return object()
+
+    monkeypatch.setattr(server_module, "tenant_router_from_env", lambda: resolver)
+    monkeypatch.setattr(server_module, "store_from_env", lambda: legacy_store)
+    monkeypatch.setattr(server_module, "document_ingest_manager_from_env", manager_from_env)
+    monkeypatch.setattr(
+        server_module,
+        "document_upload_store_from_env",
+        lambda: DocumentUploadStore(tmp_path / "uploads", max_file_bytes=32, chunk_bytes=4),
+    )
+
+    server_module.create_mcp_app(start_document_worker=False)
+
+    assert captured["worker_dependency"] is resolver
