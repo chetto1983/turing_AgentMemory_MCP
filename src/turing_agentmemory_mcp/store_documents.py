@@ -345,12 +345,19 @@ class _DocumentMixin:
                 )
             )
             statements.append(
-                has_chunk_edge_statement(document_id=document_id, chunk_id=chunk_id, ordinal=idx)
+                has_chunk_edge_statement(
+                    document_id=document_id,
+                    chunk_id=chunk_id,
+                    ordinal=idx,
+                    user_identifier=user_identifier,
+                )
             )
             if previous_chunk_id:
                 statements.append(
                     next_chunk_edge_statement(
-                        previous_chunk_id=previous_chunk_id, chunk_id=chunk_id
+                        previous_chunk_id=previous_chunk_id,
+                        chunk_id=chunk_id,
+                        user_identifier=user_identifier,
                     )
                 )
             previous_chunk_id = chunk_id

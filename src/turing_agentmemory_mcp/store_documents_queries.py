@@ -117,8 +117,9 @@ def document_create_statement(
 def document_edge_statement(*, user_identifier: str, document_id: str) -> Statement:
     return (
         "CREATE EDGE HAS_DOCUMENT FROM (SELECT FROM User WHERE identifier = :identifier) "
-        "TO (SELECT FROM Document WHERE id = :id)",
-        {"identifier": user_identifier, "id": document_id},
+        "TO (SELECT FROM Document WHERE id = :id "
+        "AND user_identifier = :user_identifier)",
+        {"identifier": user_identifier, "id": document_id, "user_identifier": user_identifier},
     )
 
 
@@ -169,19 +170,36 @@ def chunk_create_statement(
     )
 
 
-def has_chunk_edge_statement(*, document_id: str, chunk_id: str, ordinal: int) -> Statement:
+def has_chunk_edge_statement(
+    *, document_id: str, chunk_id: str, ordinal: int, user_identifier: str
+) -> Statement:
     return (
-        "CREATE EDGE HAS_CHUNK FROM (SELECT FROM Document WHERE id = :document_id) "
-        "TO (SELECT FROM Chunk WHERE id = :chunk_id) SET ordinal = :ordinal",
-        {"document_id": document_id, "chunk_id": chunk_id, "ordinal": ordinal},
+        "CREATE EDGE HAS_CHUNK FROM (SELECT FROM Document WHERE id = :document_id "
+        "AND user_identifier = :user_identifier) "
+        "TO (SELECT FROM Chunk WHERE id = :chunk_id "
+        "AND user_identifier = :user_identifier) SET ordinal = :ordinal",
+        {
+            "document_id": document_id,
+            "chunk_id": chunk_id,
+            "ordinal": ordinal,
+            "user_identifier": user_identifier,
+        },
     )
 
 
-def next_chunk_edge_statement(*, previous_chunk_id: str, chunk_id: str) -> Statement:
+def next_chunk_edge_statement(
+    *, previous_chunk_id: str, chunk_id: str, user_identifier: str
+) -> Statement:
     return (
-        "CREATE EDGE NEXT_CHUNK FROM (SELECT FROM Chunk WHERE id = :previous_id) "
-        "TO (SELECT FROM Chunk WHERE id = :chunk_id)",
-        {"previous_id": previous_chunk_id, "chunk_id": chunk_id},
+        "CREATE EDGE NEXT_CHUNK FROM (SELECT FROM Chunk WHERE id = :previous_id "
+        "AND user_identifier = :user_identifier) "
+        "TO (SELECT FROM Chunk WHERE id = :chunk_id "
+        "AND user_identifier = :user_identifier)",
+        {
+            "previous_id": previous_chunk_id,
+            "chunk_id": chunk_id,
+            "user_identifier": user_identifier,
+        },
     )
 
 

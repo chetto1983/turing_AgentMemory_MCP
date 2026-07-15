@@ -515,7 +515,12 @@ class _MemoryWriteMixin:
             )
 
         for projection in projections:
-            statements.extend(projection_edge_statements(projection.edges))
+            statements.extend(
+                projection_edge_statements(
+                    projection.edges,
+                    user_identifier=user_identifier,
+                )
+            )
 
         self._write_many(statements)
         return items

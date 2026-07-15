@@ -104,8 +104,9 @@ def memory_edge_statement(*, user_identifier: str, memory_id: str) -> Statement:
     # trivially explainable as "the value that lands in this property".
     return (
         "CREATE EDGE HAS_MEMORY FROM (SELECT FROM User WHERE identifier = :identifier) "
-        "TO (SELECT FROM Memory WHERE id = :id)",
-        {"identifier": user_identifier, "id": memory_id},
+        "TO (SELECT FROM Memory WHERE id = :id "
+        "AND user_identifier = :user_identifier)",
+        {"identifier": user_identifier, "id": memory_id, "user_identifier": user_identifier},
     )
 
 
@@ -194,7 +195,9 @@ def fact_create_statement(
     )
 
 
-def projection_edge_statements(edges: tuple[EdgeProjection, ...]) -> list[Statement]:
+def projection_edge_statements(
+    edges: tuple[EdgeProjection, ...], *, user_identifier: str
+) -> list[Statement]:
     statements: list[Statement] = []
     declared_kinds: set[str] = set()
     for edge in edges:
@@ -208,12 +211,15 @@ def projection_edge_statements(edges: tuple[EdgeProjection, ...]) -> list[Statem
         params: dict[str, object] = {
             "source_id": edge.source_id,
             "target_id": edge.target_id,
+            "user_identifier": user_identifier,
             **properties,
         }
         statements.append(
             (
-                f"CREATE EDGE {kind} FROM (SELECT FROM {source_type} WHERE id = :source_id) "
-                f"TO (SELECT FROM {target_type} WHERE id = :target_id) SET {set_clause}",
+                f"CREATE EDGE {kind} FROM (SELECT FROM {source_type} WHERE id = :source_id "
+                "AND user_identifier = :user_identifier) "
+                f"TO (SELECT FROM {target_type} WHERE id = :target_id "
+                f"AND user_identifier = :user_identifier) SET {set_clause}",
                 params,
             )
         )
