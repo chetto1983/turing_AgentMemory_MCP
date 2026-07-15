@@ -178,7 +178,7 @@ Plans:
   2. Every query still carries explicit `user_identifier` scoping and fails closed on an empty identifier — DB-level isolation never replaces the invariant-#1 contract.
   3. Concurrent multi-tenant isolation tests pass with no cross-tenant leakage under concurrency.
 
-**Plans**: 8/8 plans complete
+**Plans**: 8/12 plans complete *(gap closure: verification scored 8/10 must-haves, `gaps_found` — plans 05-09..05-12 close the two failed must-haves)*
 
 Plans:
 
@@ -207,6 +207,22 @@ Plans:
 **Wave 6 — Live isolation gate**
 
 - [x] 05-08-PLAN.md — Prove live A/B/C physical isolation, lifecycle chaos resilience, and operational contracts (ARC-07, TEST-05)
+
+**Wave 7 — Gap closure: logical tenant binding** *(closes verification gap 1 — routed store did not bind the logical tenant)*
+
+- [ ] 05-09-PLAN.md — Bind a keyed tenant identity into every routed store and fail closed on a foreign identifier (ARC-07)
+
+**Wave 8 — Gap closure: binding reachability**
+
+- [ ] 05-10-PLAN.md — Guard every public store path before any span and add the adversarial binding matrix (ARC-07, TEST-05)
+
+**Wave 9 — Gap closure: pseudonymous telemetry** *(closes verification gap 2 — raw identity in shared spans/audits)*
+
+- [ ] 05-11-PLAN.md — Sanitize span and audit events centrally to opaque tenant correlation (ARC-07)
+
+**Wave 10 — Gap closure: live proof and phase gate**
+
+- [ ] 05-12-PLAN.md — Make the live leakage harness observe real span/audit events and close the full gate (ARC-07, TEST-05)
 
 ### Phase 6: Migration-Correctness Gate
 
