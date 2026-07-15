@@ -61,6 +61,7 @@ from turing_agentmemory_mcp.provider_config import provider_env
 from turing_agentmemory_mcp.rerank import OpenAICompatibleReranker
 from turing_agentmemory_mcp.search_controls import validate_fusion_weights
 from turing_agentmemory_mcp.sparse_index import SparseIndex
+from turing_agentmemory_mcp.tenant_binding import TenantBinding
 from turing_agentmemory_mcp.tenant_identity import validate_user_identifier
 
 
@@ -99,6 +100,7 @@ class _StoreCore:
         *,
         turing_home: str | Path | None = None,
         shared_dependencies: StoreSharedDependencies | None = None,
+        tenant_binding: TenantBinding | None = None,
         graph: str = "agent_memory",
         dimensions: int = 768,
         memory_index: str = "agent_memory_vectors",
@@ -156,6 +158,9 @@ class _StoreCore:
         if turing_home is None:
             raise ValueError("turing_home is required")
         self.client = client
+        # Per-tenant runtime state, like `client` -- never folded into
+        # StoreSharedDependencies (that bundle is reused across tenants).
+        self.tenant_binding = tenant_binding
         self.turing_home = Path(turing_home)
         self.graph = graph
         self.dimensions = getattr(embedder, "dimensions", dimensions)
@@ -464,6 +469,11 @@ class _StoreCore:
         except json.JSONDecodeError:
             return fallback
 
-    @staticmethod
-    def _require_user(user_identifier: str) -> None:
-        validate_user_identifier(user_identifier)
+    def _require_user(self, user_identifier: str) -> None:
+        # Non-obvious: this precedes every client call, span, and audit event
+        # on every _require_user call site -- a bound store enforces the
+        # keyed digest here (ARC-07), not just central Unicode-exact syntax.
+        if self.tenant_binding is None:
+            validate_user_identifier(user_identifier)
+            return
+        self.tenant_binding.verify(user_identifier)

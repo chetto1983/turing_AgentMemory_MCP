@@ -13,6 +13,7 @@ from typing import Protocol, runtime_checkable
 
 from turing_agentmemory_mcp.store import TuringAgentMemory
 from turing_agentmemory_mcp.store_core import StoreSharedDependencies
+from turing_agentmemory_mcp.tenant_binding import TenantBinding
 from turing_agentmemory_mcp.tenant_identity import (
     TenantDatabaseIdentity,
     derive_tenant_database_identity,
@@ -119,12 +120,18 @@ class TenantRouter:
         try:
             provisioned = self.provisioner.provision(exact_identifier)
             self._validate_provisioned(identity, provisioned)
+            binding = TenantBinding(
+                identity=provisioned.identity, naming_key=self.provisioner.naming_key
+            )
             memory = self.store_factory(
                 provisioned.client,
                 shared_dependencies=self.shared_dependencies,
+                tenant_binding=binding,
             )
             if getattr(memory, "client", None) is not provisioned.client:
                 raise RuntimeError(f"tenant database {database_name} store client is not bound")
+            if getattr(memory, "tenant_binding", None) is not binding:
+                raise RuntimeError(f"tenant database {database_name} store binding is not bound")
             view = TenantStoreView(
                 identity=provisioned.identity,
                 manifest=provisioned.manifest,
