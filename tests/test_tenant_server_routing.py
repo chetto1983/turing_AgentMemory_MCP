@@ -8,7 +8,6 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-
 _NAMING_KEY = base64.b64encode(bytes(range(32))).decode("ascii")
 _ROUTER_ENV = {
     "AGENTMEMORY_TENANT_CACHE_CAPACITY": "7",
@@ -83,7 +82,7 @@ def test_tenant_router_from_env_builds_shared_dependencies_without_bootstrapping
 
     registry_path = _configure_router_env(monkeypatch, tmp_path)
     monkeypatch.setenv("ARCADEDB_DATABASE", "legacy-shared-must-not-bootstrap")
-    shared = object()
+    shared = SimpleNamespace(dimensions=768)
 
     class AssemblyStore:
         instances: list[AssemblyStore] = []

@@ -36,6 +36,8 @@ class TenantStoreView:
 class StoreResolver(Protocol):
     def resolve(self, user_identifier: str) -> TenantStoreView: ...
 
+    def runtime_status(self) -> dict[str, object]: ...
+
 
 class StaticStoreResolver:
     def __init__(self, view: TenantStoreView | TuringAgentMemory) -> None:
@@ -46,6 +48,14 @@ class StaticStoreResolver:
     def resolve(self, user_identifier: str) -> TenantStoreView:
         validate_user_identifier(user_identifier)
         return self._view
+
+    def runtime_status(self) -> dict[str, object]:
+        status = getattr(self._view.memory, "runtime_status", None)
+        if callable(status):
+            result = status()
+            if isinstance(result, dict):
+                return result
+        return {"ready": True, "static_store": True}
 
 
 @dataclass(slots=True)

@@ -32,6 +32,18 @@ from turing_agentmemory_mcp.server_document_tools import register_document_tools
 from turing_agentmemory_mcp.server_memory_tools import register_memory_tools
 from turing_agentmemory_mcp.sparse_index import SparseIndex
 from turing_agentmemory_mcp.store import TuringAgentMemory
+from turing_agentmemory_mcp.tenant_identity import (
+    TENANT_NAMING_VERSION,
+    load_tenant_naming_key,
+    tenant_key_fingerprint,
+)
+from turing_agentmemory_mcp.tenant_provisioning import TenantProvisioner
+from turing_agentmemory_mcp.tenant_registry import TenantRegistry
+from turing_agentmemory_mcp.tenant_router import (
+    StaticStoreResolver,
+    StoreResolver,
+    TenantRouter,
+)
 
 
 def auth_from_env() -> Any | None:
@@ -113,7 +125,7 @@ def _fusion_weights_from_env() -> dict[str, float] | None:
     return validate_fusion_weights(decoded)
 
 
-def store_from_env() -> TuringAgentMemory:
+def _unbootstrapped_store_from_env(client: ArcadeDBClient) -> TuringAgentMemory:
     graph = os.environ.get("TURINGDB_GRAPH", "agent_memory")
     home = Path(os.environ.get("TURINGDB_HOME", "/turing"))
     dimensions = int(store_embedding_dimensions())
@@ -149,8 +161,7 @@ def store_from_env() -> TuringAgentMemory:
     # (ARC-02); the TURINGDB_* connection vars above stay unread here -- the
     # turingdb service/dependency is retained for coexistence (Phase 7/ARC-10)
     # but the store no longer connects through it.
-    client = ArcadeDBClient.from_env()
-    store = TuringAgentMemory(
+    return TuringAgentMemory(
         client,
         turing_home=home,
         graph=graph,
@@ -180,25 +191,89 @@ def store_from_env() -> TuringAgentMemory:
             "AGENTMEMORY_COMMUNITY_REBUILD_ON_BATCH", default=fusion_enabled
         ),
     )
+
+
+def store_from_env() -> TuringAgentMemory:
+    """Build the legacy explicitly database-bound compatibility store."""
+    store = _unbootstrapped_store_from_env(ArcadeDBClient.from_env())
     store.bootstrap()
     return store
+
+
+def tenant_router_from_env() -> TenantRouter:
+    naming_key = load_tenant_naming_key()
+    capacity = _env_int("AGENTMEMORY_TENANT_CACHE_CAPACITY", default=128, minimum=1)
+    idle_ttl_s = _env_float(
+        "AGENTMEMORY_TENANT_CACHE_IDLE_TTL_SECONDS",
+        default=900.0,
+    )
+    provision_attempts = _env_int(
+        "AGENTMEMORY_TENANT_PROVISION_ATTEMPTS",
+        default=3,
+        minimum=1,
+    )
+    provision_backoff_base_s = _env_float(
+        "AGENTMEMORY_TENANT_PROVISION_BACKOFF_BASE_SECONDS",
+        default=0.25,
+    )
+    provision_backoff_max_s = _env_float(
+        "AGENTMEMORY_TENANT_PROVISION_BACKOFF_MAX_SECONDS",
+        default=2.0,
+    )
+    turing_home = Path(os.environ.get("TURINGDB_HOME", "/turing"))
+    registry_path = Path(
+        os.environ.get(
+            "AGENTMEMORY_TENANT_REGISTRY_PATH",
+            str(turing_home / "data" / "agent-memory-tenant-registry.sqlite3"),
+        )
+    )
+    base_client = ArcadeDBClient.from_env()
+    assembly_store = _unbootstrapped_store_from_env(base_client)
+    shared_dependencies = assembly_store.shared_dependencies()
+    registry = TenantRegistry(
+        registry_path,
+        naming_version=TENANT_NAMING_VERSION,
+        key_fingerprint=tenant_key_fingerprint(naming_key),
+    )
+    registry.initialize()
+    provisioner = TenantProvisioner(
+        base_client,
+        registry,
+        naming_key=naming_key,
+        dimensions=shared_dependencies.dimensions,
+        max_attempts=provision_attempts,
+        retry_base_s=provision_backoff_base_s,
+        retry_ceiling_s=provision_backoff_max_s,
+    )
+    return TenantRouter(
+        provisioner,
+        shared_dependencies,
+        store_factory=TuringAgentMemory,
+        capacity=capacity,
+        idle_ttl_s=idle_ttl_s,
+    )
 
 
 def create_mcp_app(
     store: TuringAgentMemory | None = None,
     *,
+    resolver: StoreResolver | None = None,
     upload_store: DocumentUploadStore | None = None,
     document_manager: DocumentIngestManager | None = None,
     start_document_worker: bool | None = None,
 ) -> FastMCP:
-    production_store = store is None
-    memory = store or store_from_env()
+    if store is not None and resolver is not None:
+        raise ValueError("store and resolver are mutually exclusive")
+    production_router = store is None and resolver is None
+    active_resolver = (
+        StaticStoreResolver(store) if store is not None else resolver or tenant_router_from_env()
+    )
     uploads = upload_store or document_upload_store_from_env()
     manager = document_manager
-    if manager is None and production_store:
+    if manager is None and production_router:
         manager = document_ingest_manager_from_env(store_factory=store_from_env)
     should_start_worker = (
-        production_store if start_document_worker is None else start_document_worker
+        production_router if start_document_worker is None else start_document_worker
     )
     if manager is not None and should_start_worker:
         manager.start()
@@ -210,7 +285,10 @@ def create_mcp_app(
         return manager
 
     def _tool_span(tool: str) -> Any:
-        observer = getattr(memory, "observer", None)
+        observer = getattr(store, "observer", None)
+        if observer is None:
+            dependencies = getattr(active_resolver, "shared_dependencies", None)
+            observer = getattr(dependencies, "observer", None)
         span = getattr(observer, "span", None)
         if callable(span):
             return span("mcp.tool", {"tool": tool})
@@ -227,10 +305,9 @@ def create_mcp_app(
 
     @app.custom_route("/health", methods=["GET"], include_in_schema=False)
     async def health(_request: Any) -> JSONResponse:
-        runtime_status = getattr(memory, "runtime_status", None)
-        runtime = runtime_status() if callable(runtime_status) else {"stages": {}}
-        graph = runtime.get("stages", {}).get("graph", {}) if isinstance(runtime, dict) else {}
-        ready = not graph or bool(graph.get("ready"))
+        runtime_status = getattr(active_resolver, "runtime_status", None)
+        runtime = runtime_status() if callable(runtime_status) else {"ready": False}
+        ready = _runtime_ready(runtime)
         document_jobs = manager.runtime_status() if manager is not None else {"configured": False}
         return JSONResponse(
             {
@@ -241,7 +318,25 @@ def create_mcp_app(
             status_code=200 if ready else 503,
         )
 
-    register_memory_tools(app, memory, _tool_span)
-    register_document_tools(app, memory, uploads, _document_manager, _tool_span)
+    registration_target = store if store is not None else active_resolver
+    register_memory_tools(app, registration_target, _tool_span)  # type: ignore[arg-type]
+    register_document_tools(  # type: ignore[arg-type]
+        app,
+        registration_target,
+        uploads,
+        _document_manager,
+        _tool_span,
+    )
 
     return app
+
+
+def _runtime_ready(runtime: object) -> bool:
+    if not isinstance(runtime, dict):
+        return False
+    ready = runtime.get("ready")
+    if isinstance(ready, bool):
+        return ready
+    stages = runtime.get("stages")
+    graph = stages.get("graph") if isinstance(stages, dict) else None
+    return not graph or bool(graph.get("ready")) if isinstance(graph, dict) else False
