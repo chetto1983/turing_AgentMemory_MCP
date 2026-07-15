@@ -25,6 +25,18 @@ after the first stable release; pre-1.0 releases may change interfaces.
 - ARC-07 physical tenant isolation: exact validated tenant identifiers now map
   through keyed HMAC identities to separate manifest-verified ArcadeDB
   databases, with ready-last provisioning and bounded immutable-view caching.
+- ARC-07 gap closure: `tenant_binding.py`'s `TenantBinding` recomputes the same
+  keyed HMAC-SHA-256 digest used to name a tenant's database and verifies a
+  caller-supplied `user_identifier` against it in constant time, with a
+  fail-closed `TenantBindingError` that names only the opaque database name.
+
+### Changed
+
+- `_StoreCore._require_user` is now instance-bound: a store returned by
+  `TenantRouter.resolve` carries a `TenantBinding` and rejects a
+  valid-but-foreign `user_identifier` before any client call, span, or audit
+  event; unbound stores (`StaticStoreResolver`, direct construction) keep
+  delegating to the central exact validator unchanged (ARC-07).
 
 ### Fixed
 

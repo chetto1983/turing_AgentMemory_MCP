@@ -47,10 +47,14 @@ Every production operation follows this sequence:
    manifest, and marks the registry row `ready` last.
 5. `TenantRouter` single-flights same-tenant first use and returns an immutable
    `TenantStoreView` whose `ArcadeDBClient` is permanently bound to that
-   database. A bounded LRU and idle TTL reuse views without owning database
-   lifetime.
-6. `TuringAgentMemory` still requires and binds `user_identifier` in every
-   applicable query and mutation inside that database.
+   database. The view's store also carries a `TenantBinding`, a keyed digest
+   recomputable from `(user_identifier, naming_key)` through the same
+   `derive_tenant_database_identity` path used to name the database. A bounded
+   LRU and idle TTL reuse views without owning database lifetime.
+6. `TuringAgentMemory` verifies the caller-supplied `user_identifier` against
+   that `TenantBinding` before any database or telemetry activity, then still
+   binds it as an explicit predicate in every applicable query and mutation
+   inside that database.
 
 Unrelated tenants can provision concurrently. Cache eviction removes only a
 local view; active references remain valid and the durable database is neither
@@ -62,8 +66,10 @@ This is defense in depth:
 
 - physical separation limits each client to one tenant database;
 - the registry and immutable manifest detect missing or mismatched state;
-- mandatory `user_identifier` predicates prevent cross-tenant access even if a
-  client is accidentally misrouted.
+- the `TenantBinding` check detects a misrouted or foreign identifier before
+  any client, span, or audit activity runs, and mandatory `user_identifier`
+  predicates prevent cross-tenant access even if a client is accidentally
+  misrouted.
 
 ## Canonical Store and Retrieval
 
