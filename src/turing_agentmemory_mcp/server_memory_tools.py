@@ -7,12 +7,12 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from turing_agentmemory_mcp.store import TuringAgentMemory
+from turing_agentmemory_mcp.tenant_router import StoreResolver
 
 
 def register_memory_tools(
     app: FastMCP,
-    memory: TuringAgentMemory,
+    resolver: StoreResolver,
     tool_span: Callable[[str], Any],
 ) -> None:
     """Register every `memory_*` MCP tool on `app`."""
@@ -31,6 +31,7 @@ def register_memory_tools(
     ) -> dict[str, Any]:
         """Store a scoped conversation message in long-lived memory."""
         with tool_span("memory_store_message"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.store_message(
                 user_identifier=user_identifier,
                 session_id=session_id,
@@ -46,10 +47,7 @@ def register_memory_tools(
     @app.tool()
     def memory_runtime_status() -> dict[str, object]:
         """Return content-free readiness, projection, and degradation status."""
-        status = getattr(memory, "runtime_status", None)
-        if not callable(status):
-            return {"stages": {}, "projections": {}, "degraded_channel_counts": {}}
-        return status()
+        return resolver.runtime_status()
 
     @app.tool()
     def memory_store_messages(
@@ -63,6 +61,7 @@ def register_memory_tools(
     ) -> list[dict[str, Any]]:
         """Store conversation messages in one duplicate-safe batch."""
         with tool_span("memory_store_messages"):
+            memory = resolver.resolve(user_identifier).memory
             store_arguments: dict[str, object] = {
                 "user_identifier": user_identifier,
                 "messages": messages,
@@ -81,6 +80,7 @@ def register_memory_tools(
     ) -> dict[str, object]:
         """Rebuild derived Leiden communities after a bulk ingest."""
         with tool_span("memory_rebuild_communities"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.rebuild_communities(user_identifier=user_identifier)
 
     @app.tool()
@@ -89,6 +89,7 @@ def register_memory_tools(
     ) -> dict[str, object]:
         """Rebuild active tenant vectors from canonical graph records."""
         with tool_span("memory_rebuild_vector_projection"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.rebuild_vector_projection(user_identifier=user_identifier)
 
     @app.tool()
@@ -98,6 +99,7 @@ def register_memory_tools(
     ) -> dict[str, Any] | None:
         """Fetch one active scoped memory by id."""
         with tool_span("memory_get"):
+            memory = resolver.resolve(user_identifier).memory
             item = memory.get_memory(user_identifier=user_identifier, memory_id=memory_id)
             return item.to_dict() if item is not None else None
 
@@ -116,6 +118,7 @@ def register_memory_tools(
     ) -> list[dict[str, Any]]:
         """List active scoped memories with optional metadata and date filters."""
         with tool_span("memory_list"):
+            memory = resolver.resolve(user_identifier).memory
             return [
                 item.to_dict()
                 for item in memory.list_memories(
@@ -147,6 +150,7 @@ def register_memory_tools(
     ) -> dict[str, Any]:
         """Update active scoped memory content or metadata."""
         with tool_span("memory_update"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.update_memory(
                 user_identifier=user_identifier,
                 memory_id=memory_id,
@@ -167,6 +171,7 @@ def register_memory_tools(
     ) -> dict[str, object]:
         """Soft-delete one scoped memory so it is hidden from retrieval."""
         with tool_span("memory_delete"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.delete_memory(user_identifier=user_identifier, memory_id=memory_id)
 
     @app.tool()
@@ -187,6 +192,7 @@ def register_memory_tools(
     ) -> list[dict[str, Any]]:
         """Search scoped memory with fused dense, BM25, entity, graph, and rerank signals."""
         with tool_span("memory_search"):
+            memory = resolver.resolve(user_identifier).memory
             return [
                 item.to_dict()
                 for item in memory.search_memory(
@@ -223,6 +229,7 @@ def register_memory_tools(
     ) -> dict[str, Any]:
         """Return prompt-ready scoped memory context for a query."""
         with tool_span("memory_get_context"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.get_context(
                 user_identifier=user_identifier,
                 query=query,
@@ -247,6 +254,7 @@ def register_memory_tools(
     ) -> dict[str, Any]:
         """Store an entity memory."""
         with tool_span("memory_add_entity"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.add_entity(
                 user_identifier=user_identifier,
                 name=name,
@@ -263,6 +271,7 @@ def register_memory_tools(
     ) -> dict[str, Any]:
         """Store a user preference memory."""
         with tool_span("memory_add_preference"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.add_preference(
                 user_identifier=user_identifier,
                 category=category,
@@ -280,6 +289,7 @@ def register_memory_tools(
     ) -> dict[str, Any]:
         """Store a durable fact memory."""
         with tool_span("memory_add_fact"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.add_fact(
                 user_identifier=user_identifier,
                 subject=subject,

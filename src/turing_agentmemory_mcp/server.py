@@ -318,11 +318,10 @@ def create_mcp_app(
             status_code=200 if ready else 503,
         )
 
-    registration_target = store if store is not None else active_resolver
-    register_memory_tools(app, registration_target, _tool_span)  # type: ignore[arg-type]
-    register_document_tools(  # type: ignore[arg-type]
+    register_memory_tools(app, active_resolver, _tool_span)
+    register_document_tools(
         app,
-        registration_target,
+        active_resolver,
         uploads,
         _document_manager,
         _tool_span,

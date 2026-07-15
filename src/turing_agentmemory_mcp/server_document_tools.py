@@ -9,12 +9,12 @@ from fastmcp import FastMCP
 
 from turing_agentmemory_mcp.document_job_manager import DocumentIngestManager
 from turing_agentmemory_mcp.file_upload import DocumentUploadStore
-from turing_agentmemory_mcp.store import TuringAgentMemory
+from turing_agentmemory_mcp.tenant_router import StoreResolver
 
 
 def register_document_tools(
     app: FastMCP,
-    memory: TuringAgentMemory,
+    resolver: StoreResolver,
     uploads: DocumentUploadStore,
     document_manager: Callable[[], DocumentIngestManager],
     tool_span: Callable[[str], Any],
@@ -122,6 +122,7 @@ def register_document_tools(
     ) -> dict[str, Any]:
         """Ingest text as a cited document graph with chunk vectors."""
         with tool_span("document_ingest_text"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.ingest_document_text(
                 user_identifier=user_identifier,
                 title=title,
@@ -218,6 +219,7 @@ def register_document_tools(
     ) -> dict[str, Any]:
         """Replace one scoped document's chunks and vectors with fresh text."""
         with tool_span("document_reindex_text"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.reindex_document_text(
                 user_identifier=user_identifier,
                 document_id=document_id,
@@ -236,6 +238,7 @@ def register_document_tools(
     ) -> dict[str, object]:
         """Soft-delete one scoped document so its chunks are hidden from retrieval."""
         with tool_span("document_delete"):
+            memory = resolver.resolve(user_identifier).memory
             return memory.delete_document(user_identifier=user_identifier, document_id=document_id)
 
     @app.tool()
@@ -255,6 +258,7 @@ def register_document_tools(
     ) -> list[dict[str, Any]]:
         """Search scoped document chunks and return cited context with optional metadata filters."""
         with tool_span("document_search"):
+            memory = resolver.resolve(user_identifier).memory
             return [
                 item.to_dict()
                 for item in memory.search_documents(
