@@ -190,10 +190,11 @@ services:
       - TURINGDB_ENTITY_INDEX=${TURINGDB_ENTITY_INDEX:-agent_memory_entity_vectors_768}
       - TURINGDB_FACT_INDEX=${TURINGDB_FACT_INDEX:-agent_memory_fact_vectors_768}
       - TURINGDB_COMMUNITY_INDEX=${TURINGDB_COMMUNITY_INDEX:-agent_memory_community_vectors_768}
-      # ArcadeDB (04-04): the store now connects through this client; the
-      # TURINGDB_* vars above stay wired additively for Phase 6 coexistence.
+      # ArcadeDB is canonical. The production tenant router derives a separate
+      # database for every exact user_identifier; it never accepts a shared
+      # ARCADEDB_DATABASE fallback. TURINGDB_* remains wired only for the
+      # transitional shared runtime paths scheduled for later removal.
       - ARCADEDB_URL=http://arcadedb:2480
-      - ARCADEDB_DATABASE=${ARCADEDB_DATABASE:-agent_memory}
       - ARCADEDB_USER=${ARCADEDB_USER:-root}
       # LO-03: dev-only fallback documented canonically in .env.example and
       # at the arcadedb service above -- MUST be overridden for any
@@ -286,7 +287,7 @@ services:
       - /tmp
       - /run
     healthcheck:
-      test: ["CMD-SHELL", "python - <<'PY'\nimport json\nfrom urllib.request import urlopen\nwith urlopen('http://127.0.0.1:8080/health', timeout=2) as response:\n    payload = json.load(response)\nassert payload['status'] == 'ok'\nassert payload['runtime']['stages']['graph']['ready'] is True\nPY"]
+      test: ["CMD-SHELL", "python - <<'PY'\nimport json\nfrom urllib.request import urlopen\nwith urlopen('http://127.0.0.1:8080/health', timeout=2) as response:\n    payload = json.load(response)\nassert payload['status'] == 'ok'\nassert payload['runtime']['ready'] is True\nassert payload['runtime']['arcadedb']['ready'] is True\nassert payload['runtime']['registry']['ready'] is True\nassert payload['runtime']['router']['ready'] is True\nPY"]
       interval: 10s
       timeout: 3s
       retries: 12

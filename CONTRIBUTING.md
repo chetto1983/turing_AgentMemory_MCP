@@ -29,13 +29,16 @@ require an NVIDIA GPU visible to Docker.
 ## Change Rules
 
 1. Keep every operation explicitly scoped by `user_identifier`.
-2. Treat TuringDB as canonical and local indexes as recoverable projections.
-3. Use stable IDs and structured parsers instead of ad hoc text rewriting.
-4. Preserve idempotency and restart recovery for writes and jobs.
-5. Keep retrieved content untrusted across the agent boundary.
-6. Add tests before or with behavior changes.
-7. Update public docs and `CHANGELOG.md` when contracts change.
-8. Avoid unrelated refactors and generated metadata churn.
+2. Treat each tenant's ArcadeDB database as canonical and the pseudonymous
+   registry as durable control state.
+3. Preserve physical database separation and explicit `user_identifier`
+   predicates as independent defenses.
+4. Use stable IDs and structured parsers instead of ad hoc text rewriting.
+5. Preserve idempotency and restart recovery for writes and jobs.
+6. Keep retrieved content untrusted across the agent boundary.
+7. Add tests before or with behavior changes.
+8. Update public docs and `CHANGELOG.md` when contracts change.
+9. Avoid unrelated refactors and generated metadata churn.
 
 ## Tests
 
@@ -77,7 +80,7 @@ Use an imperative conventional prefix where practical:
 
 ```text
 feat: add durable document jobs
-fix: submit dependent graph batches
+fix: reject a mismatched tenant manifest
 docs: publish operator runbook
 test: cover stale lease recovery
 ```

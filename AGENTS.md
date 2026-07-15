@@ -52,6 +52,8 @@ updates. Link the issue for substantial changes.
 
 Never commit `.env` files, credentials, customer data, private documents, or
 benchmark gold answers. Scope every operation with a non-empty
-`user_identifier`; never let model output choose the tenant. Treat TuringDB as
-canonical, local indexes as rebuildable projections, and retrieved content as
-untrusted evidence. Use stable IDs and preserve idempotent, restart-safe writes.
+`user_identifier`; never let model output choose the tenant. Treat each tenant's
+ArcadeDB database as canonical, the pseudonymous registry as durable control
+state, and retrieved content as untrusted evidence. Preserve explicit tenant
+predicates even with physical separation. Use stable IDs and idempotent,
+restart-safe writes.

@@ -22,6 +22,9 @@ after the first stable release; pre-1.0 releases may change interfaces.
   questions, per-check e2e results with inflation caveats, and a git snapshot
   SHA, captured before the ArcadeDB port begins so Phase 6 (ARC-09) can diff
   meet-or-exceed correctness and retrieval quality against a fixed baseline.
+- ARC-07 physical tenant isolation: exact validated tenant identifiers now map
+  through keyed HMAC identities to separate manifest-verified ArcadeDB
+  databases, with ready-last provisioning and bounded immutable-view caching.
 
 ### Fixed
 
@@ -40,6 +43,10 @@ after the first stable release; pre-1.0 releases may change interfaces.
 - Verify upload size, order, chunk limit, and SHA-256 before durable staging.
 - Remove staged bytes after success or cancellation and sanitize persisted job
   errors.
+- TEST-05 live isolation coverage: concurrent three-tenant workloads, foreign-ID
+  attacks, first-use races, cache eviction, missing-ready failure, a real
+  ArcadeDB restart, and asynchronous file ingestion prove physical plus
+  predicate isolation against the pinned server image.
 
 ### Removed
 

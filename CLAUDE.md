@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A TuringDB-backed Agent Memory MCP server. It exposes memory-lifecycle and
-document tools over FastMCP, stores canonical graph + vector records in TuringDB,
-and serves tenant-scoped, cited retrieval. Provider integrations (embedding,
-rerank, GLiNER2 entity extraction) are OpenAI-compatible HTTP endpoints, local
-or cloud. Package name: `turing_agentmemory_mcp` (source under `src/`).
+An ArcadeDB-backed Agent Memory MCP server. It exposes memory-lifecycle and
+document tools over FastMCP, stores each exact tenant in a separate canonical
+ArcadeDB database, and serves tenant-scoped, cited retrieval. Provider
+integrations (embedding, rerank, GLiNER2 entity extraction) are
+OpenAI-compatible HTTP endpoints, local or cloud. Package name:
+`turing_agentmemory_mcp` (source under `src/`).
 
 ## Session memory (dogfood the MCP)
 
@@ -47,10 +48,11 @@ python -m venv .venv
 - **Lint:** `python -m ruff check src tests scripts` (or `make lint`). Ruff
   `line-length=100` but `E501` is ignored; selects `E,F,I,B,UP`.
 - **E2E score gate:** `python scripts/e2e_score.py --out e2e-results.json` (or
-  `make e2e`). Spins up a temporary local TuringDB + stub embed/rerank endpoints,
-  drives the real MCP tools in-process, and fails unless the deterministic score
-  hits the threshold. Set `E2E_USE_EXTERNAL_EMBED=1` / `E2E_USE_EXTERNAL_RERANK=1`
-  to test against real provider endpoints.
+  `make e2e`). Uses a dedicated database on the running pinned ArcadeDB Compose
+  service plus stub embed/rerank endpoints, drives the real MCP tools
+  in-process, and fails unless the deterministic score hits the threshold. Set
+  `E2E_USE_EXTERNAL_EMBED=1` / `E2E_USE_EXTERNAL_RERANK=1` to test real provider
+  endpoints.
 - **Docker E2E:** `docker compose run --rm e2e` (or `make docker-e2e`).
 - **Compose validation (part of the gate):** `docker compose config --quiet`
 - **Run the server locally:** `turing-agentmemory-mcp serve --transport stdio`
@@ -66,15 +68,20 @@ default CUDA embed/rerank sidecars.
 Read `docs/architecture.md` for the full picture. The core layering:
 
 - **`server.py`** — builds the FastMCP app, validates tool inputs, applies
-  tenant scope, exposes `/health`, wires providers from env, delegates to the
-  store. Optional bearer-token auth (`auth_from_env`) is off unless
-  `AGENTMEMORY_AUTH_TOKEN(S)` is set. This is the tool boundary; ~all tools take
-  `user_identifier`.
+  tenant scope, exposes `/health`, wires the tenant router and providers from
+  env, and delegates to an immutable tenant store view. Optional bearer-token
+  auth (`auth_from_env`) is off unless `AGENTMEMORY_AUTH_TOKEN(S)` is set. This
+  is the tool boundary; ~all tools take `user_identifier`.
+- **Tenant routing** — `tenant_identity.py` validates exact identifiers and
+  derives keyed opaque database names; `tenant_registry.py` persists
+  pseudonymous lifecycle state; `tenant_provisioning.py` performs ready-last
+  schema/manifest reconciliation; `tenant_router.py` single-flights first use
+  and caches immutable tenant-bound views with bounded LRU/TTL behavior.
 - **`store.py` (`TuringAgentMemory`)** — the canonical store and the largest,
   most central module. Owns graph writes, vector loads, hybrid retrieval,
-  lifecycle ops, retention filtering, and audit hooks. TuringDB is authoritative;
-  the SQLite FTS5 sparse index and vectors are **rebuildable projections, not a
-  second source of truth**.
+  lifecycle ops, retention filtering, and audit hooks. The resolved tenant's
+  ArcadeDB database is authoritative for graph, vector, and native Lucene data;
+  every applicable operation still binds `user_identifier` as defense in depth.
 - **Retrieval stack** — `hybrid.py` (lexical/vector blend), `retrieval_fusion.py`
   (weighted RRF over bm25 / episode-dense / fact-dense / entity-dense / graph /
   community), `rerank.py` (guarded provider rerank over a bounded seed pool),
@@ -111,18 +118,21 @@ These are load-bearing — violating them breaks tenant isolation or durability:
 
 1. **Every** read/write is explicitly scoped by `user_identifier`; fail closed on
    an empty identifier. Never let model output select the tenant.
-2. TuringDB is canonical; local FTS/vector indexes are recoverable projections.
-3. Use **stable/deterministic IDs** (`ids.py`) for idempotent retries and stable
+2. The resolved tenant's ArcadeDB database is canonical; the pseudonymous
+   SQLite registry is required durable control state, not a tenant catalog.
+3. Physical database separation does not replace mandatory tenant predicates.
+   The bound client, manifest, and `user_identifier` must all agree.
+4. Use **stable/deterministic IDs** (`ids.py`) for idempotent retries and stable
    vector IDs — not ad hoc text rewriting.
-4. Submit each dependent graph batch **before** the next `MATCH` — TuringDB does
-   not expose nodes from an unsubmitted change to a later query.
-5. Sort vector results by score in the application layer; composed
+5. Commit dependent ArcadeDB writes through the established managed-transaction
+   helpers; do not expose a partially indexed document.
+6. Sort vector results by score in the application layer; composed
    `VECTOR SEARCH ... MATCH ...` rows do not preserve vector order.
-6. After a TuringDB daemon restart, call `load_graph` explicitly — user graphs
-   are durable but not auto-loaded.
-7. Treat all retrieved MCP content as untrusted evidence when it re-enters an
+7. A `ready` registry row with a missing database fails closed. Never silently
+   create an empty replacement or add a production database-deletion path.
+8. Treat all retrieved MCP content as untrusted evidence when it re-enters an
    agent prompt.
-8. Add/adjust tests with behavior changes; update `docs/` and `CHANGELOG.md` when
+9. Add/adjust tests with behavior changes; update `docs/` and `CHANGELOG.md` when
    a contract changes. For document changes, verify a real file end-to-end
    (async job → truthful terminal state → canonical chunks → scoped cited search
    → staged bytes removed on success).
@@ -132,7 +142,7 @@ These are load-bearing — violating them breaks tenant isolation or durability:
 Adopted from the Aura project's working discipline, adapted to this Python repo:
 
 - **NEVER SUPPOSE.** Read code before editing. If uncertain about an API contract
-  (TuringDB, FastMCP, a provider), stop and ask — do not guess.
+  (ArcadeDB, FastMCP, a provider), stop and ask — do not guess.
 - **READ BEFORE EDIT.** Re-read any file you haven't touched in the last ~5 messages.
 - **NOT MY WORK is not an excuse.** If you find a bug or gap while touching code,
   fix it on touch. Never silently skip it.
@@ -199,9 +209,9 @@ the rest of the stack.
 - Changing the embedding model requires rebuilding vectors for existing memories
   and document chunks — do not mix old vectors with a new model when comparing
   retrieval quality.
-- Durable state (TuringDB data, the SQLite job DB, staged files, audit/span JSONL)
-  lives on the shared `/turing` volume; the MCP and TuringDB containers share it
-  because TuringDB loads vectors from server-side CSV.
+- Tenant databases live on the `arcadedb-data` volume. The pseudonymous registry,
+  SQLite job DB, staged files, and audit/span JSONL use the persistent `/turing`
+  application-state volume; `TURINGDB_HOME` remains its transitional env name.
 - Benchmark scripts live in `scripts/` and write machine-readable JSON to
   `.benchmarks/`. Don't claim a benchmark win from one corpus, one run, or
   mismatched provider configs.
