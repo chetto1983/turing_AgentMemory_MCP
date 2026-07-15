@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -43,6 +44,82 @@ def test_enqueue_is_idempotent_and_get_is_tenant_scoped(tmp_path: Path) -> None:
     assert store.get(first.job_id, user_identifier="alice") == first
     assert store.get(first.job_id, user_identifier="bob") is None
     assert first.to_dict()["metadata"] == {"department": "service"}
+
+
+@pytest.mark.parametrize(
+    "user_identifier",
+    ["", " alice", "alice ", "alice\n", "alice\ud800"],
+)
+def test_enqueue_rejects_invalid_exact_identity_before_creating_a_row(
+    tmp_path: Path,
+    user_identifier: str,
+) -> None:
+    store = DocumentJobStore(tmp_path / "jobs.sqlite3")
+    store.initialize()
+
+    with pytest.raises(ValueError, match="user_identifier"):
+        enqueue_job(store, user_identifier=user_identifier)
+
+    with sqlite3.connect(store.path) as connection:
+        count = connection.execute("SELECT COUNT(*) FROM document_ingest_jobs").fetchone()
+    assert count == (0,)
+
+
+@pytest.mark.parametrize("user_identifier", [" alice", "alice\n", "alice\ud800"])
+def test_idempotency_key_rejects_invalid_identity(user_identifier: str) -> None:
+    with pytest.raises(ValueError, match="user_identifier"):
+        DocumentJobStore.idempotency_key(
+            user_identifier=user_identifier,
+            document_id="manual",
+            filename="manual.pdf",
+            sha256="a" * 64,
+        )
+
+
+def test_job_rows_and_idempotency_preserve_case_and_unicode_exactly(tmp_path: Path) -> None:
+    store = DocumentJobStore(tmp_path / "jobs.sqlite3")
+    store.initialize()
+    identifiers = ["alice", "Alice", "caf\u00e9", "cafe\u0301"]
+
+    jobs = [enqueue_job(store, user_identifier=value) for value in identifiers]
+
+    assert [job.user_identifier for job in jobs] == identifiers
+    assert len({job.job_id for job in jobs}) == len(identifiers)
+    assert len({job.idempotency_key for job in jobs}) == len(identifiers)
+    for job, identifier in zip(jobs, identifiers, strict=True):
+        assert store.get(job.job_id, user_identifier=identifier) == job
+        assert store.get(job.job_id, user_identifier=identifier.swapcase()) is None
+
+
+@pytest.mark.parametrize("operation", ["get", "cancel", "retry"])
+def test_invalid_job_owner_fails_before_lookup_or_mutation(
+    tmp_path: Path,
+    operation: str,
+) -> None:
+    store = DocumentJobStore(tmp_path / "jobs.sqlite3")
+    store.initialize()
+    job = enqueue_job(store)
+    if operation == "retry":
+        claimed = store.claim(worker_id="worker-a", lease_seconds=60, now=NOW)
+        assert claimed is not None
+        job = store.fail(
+            job.job_id,
+            worker_id="worker-a",
+            error_code="conversion_failed",
+            error_message="Conversion failed",
+            retryable=False,
+            now=NOW,
+        )
+
+    with pytest.raises(ValueError, match="surrounding whitespace"):
+        if operation == "get":
+            store.get(job.job_id, user_identifier=" alice")
+        elif operation == "cancel":
+            store.cancel(job.job_id, user_identifier=" alice", now=NOW)
+        else:
+            store.retry(job.job_id, user_identifier=" alice", now=NOW)
+
+    assert store.get(job.job_id, user_identifier="alice") == job
 
 
 def test_claim_is_exclusive_and_recovers_an_expired_lease(tmp_path: Path) -> None:

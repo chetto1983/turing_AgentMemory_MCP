@@ -44,7 +44,7 @@ def test_document_upload_store_enforces_tenant_sequence_size_and_sha256(tmp_path
     )
     upload_id = str(started["upload_id"])
 
-    with pytest.raises(ValueError, match="tenant"):
+    with pytest.raises(ValueError, match="unknown"):
         store.append(upload_id, user_identifier="bob", sequence=0, content=b"abcd")
     with pytest.raises(ValueError, match="sequence"):
         store.append(upload_id, user_identifier="alice", sequence=1, content=b"abcd")
@@ -57,6 +57,74 @@ def test_document_upload_store_enforces_tenant_sequence_size_and_sha256(tmp_path
     assert uploaded.filename == "manual.pdf"
     store.discard(upload_id, user_identifier="alice")
     assert not uploaded.path.parent.exists()
+
+
+@pytest.mark.parametrize(
+    "user_identifier",
+    ["", " alice", "alice ", "alice\n", "alice\ud800"],
+)
+def test_upload_begin_rejects_invalid_exact_identity_before_staging(
+    tmp_path: Path,
+    user_identifier: str,
+) -> None:
+    store = DocumentUploadStore(tmp_path, max_file_bytes=32, chunk_bytes=4)
+
+    with pytest.raises(ValueError, match="user_identifier"):
+        store.begin(
+            user_identifier=user_identifier,
+            filename="manual.pdf",
+            total_bytes=4,
+            sha256=hashlib.sha256(b"data").hexdigest(),
+        )
+
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("operation", ["append", "complete", "discard"])
+def test_upload_operations_reject_invalid_owner_before_mutation(
+    tmp_path: Path,
+    operation: str,
+) -> None:
+    store = DocumentUploadStore(tmp_path, max_file_bytes=32, chunk_bytes=4)
+    started = store.begin(
+        user_identifier="alice",
+        filename="manual.pdf",
+        total_bytes=4,
+        sha256=hashlib.sha256(b"data").hexdigest(),
+    )
+    upload_id = str(started["upload_id"])
+    staged_path = next((tmp_path / upload_id).iterdir())
+
+    with pytest.raises(ValueError, match="surrounding whitespace"):
+        if operation == "append":
+            store.append(upload_id, user_identifier=" alice", sequence=0, content=b"data")
+        elif operation == "complete":
+            store.complete(upload_id, user_identifier=" alice")
+        else:
+            store.discard(upload_id, user_identifier=" alice")
+
+    assert staged_path.exists()
+    assert staged_path.read_bytes() == b""
+
+
+def test_upload_ownership_is_exact_and_non_enumerating(tmp_path: Path) -> None:
+    store = DocumentUploadStore(tmp_path, max_file_bytes=32, chunk_bytes=4)
+    started = store.begin(
+        user_identifier="caf\u00e9",
+        filename="manual.pdf",
+        total_bytes=4,
+        sha256=hashlib.sha256(b"data").hexdigest(),
+    )
+    upload_id = str(started["upload_id"])
+
+    with pytest.raises(ValueError) as foreign_error:
+        store.complete(upload_id, user_identifier="cafe\u0301")
+    with pytest.raises(ValueError) as unknown_error:
+        store.complete("missing-upload", user_identifier="cafe\u0301")
+
+    assert str(foreign_error.value) == str(unknown_error.value) == "upload_id is unknown"
+    store.append(upload_id, user_identifier="caf\u00e9", sequence=0, content=b"data")
+    assert store.complete(upload_id, user_identifier="caf\u00e9").user_identifier == "caf\u00e9"
 
 
 class RecordingMemory:
