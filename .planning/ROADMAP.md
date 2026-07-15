@@ -178,14 +178,14 @@ Plans:
   2. Every query still carries explicit `user_identifier` scoping and fails closed on an empty identifier — DB-level isolation never replaces the invariant-#1 contract.
   3. Concurrent multi-tenant isolation tests pass with no cross-tenant leakage under concurrency.
 
-**Plans**: 1/8 plans executed
+**Plans**: 2/8 plans executed
 
 Plans:
 
 **Wave 1 — Contracts and defense-in-depth**
 
 - [x] 05-01-PLAN.md — Define exact opaque tenant identity and keyed physical database naming (ARC-07)
-- [ ] 05-02-PLAN.md — Persist a pseudonymous, fail-closed tenant registry and lifecycle state (ARC-07)
+- [x] 05-02-PLAN.md — Persist a pseudonymous, fail-closed tenant registry and lifecycle state (ARC-07)
 - [ ] 05-03-PLAN.md — Audit and enforce explicit `user_identifier` predicates across every query surface (ARC-07, TEST-05)
 
 **Wave 2 — Provisioning**
@@ -318,7 +318,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
-| 5. Per-Tenant ArcadeDB Isolation | 1/8 | In Progress|  |
+| 5. Per-Tenant ArcadeDB Isolation | 2/8 | In Progress|  |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |

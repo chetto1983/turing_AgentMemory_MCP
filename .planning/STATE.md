@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 05
 current_phase_name: Per-Tenant ArcadeDB Isolation
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-07-15T10:09:46.988Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-07-15T10:32:30.762Z"
 last_activity: 2026-07-15
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 13
   completed_phases: 4
   total_plans: 34
-  completed_plans: 27
-  percent: 31
+  completed_plans: 28
+  percent: 82
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 05 (Per-Tenant ArcadeDB Isolation) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-07-15 — Phase 05 execution started
 
-Progress: [████████░░] 79%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -83,6 +83,7 @@ Progress: [████████░░] 79%
 | Phase 04-arcadedb-direct-port P09 | 75min | 3 tasks | 15 files |
 | Phase 04 P10 | 35min | 3 tasks | 13 files |
 | Phase 05 P01 | 8min | 2 tasks | 2 files |
+| Phase 05 P02 | 10min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Preserve accepted tenant identifiers code-point-for-code-point — Reject unsafe boundaries and code points without trimming, normalization, or case folding.
 - [Phase 05]: Use a separate domain for the non-secret naming-key fingerprint — Keep operator correlation pseudonymous and cryptographically separate from database-name derivation.
 - [Phase 05]: Require strict base64 naming keys of at least 32 bytes with no fallback — Fail closed before irreversible tenant database routing.
+- [Phase 05]: Registry initialization treats any pre-existing file without the exact schema as corrupt and never repairs it automatically. — This preserves durable ready evidence and prevents an empty replacement registry from disguising data loss or configuration drift.
+- [Phase 05]: Idempotent begin_provisioning calls return the winning durable record unchanged, including its authoritative created_at, and never demote ready. — Cross-process contenders must converge on persisted lifecycle evidence instead of rewriting it with contender-local timestamps.
+- [Phase 05]: Registry runtime status exposes only schema version, naming version, non-secret key fingerprint, and readiness—not tenant inventory. — Global diagnostics need configuration binding evidence without creating a tenant enumeration or identity disclosure surface.
 
 ### Pending Todos
 
@@ -181,6 +185,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T10:09:46.975Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-07-15T10:32:30.750Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None
