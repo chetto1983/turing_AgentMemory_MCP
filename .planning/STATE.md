@@ -4,16 +4,16 @@ milestone: v2.2.0
 milestone_name: milestone
 current_phase: 05
 current_phase_name: Per-Tenant ArcadeDB Isolation
-status: planning
-stopped_at: Phase 5 context gathered
-last_updated: "2026-07-14T12:38:09.231Z"
-last_activity: 2026-07-14
-last_activity_desc: Phase 04 complete (verified 4/4); next Phase 05
+status: executing
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-07-15T10:09:46.988Z"
+last_activity: 2026-07-15
+last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 13
   completed_phases: 4
-  total_plans: 26
-  completed_plans: 26
+  total_plans: 34
+  completed_plans: 27
   percent: 31
 ---
 
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 
 ## Current Position
 
-Phase: 05 — Per-Tenant ArcadeDB Isolation
-Plan: Not started
-Status: Ready to plan (needs /gsd-discuss-phase 5)
-Last activity: 2026-07-14 — Phase 04 complete (verified 4/4); next Phase 05
+Phase: 05 (Per-Tenant ArcadeDB Isolation) — EXECUTING
+Plan: 2 of 8
+Status: Ready to execute
+Last activity: 2026-07-15 — Phase 05 execution started
 
-Progress: [█████████░] 94%
+Progress: [████████░░] 79%
 
 ## Performance Metrics
 
@@ -82,6 +82,7 @@ Progress: [█████████░] 94%
 | Phase 04 P08 | 95min | 2 tasks | 8 files |
 | Phase 04-arcadedb-direct-port P09 | 75min | 3 tasks | 15 files |
 | Phase 04 P10 | 35min | 3 tasks | 13 files |
+| Phase 05 P01 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,9 @@ Recent decisions affecting current work:
 - [Phase ?]: ArcadeE2EBackend connects to the already-running arcadedb compose service instead of owning a throwaway container lifecycle
 - [Phase ?]: GPU-backed quality-parity e2e capture and real_document_benchmark.json were not attempted this session; documented reproduction commands instead of fabricating
 - [Phase ?]: Confirmed retire-directly disposition for ARC-06 write-side outbox: source inspection showed store_evidence.py/store_search.py already fed lexical retrieval from native ArcadeDB channels, requiring pure removal, not a wire-in-first step.
+- [Phase 05]: Preserve accepted tenant identifiers code-point-for-code-point — Reject unsafe boundaries and code points without trimming, normalization, or case folding.
+- [Phase 05]: Use a separate domain for the non-secret naming-key fingerprint — Keep operator correlation pseudonymous and cryptographically separate from database-name derivation.
+- [Phase 05]: Require strict base64 naming keys of at least 32 bytes with no fallback — Fail closed before irreversible tenant database routing.
 
 ### Pending Todos
 
@@ -177,6 +181,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-14T12:38:09.212Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-per-tenant-arcadedb-isolation/05-CONTEXT.md
+Last session: 2026-07-15T10:09:46.975Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None

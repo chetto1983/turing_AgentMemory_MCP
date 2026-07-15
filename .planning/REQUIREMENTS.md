@@ -25,7 +25,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [x] **ARC-04**: `store.py` graph CRUD ported to ArcadeDB SQL (memories, documents, chunks, entities, facts, communities, and all edges) — direct port, no abstraction layer
 - [x] **ARC-05**: Vector search ported to ArcadeDB native `LSM_VECTOR` (HNSW); the TuringDB `vector_id` int-join is deleted, not ported
 - [x] **ARC-06**: Full-text ported to ArcadeDB native Lucene; analyzer/tokenizer validated against golden queries; the SQLite-FTS5 outbox prepare/commit/replay path retired
-- [ ] **ARC-07**: One ArcadeDB database per tenant for physical isolation, with app-layer `user_identifier` scoping still mandatory on every query (invariant #1)
+- [x] **ARC-07**: One ArcadeDB database per tenant for physical isolation, with app-layer `user_identifier` scoping still mandatory on every query (invariant #1)
 - [x] **ARC-08**: Stable/deterministic IDs preserved across the port (invariant #3); no vector-ID drift
 - [ ] **ARC-09**: Migration-correctness gate — the ported ArcadeDB code meets-or-exceeds the ARC-01 baseline (HARD exit criterion; nothing downstream proceeds until it passes)
 - [ ] **ARC-10**: TuringDB removed from the codebase and Compose stack; CLAUDE.md invariants updated (ArcadeDB canonical, invariant #2 superseded)
@@ -136,7 +136,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | ARC-04 | Phase 4 | Complete |
 | ARC-05 | Phase 4 | Complete |
 | ARC-06 | Phase 4 | Complete |
-| ARC-07 | Phase 5 | Pending |
+| ARC-07 | Phase 5 | Complete |
 | ARC-08 | Phase 4 | Complete |
 | ARC-09 | Phase 6 | Pending |
 | ARC-10 | Phase 7 | Pending |

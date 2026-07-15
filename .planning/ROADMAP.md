@@ -178,28 +178,34 @@ Plans:
   2. Every query still carries explicit `user_identifier` scoping and fails closed on an empty identifier — DB-level isolation never replaces the invariant-#1 contract.
   3. Concurrent multi-tenant isolation tests pass with no cross-tenant leakage under concurrency.
 
-**Plans**: 8 plans
+**Plans**: 1/8 plans executed
 
 Plans:
 
 **Wave 1 — Contracts and defense-in-depth**
-- [ ] 05-01-PLAN.md — Define exact opaque tenant identity and keyed physical database naming (ARC-07)
+
+- [x] 05-01-PLAN.md — Define exact opaque tenant identity and keyed physical database naming (ARC-07)
 - [ ] 05-02-PLAN.md — Persist a pseudonymous, fail-closed tenant registry and lifecycle state (ARC-07)
 - [ ] 05-03-PLAN.md — Audit and enforce explicit `user_identifier` predicates across every query surface (ARC-07, TEST-05)
 
 **Wave 2 — Provisioning**
+
 - [ ] 05-04-PLAN.md — Provision and reconcile tenant databases with ready-last lifecycle semantics (ARC-07)
 
 **Wave 3 — Runtime routing**
+
 - [ ] 05-05-PLAN.md — Build immutable tenant store views with single-flight provisioning and bounded caching (ARC-07)
 
 **Wave 4 — Foreground integration**
+
 - [ ] 05-06-PLAN.md — Route foreground server tools through exact tenant-bound stores and layered health checks (ARC-07)
 
 **Wave 5 — Background integration** *(blocked on Wave 4's document-manager resolver contract)*
+
 - [ ] 05-07-PLAN.md — Route uploads and document workers without identity transformation or cross-tenant reuse (ARC-07, TEST-05)
 
 **Wave 6 — Live isolation gate**
+
 - [ ] 05-08-PLAN.md — Prove live A/B/C physical isolation, lifecycle chaos resilience, and operational contracts (ARC-07, TEST-05)
 
 ### Phase 6: Migration-Correctness Gate
@@ -312,7 +318,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
-| 5. Per-Tenant ArcadeDB Isolation | 0/TBD | Not started | - |
+| 5. Per-Tenant ArcadeDB Isolation | 1/8 | In Progress|  |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
