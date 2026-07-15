@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 05
 current_phase_name: Per-Tenant ArcadeDB Isolation
 status: executing
-stopped_at: Completed 05-06-PLAN.md
-last_updated: "2026-07-15T12:12:33.053Z"
+stopped_at: Completed 05-07-PLAN.md
+last_updated: "2026-07-15T12:41:00.392Z"
 last_activity: 2026-07-15
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 13
   completed_phases: 4
   total_plans: 34
-  completed_plans: 32
+  completed_plans: 33
   percent: 31
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 05 (Per-Tenant ArcadeDB Isolation) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-07-15 — Phase 05 execution started
 
@@ -88,6 +88,7 @@ Progress: [█████████░] 91%
 | Phase 05 P04 | 21min | 2 tasks | 6 files |
 | Phase 05 P05 | 17min | 2 tasks | 4 files |
 | Phase 05 P06 | 17min | 2 tasks | 7 files |
+| Phase 05 P07 | 19min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -163,6 +164,10 @@ Recent decisions affecting current work:
 - [Phase 05]: Wrap direct store injection in StaticStoreResolver and reject simultaneous store/resolver ownership. — Application assembly must have exactly one routing authority while preserving existing fake-store tests.
 - [Phase 05]: Resolve one immutable tenant view per foreground data operation and pass user_identifier unchanged to the selected store. — One boundary crossing prevents tenant confusion while retaining defense-in-depth store predicates.
 - [Phase 05]: Keep global health and memory_runtime_status on resolver runtime status without tenant resolution. — Tenant-local damage must not provision a tenant or poison shared service readiness.
+- [Phase 05]: Preserve exact document ownership identity — Validate before job or upload lookup and mutation; never trim, normalize, or case-fold durable ownership.
+- [Phase 05]: Resolve one tenant view per claimed document job — The manager retains only the shared resolver and never caches a tenant memory store across jobs.
+- [Phase 05]: Hide foreign upload-session existence — Absent and foreign upload ownership return the same non-enumerating unknown error.
+- [Phase 05]: Share active resolver across foreground and background work — Production document workers consume the same routing authority as MCP tools.
 
 ### Pending Todos
 
@@ -201,6 +206,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T12:12:33.026Z
-Stopped at: Completed 05-06-PLAN.md
+Last session: 2026-07-15T12:41:00.368Z
+Stopped at: Completed 05-07-PLAN.md
 Resume file: None
