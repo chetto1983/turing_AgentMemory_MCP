@@ -39,6 +39,17 @@ _PINNED_IMAGE = "arcadedata/arcadedb:26.7.1"
 _NAMING_KEY = b"0123456789abcdef0123456789abcdef"
 _TENANTS = ("Tenant-A", "Tenant-B", "Tenant-C")
 _IDENTITY_VARIANTS = (*_TENANTS, "tenant-a", "T\u0435nant-A")
+_LIFECYCLE_TENANTS = (
+    "Lifecycle-Same",
+    "Lifecycle-Different-A",
+    "Lifecycle-Different-B",
+    "Lifecycle-Cache-A",
+    "Lifecycle-Cache-B",
+    "Lifecycle-Missing",
+    "Lifecycle-Restart",
+    "Lifecycle-File",
+    "Lifecycle-File-Foreign",
+)
 _CANARIES = {"Tenant-A": "amberalpha", "Tenant-B": "bronzeecho", "Tenant-C": "cobaltomega"}
 _TENANT_RECORD_TYPES = frozenset({"Memory", "Document", "Chunk", "Entity", "Fact", "Community"})
 _REQUIRED_OPERATIONS = frozenset(
@@ -70,6 +81,8 @@ class _LiveEnvironment:
     root: Path
     base_client: ArcadeDBClient
     registry_path: Path
+    provisioner: TenantProvisioner
+    shared_dependencies: Any
     router: TenantRouter
 
 
@@ -135,6 +148,13 @@ def _expected_database_names() -> frozenset[str]:
     )
 
 
+def _fixture_database_names() -> frozenset[str]:
+    return frozenset(
+        derive_tenant_database_identity(identity, naming_key=_NAMING_KEY).database_name
+        for identity in (*_IDENTITY_VARIANTS, *_LIFECYCLE_TENANTS)
+    )
+
+
 def _drop_fixture_databases(client: ArcadeDBClient, database_names: frozenset[str]) -> None:
     for database_name in sorted(database_names & client.list_databases()):
         client._server_command(f"drop database {database_name}")
@@ -163,7 +183,7 @@ def live_environment_context(
     assert service["Image"] == _PINNED_IMAGE
     assert service["State"] == "running"
 
-    database_names = _expected_database_names()
+    database_names = _fixture_database_names()
     _drop_fixture_databases(base_client, database_names)
     root = tmp_path_factory.mktemp("arcadedb-physical-isolation")
     registry_path = root / "tenant-registry.sqlite3"
@@ -198,6 +218,8 @@ def live_environment_context(
         root=root,
         base_client=base_client,
         registry_path=registry_path,
+        provisioner=provisioner,
+        shared_dependencies=shared_dependencies,
         router=TenantRouter(
             provisioner,
             shared_dependencies,

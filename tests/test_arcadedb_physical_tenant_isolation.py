@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
+from _arcadedb_lifecycle_isolation_support import (
+    _run_lifecycle_chaos_contract,
+)
 from _arcadedb_physical_isolation_support import (
     _IDENTITY_VARIANTS,
     _NAMING_KEY,
@@ -17,29 +18,6 @@ from _arcadedb_physical_isolation_support import (
 )
 
 from turing_agentmemory_mcp.tenant_identity import derive_tenant_database_identity
-
-
-@dataclass(frozen=True)
-class _LifecycleChaosProof:
-    same_tenant_single_ready: bool = False
-    different_tenant_databases: frozenset[str] = frozenset()
-    eviction_reused_durable_data: bool = False
-    active_reference_survived: bool = False
-    missing_ready_failed_closed: bool = False
-    missing_ready_database_absent: bool = False
-    restart_observed_degraded: bool = False
-    restart_recovered_existing_data: bool = False
-    real_file_job_succeeded: bool = False
-    cited_search_scoped: bool = False
-    staged_bytes_removed: bool = False
-    foreign_file_absent: bool = False
-
-
-def _run_lifecycle_chaos_contract(
-    environment: _LiveEnvironment,
-) -> _LifecycleChaosProof:
-    del environment
-    return _LifecycleChaosProof()
 
 
 @pytest.fixture(scope="module")
