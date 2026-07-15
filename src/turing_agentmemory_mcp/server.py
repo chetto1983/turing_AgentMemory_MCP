@@ -271,7 +271,7 @@ def create_mcp_app(
     uploads = upload_store or document_upload_store_from_env()
     manager = document_manager
     if manager is None and production_router:
-        manager = document_ingest_manager_from_env(store_factory=store_from_env)
+        manager = document_ingest_manager_from_env(store_factory=lambda: active_resolver)
     should_start_worker = (
         production_router if start_document_worker is None else start_document_worker
     )

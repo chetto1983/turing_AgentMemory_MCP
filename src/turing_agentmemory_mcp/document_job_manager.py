@@ -17,6 +17,8 @@ from turing_agentmemory_mcp.document_processing import (
     ConvertedDocument,
     convert_document_to_markdown,
 )
+from turing_agentmemory_mcp.tenant_identity import validate_user_identifier
+from turing_agentmemory_mcp.tenant_router import StaticStoreResolver, StoreResolver
 
 Converter = Callable[[str | Path], ConvertedDocument]
 StoreFactory = Callable[[], Any]
@@ -43,7 +45,12 @@ class DocumentIngestManager:
             raise ValueError("poll_seconds must be positive")
         self.jobs = jobs
         self.staging_root = Path(staging_root).expanduser().resolve()
-        self.store_factory = store_factory
+        store_or_resolver = store_factory()
+        self.resolver = (
+            store_or_resolver
+            if isinstance(store_or_resolver, StoreResolver)
+            else StaticStoreResolver(store_or_resolver)
+        )
         self.converter = converter
         self.lease_seconds = lease_seconds
         self.heartbeat_seconds = heartbeat_seconds
@@ -71,6 +78,7 @@ class DocumentIngestManager:
         expected_sha256: str | None = None,
         expected_bytes: int | None = None,
     ) -> DocumentIngestJob:
+        tenant = validate_user_identifier(user_identifier)
         source_path = Path(path).expanduser().resolve(strict=True)
         if not source_path.is_file():
             raise ValueError(f"{source_path} is not a file")
@@ -81,7 +89,7 @@ class DocumentIngestManager:
             raise ValueError("staged document SHA-256 changed before enqueue")
 
         key = self.jobs.idempotency_key(
-            user_identifier=user_identifier.strip(),
+            user_identifier=tenant,
             document_id=str(document_id or "").strip(),
             filename=source_path.name,
             sha256=sha256,
@@ -114,7 +122,7 @@ class DocumentIngestManager:
         enriched_metadata["document_processing"] = processing
         try:
             job = self.jobs.enqueue(
-                user_identifier=user_identifier,
+                user_identifier=tenant,
                 title=title,
                 staged_path=target,
                 filename=source_path.name,
@@ -167,7 +175,6 @@ class DocumentIngestManager:
         self,
         *,
         worker_id: str | None = None,
-        memory: Any | None = None,
     ) -> DocumentIngestJob | None:
         owner = worker_id or self.worker_id
         job = self.jobs.claim(
@@ -176,6 +183,16 @@ class DocumentIngestManager:
         )
         if job is None:
             return None
+        try:
+            document_memory = self.resolver.resolve(job.user_identifier).memory
+        except Exception:
+            return self.jobs.fail(
+                job.job_id,
+                worker_id=owner,
+                error_code="document_indexing_unavailable",
+                error_message="Document indexing service is unavailable",
+                retryable=True,
+            )
         staged_path = Path(job.staged_path)
         if not staged_path.is_file():
             return self.jobs.fail(
@@ -242,7 +259,6 @@ class DocumentIngestManager:
             total=progress_total,
             lease_seconds=self.lease_seconds,
         )
-        document_memory = memory if memory is not None else self.store_factory()
         try:
             with self._heartbeat(job.job_id, owner):
                 result = document_memory.ingest_document_text(
@@ -289,14 +305,10 @@ class DocumentIngestManager:
             thread.join(timeout)
 
     def _run(self) -> None:
-        memory: Any | None = None
         while not self._stop.is_set():
             try:
-                if memory is None:
-                    memory = self.store_factory()
-                processed = self.process_next(worker_id=self.worker_id, memory=memory)
+                processed = self.process_next(worker_id=self.worker_id)
             except Exception:
-                memory = None
                 processed = None
             if processed is None:
                 self._wake.wait(self.poll_seconds)
