@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-file-size.sh — enforce the 600-LOC cap (CLAUDE.md / D-08). Scans ALL tracked
+# Enforce the 600-LOC cap (CLAUDE.md / D-08) across all tracked
 # *.py files (src, tests, scripts) with NO allowlist/exemption.
 #
 # Usage: bash scripts/check-file-size.sh [cap]   (default cap: 600)
