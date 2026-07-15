@@ -1,200 +1,39 @@
 """04-04: store_core seam ported from TuringDB to ArcadeDB (D-08 single-transaction
 writes with read-your-writes, D-10 probe-driven readiness).
 
-Every test here runs against `_FakeArcadeDBClient`, a scripted session-aware
-in-memory stand-in for `ArcadeDBClient` (mirrors the `_FakeArcadeDBClient`
-convention already established in `tests/test_arcadedb_schema.py`) -- no live
-ArcadeDB container is required. `_StoreCore` (the seam mixin) is instantiated
-directly, bypassing `TuringAgentMemory`'s other eight mixins entirely, since
-this plan ports only the choke point (`_query`/`_write`/`_write_many`/
-`bootstrap`/readiness) -- the mixins themselves still emit TuringDB-shaped
-query strings until Wave 4.
+Every test here runs against `FakeArcadeDBClient` (see
+`tests/_store_arcadedb_core_shared.py`), a scripted session-aware in-memory
+stand-in for `ArcadeDBClient` -- no live ArcadeDB container is required.
+`_StoreCore` (the seam mixin) is instantiated directly, bypassing
+`TuringAgentMemory`'s other eight mixins entirely, since this plan ports only
+the choke point (`_query`/`_write`/`_write_many`/`bootstrap`/readiness) -- the
+mixins themselves still emit TuringDB-shaped query strings until Wave 4.
 
-`server.py` still imports `from turingdb import TuringDB` until this same
-plan's Task 3 rewires `store_from_env`; the `turingdb` package has no Windows
-wheel, so the health tests below stub `sys.modules["turingdb"]` first,
-matching the convention already used by `tests/test_runtime_pipeline.py` and
-siblings.
+Tenant-identity/binding-boundary tests (`_require_user`, shared-dependency
+bundling) live in `tests/test_store_arcadedb_identity.py` -- split out 05-09
+when Task 2's tenant-binding assertions pushed this file over the no-allowlist
+600-LOC cap (D-08); both files import their fixtures from
+`tests/_store_arcadedb_core_shared.py`.
 """
 
 from __future__ import annotations
 
 import asyncio
 import re
-import sys
-import types
-from dataclasses import FrozenInstanceError
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any
 
 import httpx
-import pytest
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
-
-import turing_agentmemory_mcp.store_core as store_core_module
-from turing_agentmemory_mcp.governance import NoopAuditSink, NoopRedactor
-from turing_agentmemory_mcp.observability import InMemorySpanRecorder
-from turing_agentmemory_mcp.store import TuringAgentMemory
-from turing_agentmemory_mcp.store_core import _StoreCore
-
-_STORE_CORE_PATH = (
-    Path(__file__).resolve().parents[1] / "src" / "turing_agentmemory_mcp" / "store_core.py"
+from _store_arcadedb_core_shared import (
+    STORE_CORE_PATH,
+    FakeArcadeDBClient,
+    TrackingSparseIndex,
+    make_store,
 )
 
+from turing_agentmemory_mcp.observability import InMemorySpanRecorder
+from turing_agentmemory_mcp.store_core import _StoreCore
 
-class _StubEmbedder:
-    dimensions = 3
-
-
-class _TrackingSparseIndex:
-    """Fake `SparseIndex` -- proves `bootstrap()` no longer replays the FTS5
-    outbox (ARC-06: ArcadeDB's native Lucene/LSM_SPARSE_VECTOR is ACID, no
-    crash-recovery replay step needed)."""
-
-    def __init__(self) -> None:
-        self.initialize_called = False
-        self.replay_called = False
-
-    def initialize(self) -> None:
-        self.initialize_called = True
-
-    def replay(self) -> None:
-        self.replay_called = True
-
-    def status(self) -> dict[str, object]:
-        return {"status": "ready"}
-
-
-class _FakeArcadeDBClient:
-    """Session-aware in-memory stand-in for `ArcadeDBClient`.
-
-    Proves the seam's transaction plumbing (D-08) without a live container:
-    `command()` calls are visible to a later `SELECT`-shaped `command()`/
-    `query()` in the SAME session before commit (read-your-writes, spike-
-    confirmed A5), but NOT to a different/no session, matching the real
-    session-header semantics documented in `arcadedb_client.py`.
-    """
-
-    def __init__(self, *, probe_sequence: list[bool] | None = None) -> None:
-        self.commands: list[tuple[str, dict[str, object] | None, str | None]] = []
-        self.queries: list[tuple[str, dict[str, object] | None]] = []
-        self.begin_calls = 0
-        self.commit_calls = 0
-        self.rollback_calls = 0
-        self._committed: list[dict[str, object]] = []
-        self._session_rows: dict[str, list[dict[str, object]]] = {}
-        self._session_counter = 0
-        self._probe_sequence = list(probe_sequence) if probe_sequence is not None else None
-
-    def query(
-        self,
-        statement: str,
-        *,
-        params: dict[str, object] | None = None,
-        language: str = "sql",
-        session_id: str | None = None,
-    ) -> list[dict[str, object]]:
-        self.queries.append((statement, params))
-        return self._select(params, session_id)
-
-    def command(
-        self,
-        statement: str,
-        *,
-        params: dict[str, object] | None = None,
-        language: str = "sql",
-        session_id: str | None = None,
-    ) -> list[dict[str, object]]:
-        self.commands.append((statement, params, session_id))
-        upper = statement.strip().upper()
-        if upper.startswith("SELECT"):
-            rows = self._select(params, session_id)
-            if params and not rows:
-                raise AssertionError(
-                    f"read-your-writes failed: no row visible for {params} "
-                    f"in session {session_id!r}"
-                )
-            return rows
-        if upper.startswith("CREATE VERTEX") and params:
-            bucket = session_id or "__no_session__"
-            self._session_rows.setdefault(bucket, []).append(dict(params))
-        return []
-
-    def _select(
-        self, params: dict[str, object] | None, session_id: str | None
-    ) -> list[dict[str, object]]:
-        bucket = session_id or "__no_session__"
-        visible = list(self._committed) + list(self._session_rows.get(bucket, []))
-        if not params:
-            return visible
-        return [row for row in visible if all(row.get(k) == v for k, v in params.items())]
-
-    def begin(self) -> str:
-        self.begin_calls += 1
-        self._session_counter += 1
-        session_id = f"session-{self._session_counter}"
-        self._session_rows[session_id] = []
-        return session_id
-
-    def commit(self, session_id: str) -> None:
-        self.commit_calls += 1
-        self._committed.extend(self._session_rows.pop(session_id, []))
-
-    def rollback(self, session_id: str) -> None:
-        self.rollback_calls += 1
-        self._session_rows.pop(session_id, None)
-
-    def run_in_transaction(self, body: Any, *, commit_retries: int | None = None) -> Any:
-        session_id = self.begin()
-        try:
-            result = body(session_id)
-        except Exception:
-            self.rollback(session_id)
-            raise
-        self.commit(session_id)
-        return result
-
-    def is_ready(self) -> bool:
-        # Pop queued probe results one at a time until a single value remains,
-        # then hold that last value persistently (rather than defaulting back
-        # to True) -- lets a test script "N failures then recovery" while
-        # still supporting repeated /health-style polling of a steady state.
-        if len(self._probe_sequence or []) > 1:
-            return self._probe_sequence.pop(0)
-        if self._probe_sequence:
-            return self._probe_sequence[0]
-        return True
-
-
-def _make_store(
-    client: _FakeArcadeDBClient,
-    tmp_path: Path,
-    *,
-    observer: InMemorySpanRecorder | None = None,
-    sparse_index: Any | None = None,
-) -> _StoreCore:
-    return _StoreCore(
-        client,  # type: ignore[arg-type]
-        turing_home=tmp_path,
-        embedder=_StubEmbedder(),  # type: ignore[arg-type]
-        reranker=object(),  # type: ignore[arg-type]
-        entity_processor=object(),  # type: ignore[arg-type]
-        observer=observer,
-        sparse_index=sparse_index,
-    )
-
-
-def _make_full_store(client: _FakeArcadeDBClient, tmp_path: Path) -> TuringAgentMemory:
-    return TuringAgentMemory(
-        client,  # type: ignore[arg-type]
-        turing_home=tmp_path,
-        embedder=_StubEmbedder(),  # type: ignore[arg-type]
-        reranker=object(),  # type: ignore[arg-type]
-        entity_processor=object(),  # type: ignore[arg-type]
-    )
+_STORE_CORE_PATH = STORE_CORE_PATH
 
 
 # -- Task 1, Test 1: _query delegates to arcadedb_client.query inside an
@@ -202,9 +41,9 @@ def _make_full_store(client: _FakeArcadeDBClient, tmp_path: Path) -> TuringAgent
 
 
 def test_query_delegates_to_client_inside_arcadedb_query_span(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient()
+    client = FakeArcadeDBClient()
     observer = InMemorySpanRecorder()
-    store = _make_store(client, tmp_path, observer=observer)
+    store = make_store(client, tmp_path, observer=observer)
 
     rows = store._query(
         "SELECT identifier FROM User WHERE identifier = :identifier",
@@ -225,8 +64,8 @@ def test_query_delegates_to_client_inside_arcadedb_query_span(tmp_path: Path) ->
 
 
 def test_write_many_opens_one_managed_transaction_and_commits_once(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient()
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient()
+    store = make_store(client, tmp_path)
 
     store._write_many(
         [
@@ -247,8 +86,8 @@ def test_write_many_opens_one_managed_transaction_and_commits_once(tmp_path: Pat
 
 
 def test_write_many_read_your_writes_within_same_transaction(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient()
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient()
+    store = make_store(client, tmp_path)
 
     # If the seam opened a separate transaction per statement (the retired
     # TuringDB submit-before-match model), the SELECT below would not see the
@@ -268,8 +107,8 @@ def test_write_many_read_your_writes_within_same_transaction(tmp_path: Path) -> 
 
 
 def test_ensure_user_binds_identifier_as_param_not_a_string_literal(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient()
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient()
+    store = make_store(client, tmp_path)
     tricky_identifier = "o'brien\" ; DROP TABLE User; --"
 
     store._ensure_user(tricky_identifier)
@@ -304,8 +143,8 @@ def test_ensure_user_binds_identifier_as_param_not_a_string_literal(tmp_path: Pa
 
 
 def test_no_csv_vector_load_mechanism_remains(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient()
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient()
+    store = make_store(client, tmp_path)
 
     assert not hasattr(store, "_load_vectors")
 
@@ -341,8 +180,8 @@ def test_records_accepts_plain_list_of_dicts_not_a_dataframe() -> None:
 
 
 def test_bootstrap_sets_graph_ready_when_probe_succeeds(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient(probe_sequence=[True])
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient(probe_sequence=[True])
+    store = make_store(client, tmp_path)
 
     store.bootstrap()
 
@@ -353,8 +192,8 @@ def test_bootstrap_sets_graph_ready_when_probe_succeeds(tmp_path: Path) -> None:
 
 
 def test_bootstrap_leaves_graph_not_ready_when_probe_fails(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient(probe_sequence=[False])
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient(probe_sequence=[False])
+    store = make_store(client, tmp_path)
 
     store.bootstrap()
 
@@ -365,8 +204,8 @@ def test_bootstrap_leaves_graph_not_ready_when_probe_fails(tmp_path: Path) -> No
 
 
 def test_reconnect_reprobe_recovers_readiness_after_transient_failure(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient(probe_sequence=[False])
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient(probe_sequence=[False])
+    store = make_store(client, tmp_path)
     store.bootstrap()
     assert store.runtime_signals.snapshot()["stages"]["graph"]["ready"] is False
 
@@ -382,8 +221,8 @@ def test_reconnect_reprobe_recovers_readiness_after_transient_failure(tmp_path: 
 def test_health_returns_503_when_not_ready_and_200_once_probe_recovers(tmp_path: Path) -> None:
     from turing_agentmemory_mcp.server import create_mcp_app
 
-    client = _FakeArcadeDBClient(probe_sequence=[False])
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient(probe_sequence=[False])
+    store = make_store(client, tmp_path)
     store.bootstrap()
     app = create_mcp_app(store)  # type: ignore[arg-type]
 
@@ -406,9 +245,9 @@ def test_health_returns_503_when_not_ready_and_200_once_probe_recovers(tmp_path:
 
 
 def test_bootstrap_does_not_replay_fts5_outbox(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient(probe_sequence=[True])
-    sparse = _TrackingSparseIndex()
-    store = _make_store(client, tmp_path, sparse_index=sparse)
+    client = FakeArcadeDBClient(probe_sequence=[True])
+    sparse = TrackingSparseIndex()
+    store = make_store(client, tmp_path, sparse_index=sparse)
 
     store.bootstrap()
 
@@ -435,8 +274,8 @@ def test_sparse_outbox_replay_calls_absent_from_source() -> None:
 # wired into real batch splitting, since splitting would open a
 # partial-document-visible-mid-ingest window with no status guard to close it.
 def test_document_graph_batch_knobs_are_removed(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient()
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient()
+    store = make_store(client, tmp_path)
 
     assert not hasattr(store, "document_graph_batch_chunks")
     assert not hasattr(store, "document_graph_batch_bytes")
@@ -444,7 +283,7 @@ def test_document_graph_batch_knobs_are_removed(tmp_path: Path) -> None:
         _StoreCore(
             client,  # type: ignore[arg-type]
             turing_home=tmp_path,
-            embedder=_StubEmbedder(),  # type: ignore[arg-type]
+            embedder=object(),  # type: ignore[arg-type]
             reranker=object(),  # type: ignore[arg-type]
             entity_processor=object(),  # type: ignore[arg-type]
             document_graph_batch_chunks=50,  # type: ignore[call-arg]
@@ -464,8 +303,8 @@ def test_document_graph_batch_knobs_are_removed(tmp_path: Path) -> None:
 def test_dead_vector_index_shims_are_removed_but_tenant_vector_index_remains(
     tmp_path: Path,
 ) -> None:
-    client = _FakeArcadeDBClient()
-    store = _make_store(client, tmp_path)
+    client = FakeArcadeDBClient()
+    store = make_store(client, tmp_path)
 
     assert not hasattr(store, "_ensure_vector_index")
     assert not hasattr(store, "_ensure_tenant_vector_index")
@@ -488,113 +327,3 @@ def test_document_graph_batch_knobs_absent_from_source_and_env_wiring() -> None:
             "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES",
         ):
             assert forbidden not in source, f"{path.name} still references {forbidden!r}"
-
-
-@pytest.mark.parametrize(
-    "invalid_identifier",
-    ["", "   ", " alice", "alice ", "ali\x00ce", "\ud800"],
-)
-def test_direct_store_rejects_exact_invalid_identity_before_client_activity(
-    tmp_path: Path, invalid_identifier: str
-) -> None:
-    client = _FakeArcadeDBClient()
-    store = _make_full_store(client, tmp_path)
-
-    with pytest.raises(ValueError):
-        store.list_memories(user_identifier=invalid_identifier)
-
-    assert client.queries == []
-    assert client.commands == []
-
-
-def test_direct_store_passes_valid_opaque_unicode_unchanged_to_client(tmp_path: Path) -> None:
-    client = _FakeArcadeDBClient()
-    store = _make_full_store(client, tmp_path)
-    exact_identifier = "Tenant-\u212b-\u03c2"
-
-    assert store.list_memories(user_identifier=exact_identifier) == []
-
-    assert client.queries
-    assert any(
-        params is not None and exact_identifier in params.values()
-        for _statement, params in client.queries
-    )
-
-
-def test_require_user_delegates_to_central_exact_validator(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[str] = []
-
-    def validate_user_identifier(value: str) -> str:
-        calls.append(value)
-        return value
-
-    monkeypatch.setattr(
-        store_core_module,
-        "validate_user_identifier",
-        validate_user_identifier,
-        raising=False,
-    )
-
-    _StoreCore._require_user("opaque-\u03a9")
-
-    assert calls == ["opaque-\u03a9"]
-
-
-def test_shared_dependency_bundle_reuses_dependencies_but_not_tenant_runtime_state(
-    tmp_path: Path,
-) -> None:
-    first_client = _FakeArcadeDBClient()
-    embedder = _StubEmbedder()
-    reranker = object()
-    entity_processor = object()
-    memory_extractor = SimpleNamespace(model_name="extractor")
-    sparse_index = _TrackingSparseIndex()
-    community_detector = SimpleNamespace(seed=17)
-    observer = InMemorySpanRecorder()
-    redactor = NoopRedactor()
-    audit_sink = NoopAuditSink()
-    first = _StoreCore(
-        first_client,  # type: ignore[arg-type]
-        turing_home=tmp_path,
-        embedder=embedder,  # type: ignore[arg-type]
-        reranker=reranker,  # type: ignore[arg-type]
-        entity_processor=entity_processor,  # type: ignore[arg-type]
-        memory_extractor=memory_extractor,  # type: ignore[arg-type]
-        sparse_index=sparse_index,  # type: ignore[arg-type]
-        community_detector=community_detector,  # type: ignore[arg-type]
-        observer=observer,
-        redactor=redactor,
-        audit_sink=audit_sink,
-        fusion_enabled=True,
-        community_rebuild_on_batch=True,
-        rerank_threshold=0.25,
-        rerank_blend=True,
-        rerank_preserve_seed_margin=0.2,
-        rerank_candidate_limit=19,
-    )
-
-    shared = first.shared_dependencies()
-    second_client = _FakeArcadeDBClient()
-    second = _StoreCore(second_client, shared_dependencies=shared)  # type: ignore[call-arg]
-
-    for name in (
-        "embedder",
-        "reranker",
-        "entity_processor",
-        "memory_extractor",
-        "sparse_index",
-        "community_detector",
-        "observer",
-        "redactor",
-        "audit_sink",
-    ):
-        assert getattr(second, name) is getattr(first, name)
-    assert second.client is second_client
-    assert second.client is not first.client
-    assert second.runtime_signals is not first.runtime_signals
-    first._schema_bootstrapped = True
-    assert second._schema_bootstrapped is False
-    with pytest.raises(FrozenInstanceError):
-        shared.dimensions = 5

@@ -5,15 +5,17 @@ from __future__ import annotations
 import threading
 from collections import Counter
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import FrozenInstanceError, dataclass
+from dataclasses import FrozenInstanceError, dataclass, field
 from types import SimpleNamespace
 
 import pytest
 
 import turing_agentmemory_mcp.tenant_router as tenant_router_module
+from turing_agentmemory_mcp.tenant_binding import TenantBinding, TenantBindingError
 from turing_agentmemory_mcp.tenant_identity import (
     TenantDatabaseIdentity,
     derive_tenant_database_identity,
+    validate_user_identifier,
 )
 from turing_agentmemory_mcp.tenant_provisioning import (
     ProvisionedTenantDatabase,
@@ -34,6 +36,8 @@ _INVALID_IDENTIFIERS = ("", "   ", " alice", "alice ", "ali\x00ce", "\ud800")
 class _FakeClient:
     database: str
     lifecycle_calls: list[str]
+    queries: list[str] = field(default_factory=list)
+    commands: list[str] = field(default_factory=list)
 
     def close(self) -> None:
         self.lifecycle_calls.append("close")
@@ -43,21 +47,42 @@ class _FakeClient:
 
 
 class _FakeMemory:
-    def __init__(self, client: _FakeClient, shared_dependencies: object) -> None:
+    def __init__(
+        self,
+        client: _FakeClient,
+        shared_dependencies: object,
+        *,
+        tenant_binding: TenantBinding | None = None,
+    ) -> None:
         self.client = client
         self.shared_dependencies = shared_dependencies
+        self.tenant_binding = tenant_binding
 
     def ping(self) -> str:
         return self.client.database
 
+    def _require_user(self, user_identifier: str) -> None:
+        # Mirrors production _StoreCore._require_user (Task 2): delegates to the
+        # binding so this assertion exercises the real guard, not a test double.
+        if self.tenant_binding is None:
+            validate_user_identifier(user_identifier)
+            return
+        self.tenant_binding.verify(user_identifier)
+
 
 class _RecordingStoreFactory:
     def __init__(self) -> None:
-        self.calls: list[tuple[_FakeClient, object]] = []
+        self.calls: list[tuple[_FakeClient, object, TenantBinding | None]] = []
 
-    def __call__(self, client: _FakeClient, *, shared_dependencies: object) -> _FakeMemory:
-        self.calls.append((client, shared_dependencies))
-        return _FakeMemory(client, shared_dependencies)
+    def __call__(
+        self,
+        client: _FakeClient,
+        *,
+        shared_dependencies: object,
+        tenant_binding: TenantBinding | None = None,
+    ) -> _FakeMemory:
+        self.calls.append((client, shared_dependencies, tenant_binding))
+        return _FakeMemory(client, shared_dependencies, tenant_binding=tenant_binding)
 
 
 class _FakeRegistry:
@@ -345,3 +370,49 @@ def test_valid_opaque_unicode_passes_unchanged_through_router_and_static_resolve
     assert provisioner.calls == [exact_identifier]
     assert static.resolve(exact_identifier) is view
     assert view.identity == provisioner.identity(exact_identifier)
+
+
+def test_resolve_binds_logical_tenant_into_store() -> None:
+    router, provisioner, factory, _ = _router()
+
+    view = router.resolve("Tenant-A")
+
+    expected_identity = provisioner.identity("Tenant-A")
+    binding = view.memory.tenant_binding  # type: ignore[union-attr]
+    assert binding is not None
+    assert binding.identity.database_name == expected_identity.database_name
+    assert binding.naming_key == provisioner.naming_key
+    assert factory.calls[0][2] is binding
+
+
+def test_foreign_identifier_rejected_before_client_call() -> None:
+    router, _, _, _ = _router()
+    tenant_a_view = router.resolve("Tenant-A")
+
+    with pytest.raises(TenantBindingError):
+        tenant_a_view.memory._require_user("Tenant-B")  # type: ignore[union-attr]
+
+    client = tenant_a_view.memory.client  # type: ignore[union-attr]
+    assert client.queries == []
+    assert client.commands == []
+
+
+def test_unbound_store_factory_fails_closed() -> None:
+    def dropping_factory(
+        client: _FakeClient,
+        *,
+        shared_dependencies: object,
+        tenant_binding: TenantBinding | None = None,
+    ) -> _FakeMemory:
+        return _FakeMemory(client, shared_dependencies, tenant_binding=None)
+
+    provisioner = _RecordingProvisioner()
+    router = TenantRouter(
+        provisioner,
+        object(),
+        store_factory=dropping_factory,  # type: ignore[arg-type]
+    )
+    database_name = provisioner.identity("Tenant-A").database_name
+
+    with pytest.raises(RuntimeError, match=database_name):
+        router.resolve("Tenant-A")
