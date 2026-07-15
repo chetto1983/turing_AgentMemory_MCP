@@ -2,15 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
+current_phase: 05
+current_phase_name: per-tenant-arcadedb-isolation
 status: executing
-stopped_at: Completed 05-08-PLAN.md
-last_updated: "2026-07-15T14:37:47.298Z"
-last_activity: 2026-07-15 -- Phase 05 planning complete
+stopped_at: Completed 05-09-PLAN.md
+last_updated: "2026-07-15T15:11:03.752Z"
+last_activity: 2026-07-15
+last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 13
   completed_phases: 4
   total_plans: 38
-  completed_plans: 34
+  completed_plans: 35
   percent: 31
 ---
 
@@ -21,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 05 — Per-Tenant ArcadeDB Isolation
+**Current focus:** Phase 05 — per-tenant-arcadedb-isolation
 
 ## Current Position
 
-Phase: 05 (Per-Tenant ArcadeDB Isolation) — EXECUTING
-Plan: 8 of 8
+Phase: 05 (per-tenant-arcadedb-isolation) — EXECUTING
+Plan: 2 of 12
 Status: Ready to execute
-Last activity: 2026-07-15 -- Phase 05 planning complete
+Last activity: 2026-07-15 -- Phase 05 execution started
 
 Progress: [█████████░] 91%
 
@@ -87,6 +90,7 @@ Progress: [█████████░] 91%
 | Phase 05 P06 | 17min | 2 tasks | 7 files |
 | Phase 05 P07 | 19min | 2 tasks | 8 files |
 | Phase 05 P08 | 47min | 3 tasks | 14 files |
+| Phase 05 P09 | 27min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -169,6 +173,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Constrain live fixture cleanup to exact opaque database names derived from a fixed key and tenant list. — Privileged isolation tests must never drop unrelated ArcadeDB state.
 - [Phase 05]: Treat a ready registry row with a missing database as a fail-closed recovery incident. — Automatic empty reprovisioning would disguise durable tenant data loss.
 - [Phase 05]: Remove ARCADEDB_DATABASE from production Compose tenant routing. — Tenant data is selected only through exact HMAC-derived physical databases.
+- [Phase ?]: TenantBinding.verify() reuses derive_tenant_database_identity verbatim (no local HMAC re-implementation) and compares digests with hmac.compare_digest -- single derivation path, constant-time comparison
+- [Phase ?]: tenant_binding is per-tenant runtime state assigned next to self.client, deliberately excluded from StoreSharedDependencies (that bundle is reused across tenants and would poison the binding)
+- [Phase ?]: Split test_store_arcadedb_core.py (already at exactly 600 LOC) into core/identity/shared-fixtures files rather than trimming coverage, when Task 2's tenant-binding assertions would have exceeded the no-allowlist 600-LOC cap
 
 ### Pending Todos
 
@@ -207,6 +214,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T13:38:46.358Z
-Stopped at: Completed 05-08-PLAN.md
+Last session: 2026-07-15T15:11:03.743Z
+Stopped at: Completed 05-09-PLAN.md
 Resume file: None

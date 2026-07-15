@@ -178,7 +178,7 @@ Plans:
   2. Every query still carries explicit `user_identifier` scoping and fails closed on an empty identifier — DB-level isolation never replaces the invariant-#1 contract.
   3. Concurrent multi-tenant isolation tests pass with no cross-tenant leakage under concurrency.
 
-**Plans**: 8/12 plans complete *(gap closure: verification scored 8/10 must-haves, `gaps_found` — plans 05-09..05-12 close the two failed must-haves)*
+**Plans**: 9/12 plans executed
 
 Plans:
 
@@ -210,7 +210,7 @@ Plans:
 
 **Wave 7 — Gap closure: logical tenant binding** *(closes verification gap 1 — routed store did not bind the logical tenant)*
 
-- [ ] 05-09-PLAN.md — Bind a keyed tenant identity into every routed store and fail closed on a foreign identifier (ARC-07)
+- [x] 05-09-PLAN.md — Bind a keyed tenant identity into every routed store and fail closed on a foreign identifier (ARC-07)
 
 **Wave 8 — Gap closure: binding reachability**
 
@@ -334,7 +334,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
-| 5. Per-Tenant ArcadeDB Isolation | 8/8 | Complete   | 2026-07-15 |
+| 5. Per-Tenant ArcadeDB Isolation | 9/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
