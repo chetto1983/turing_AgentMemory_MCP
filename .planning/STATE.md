@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 05
 current_phase_name: Per-Tenant ArcadeDB Isolation
 status: executing
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-07-15T11:48:04.426Z"
+stopped_at: Completed 05-06-PLAN.md
+last_updated: "2026-07-15T12:12:33.053Z"
 last_activity: 2026-07-15
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 13
   completed_phases: 4
   total_plans: 34
-  completed_plans: 31
-  percent: 91
+  completed_plans: 32
+  percent: 31
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 05 (Per-Tenant ArcadeDB Isolation) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-07-15 — Phase 05 execution started
 
@@ -87,6 +87,7 @@ Progress: [█████████░] 91%
 | Phase 05 P03 | 11 min | 3 tasks | 7 files |
 | Phase 05 P04 | 21min | 2 tasks | 6 files |
 | Phase 05 P05 | 17min | 2 tasks | 4 files |
+| Phase 05 P06 | 17min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,10 @@ Recent decisions affecting current work:
 - [Phase 05]: Use one opaque-database-keyed Future leader under a narrow RLock. — Provisioning, store construction, and waiter blocking stay outside the lock so unrelated tenants overlap.
 - [Phase 05]: Share frozen provider and governance dependencies while allocating fresh tenant runtime state. — Each store retains its own client, RuntimeSignals, and schema latch without duplicating heavyweight integrations.
 - [Phase 05]: Evict only router cache references. — Active immutable views stay usable and eviction never closes, drops, or mutates an ArcadeDB client or database.
+- [Phase 05]: Construct shared dependencies from an unbootstrapped base-client store; ARCADEDB_DATABASE remains inert and is never a tenant-data target. — Tenant databases are selected only after exact HMAC derivation and ready-last provisioning.
+- [Phase 05]: Wrap direct store injection in StaticStoreResolver and reject simultaneous store/resolver ownership. — Application assembly must have exactly one routing authority while preserving existing fake-store tests.
+- [Phase 05]: Resolve one immutable tenant view per foreground data operation and pass user_identifier unchanged to the selected store. — One boundary crossing prevents tenant confusion while retaining defense-in-depth store predicates.
+- [Phase 05]: Keep global health and memory_runtime_status on resolver runtime status without tenant resolution. — Tenant-local damage must not provision a tenant or poison shared service readiness.
 
 ### Pending Todos
 
@@ -196,6 +201,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T11:48:04.416Z
-Stopped at: Completed 05-05-PLAN.md
+Last session: 2026-07-15T12:12:33.026Z
+Stopped at: Completed 05-06-PLAN.md
 Resume file: None
