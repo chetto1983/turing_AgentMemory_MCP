@@ -71,6 +71,7 @@ class _DocumentMixin:
         limit: int = 5,
         threshold: float = 0.0,
     ) -> dict[str, object]:
+        self._require_user(user_identifier)
         items = self.search_memory(
             user_identifier=user_identifier,
             query=query,
@@ -105,6 +106,7 @@ class _DocumentMixin:
         metadata: dict[str, object] | None = None,
         expires_at: str | None = None,
     ) -> IngestedDocument:
+        self._require_user(user_identifier)
         with self._span(
             "document.ingest_text",
             {
@@ -113,7 +115,6 @@ class _DocumentMixin:
                 "source": source,
             },
         ):
-            self._require_user(user_identifier)
             if not title.strip():
                 raise ValueError("title is required")
             if not text.strip():
@@ -184,11 +185,11 @@ class _DocumentMixin:
         metadata: dict[str, object] | None = None,
         expires_at: str | None = None,
     ) -> IngestedDocument:
+        self._require_user(user_identifier)
         with self._span(
             "document.reindex_text",
             {"user_identifier": user_identifier, "document_id": document_id, "source": source},
         ):
-            self._require_user(user_identifier)
             if not document_id.strip():
                 raise ValueError("document_id is required")
             if not title.strip():
@@ -249,6 +250,7 @@ class _DocumentMixin:
             return item
 
     def delete_document(self, *, user_identifier: str, document_id: str) -> dict[str, object]:
+        self._require_user(user_identifier)
         existing = self.get_document(user_identifier=user_identifier, document_id=document_id)
         if existing is None:
             return {"document_id": document_id, "deleted": False}
@@ -457,11 +459,11 @@ class _DocumentMixin:
         threshold: float = 0.0,
         explain: bool = False,
     ) -> list[DocumentHit]:
+        self._require_user(user_identifier)
         with self._span(
             "document.search",
             {"user_identifier": user_identifier, "document_id": document_id, "limit": limit},
         ):
-            self._require_user(user_identifier)
             query = validate_search_query(query)
             limit = self._clean_limit(limit)
             threshold = validate_threshold(threshold)

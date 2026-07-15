@@ -76,6 +76,7 @@ class _SearchMixin:
         threshold: float = 0.0,
         explain: bool = False,
     ) -> list[MemoryItem]:
+        self._require_user(user_identifier)
         with self._span(
             "memory.search",
             {
@@ -85,7 +86,6 @@ class _SearchMixin:
                 "source": source,
             },
         ):
-            self._require_user(user_identifier)
             query = validate_search_query(query)
             limit = self._clean_limit(limit)
             threshold = validate_threshold(threshold)

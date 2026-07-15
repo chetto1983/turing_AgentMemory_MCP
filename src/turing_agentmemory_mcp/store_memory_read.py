@@ -105,6 +105,7 @@ class _MemoryReadMixin:
         vector: list[float] | None = None,
         load_vector: bool = True,
     ) -> MemoryItem:
+        self._require_user(user_identifier)
         existing = self.get_memory(user_identifier=user_identifier, memory_id=memory_id)
         if existing is None:
             raise ValueError(f"memory {memory_id} not found")
@@ -186,6 +187,7 @@ class _MemoryReadMixin:
         return item
 
     def delete_memory(self, *, user_identifier: str, memory_id: str) -> dict[str, object]:
+        self._require_user(user_identifier)
         existing = self.get_memory(user_identifier=user_identifier, memory_id=memory_id)
         if existing is None:
             return {"memory_id": memory_id, "deleted": False}

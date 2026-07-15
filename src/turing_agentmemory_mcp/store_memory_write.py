@@ -51,10 +51,10 @@ class _MemoryWriteMixin:
         metadata: dict[str, object] | None = None,
         expires_at: str = "",
     ) -> MemoryItem:
+        self._require_user(user_identifier)
         with self._span(
             "memory.store_message", {"user_identifier": user_identifier, "source": source}
         ):
-            self._require_user(user_identifier)
             if self.memory_extractor is not None:
                 return self.store_messages(
                     user_identifier=user_identifier,
@@ -106,11 +106,11 @@ class _MemoryWriteMixin:
         refresh_communities: bool = True,
         _audit_operation: str = "memory.store_messages",
     ) -> list[MemoryItem]:
+        self._require_user(user_identifier)
         with self._span(
             "memory.store_messages",
             {"user_identifier": user_identifier, "source": source, "count": len(messages)},
         ):
-            self._require_user(user_identifier)
             if not isinstance(refresh_communities, bool):
                 raise ValueError("refresh_communities must be a boolean")
             if not messages:
@@ -292,6 +292,7 @@ class _MemoryWriteMixin:
         entity_type: str,
         description: str = "",
     ) -> MemoryItem:
+        self._require_user(user_identifier)
         content = f"{name} ({entity_type}) {description}".strip()
         memory_id = stable_id("entity", user_identifier, name, entity_type)
         return self._write_memory(
@@ -310,6 +311,7 @@ class _MemoryWriteMixin:
         preference: str,
         context: str = "",
     ) -> MemoryItem:
+        self._require_user(user_identifier)
         content = f"{category}: {preference}. {context}".strip()
         memory_id = stable_id("pref", user_identifier, category, preference)
         return self._write_memory(
@@ -329,6 +331,7 @@ class _MemoryWriteMixin:
         object_value: str,
         context: str = "",
     ) -> MemoryItem:
+        self._require_user(user_identifier)
         content = f"{subject} {predicate} {object_value}. {context}".strip()
         memory_id = stable_id("fact", user_identifier, subject, predicate, object_value)
         return self._write_memory(
