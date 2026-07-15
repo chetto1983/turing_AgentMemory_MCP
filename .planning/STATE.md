@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 05
 current_phase_name: Per-Tenant ArcadeDB Isolation
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-07-15T10:32:30.762Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-07-15T10:51:12.703Z"
 last_activity: 2026-07-15
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 13
   completed_phases: 4
   total_plans: 34
-  completed_plans: 28
-  percent: 82
+  completed_plans: 29
+  percent: 31
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 05 (Per-Tenant ArcadeDB Isolation) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-07-15 — Phase 05 execution started
 
@@ -84,6 +84,7 @@ Progress: [████████░░] 82%
 | Phase 04 P10 | 35min | 3 tasks | 13 files |
 | Phase 05 P01 | 8min | 2 tasks | 2 files |
 | Phase 05 P02 | 10min | 2 tasks | 2 files |
+| Phase 05 P03 | 11 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Registry initialization treats any pre-existing file without the exact schema as corrupt and never repairs it automatically. — This preserves durable ready evidence and prevents an empty replacement registry from disguising data loss or configuration drift.
 - [Phase 05]: Idempotent begin_provisioning calls return the winning durable record unchanged, including its authoritative created_at, and never demote ready. — Cross-process contenders must converge on persisted lifecycle evidence instead of rewriting it with contender-local timestamps.
 - [Phase 05]: Registry runtime status exposes only schema version, naming version, non-secret key fingerprint, and readiness—not tenant inventory. — Global diagnostics need configuration binding evidence without creating a tenant enumeration or identity disclosure surface.
+- [Phase 05]: Classify every public query builder explicitly — A reflected Statement/DDL catalog makes future unclassified tenant-data builders fail closed while retaining only named schema exemptions.
+- [Phase 05]: Persist tenant identity on vector-version records — Stable IDs remain identifiers, not authorization; vector-version and staging paths bind the exact operation tenant independently.
 
 ### Pending Todos
 
@@ -185,6 +188,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T10:32:30.750Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-07-15T10:51:12.691Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None

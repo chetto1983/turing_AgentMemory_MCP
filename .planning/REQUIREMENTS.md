@@ -66,7 +66,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [ ] **TEST-02**: Full-text/outbox crash-recovery + idempotency tests (or demonstrably retired by ArcadeDB ACID via ARC-06)
 - [ ] **TEST-03**: Temporal-graph projection tests + entity-canonicalization schema versioning/migration
 - [ ] **TEST-04**: Query-graph evidence tests with adversarial entity names + empty-result fallback
-- [ ] **TEST-05**: Concurrent multi-tenant isolation tests (High priority — no cross-tenant leakage under concurrency)
+- [x] **TEST-05**: Concurrent multi-tenant isolation tests (High priority — no cross-tenant leakage under concurrency)
 - [ ] **TEST-06**: Large-document ingestion tests (>1GB / thousands of docs — chunking edges, memory, timeouts)
 - [ ] **TEST-07**: Vector rebuild under active queries tests
 - [ ] **TEST-08**: Entity/memory extraction failure-mode tests (timeouts, malformed responses, rate limiting)
@@ -162,7 +162,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | TEST-02 | Phase 11 | Pending |
 | TEST-03 | Phase 11 | Pending |
 | TEST-04 | Phase 11 | Pending |
-| TEST-05 | Phase 5 | Pending |
+| TEST-05 | Phase 5 | Complete |
 | TEST-06 | Phase 8 | Pending |
 | TEST-07 | Phase 9 | Pending |
 | TEST-08 | Phase 9 | Pending |
