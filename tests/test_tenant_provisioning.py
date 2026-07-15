@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import FrozenInstanceError, dataclass, replace
 from pathlib import Path
 from urllib.error import URLError
@@ -30,7 +32,7 @@ _UPDATED = "2026-07-15T12:01:00Z"
 _SCHEMA_PHASES = ("types", "properties", "indexes")
 
 
-class _DeterministicFault(RuntimeError):
+class _DeterministicFault(TenantProvisioningError):
     pass
 
 
@@ -52,6 +54,8 @@ class _FakeServer:
     fail_after: str | None = None
     transient_failures: int = 0
     returned: int = 0
+    hidden_list_results: int = 0
+    list_barrier: threading.Barrier | None = None
 
     def boundary(self, name: str) -> None:
         self.calls.append(name)
@@ -70,8 +74,15 @@ class _FakeClient:
             self.state.transient_failures -= 1
             self.state.calls.append("list")
             raise _transient_fault()
-        result = frozenset(self.state.databases)
+        hidden = self.state.hidden_list_results > 0
+        if hidden:
+            self.state.hidden_list_results -= 1
+            result = frozenset()
+        else:
+            result = frozenset(self.state.databases)
         self.state.boundary("list")
+        if hidden and self.state.list_barrier is not None:
+            self.state.list_barrier.wait(timeout=5)
         return result
 
     def create_database(self) -> None:
@@ -195,7 +206,7 @@ def _build(
         retry_base_s=0.5,
         retry_ceiling_s=1.0,
         clock=clock or _clock(_CREATED, _UPDATED),
-        sleep=(sleeps or []).append,
+        sleep=(sleeps if sleeps is not None else []).append,
         jitter=lambda: 0.5,
         bootstrap_schema=bootstrap_schema,
     )
@@ -332,21 +343,30 @@ def test_ready_manifest_mismatch_fails_once_without_mutation(
 
 def test_duplicate_create_is_only_a_reconciliation_candidate(tmp_path: Path) -> None:
     identity = _identity()
-    state = _FakeServer({identity.database_name}, {}, [])
+    state = _FakeServer({identity.database_name}, {}, [], hidden_list_results=1)
     provisioner, _, registry = _build(tmp_path, state=state)
 
     result = provisioner.provision(_TENANT)
 
     assert result.manifest == _manifest()
+    assert state.calls[:4] == ["registry-begin", "list", "create", "list"]
     assert "bootstrap-indexes" in state.calls
-    assert state.calls.index("manifest-read") > state.calls.index("manifest-write")
+    assert max(
+        i for i, call in enumerate(state.calls) if call == "manifest-read"
+    ) > state.calls.index("manifest-write")
     assert registry.get(identity.database_name).state == TENANT_STATE_READY
 
 
 def test_contenders_use_winning_registry_created_at(tmp_path: Path) -> None:
     registry = _registry(tmp_path)
     identity = _identity()
-    state = _FakeServer(set(), {}, [])
+    state = _FakeServer(
+        {identity.database_name},
+        {},
+        [],
+        hidden_list_results=2,
+        list_barrier=threading.Barrier(2),
+    )
     first, _, _ = _build(
         tmp_path,
         state=state,
@@ -360,12 +380,17 @@ def test_contenders_use_winning_registry_created_at(tmp_path: Path) -> None:
         clock=_clock("2030-01-01T00:00:00Z", "2030-01-01T00:01:00Z"),
     )
 
-    first_result = first.provision(_TENANT)
-    second_result = second.provision(_TENANT)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first_future = pool.submit(first.provision, _TENANT)
+        second_future = pool.submit(second.provision, _TENANT)
+        first_result = first_future.result(timeout=10)
+        second_result = second_future.result(timeout=10)
 
-    assert first_result.manifest.created_at == _CREATED
-    assert second_result.manifest.created_at == _CREATED
-    assert registry.get(identity.database_name).created_at == _CREATED
+    winner_created_at = registry.get(identity.database_name).created_at
+    assert winner_created_at in {_CREATED, "2030-01-01T00:00:00Z"}
+    assert first_result.manifest.created_at == winner_created_at
+    assert second_result.manifest.created_at == winner_created_at
+    assert state.calls.count("create") == 2
 
 
 @pytest.mark.parametrize(
@@ -419,7 +444,14 @@ def test_transient_retry_exhaustion_is_finite(tmp_path: Path) -> None:
     with pytest.raises(TenantProvisioningError):
         provisioner.provision(_TENANT)
 
-    assert state.calls == ["registry-begin", "list", "list", "list"]
+    assert state.calls == [
+        "registry-begin",
+        "list",
+        "registry-begin",
+        "list",
+        "registry-begin",
+        "list",
+    ]
     assert sleeps == [0.75, 1.0]
 
 

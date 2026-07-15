@@ -18,6 +18,7 @@ from turing_agentmemory_mcp.arcadedb_schema import (
     _FULL_TEXT_PROPERTY_BY_TYPE,
     EDGE_TYPES,
     STABLE_ID_TYPES,
+    TENANT_MANIFEST_TYPE,
     VECTOR_TYPES,
     VERTEX_TYPES,
     bootstrap,
@@ -107,6 +108,28 @@ def test_bootstrap_creates_full_schema_and_is_idempotent_on_rerun() -> None:
     # Re-run must not raise despite the fake's non-idempotent CREATE INDEX behavior --
     # bootstrap()'s own catch-"already exists" logic must absorb it.
     bootstrap(client, dimensions=768, version=1)
+
+
+def test_bootstrap_creates_immutable_tenant_manifest_contract() -> None:
+    client = _FakeArcadeDBClient()
+
+    bootstrap(client, dimensions=768, version=1)
+    statements = [entry[0] for entry in client.commands]
+
+    assert f"CREATE VERTEX TYPE {TENANT_MANIFEST_TYPE} IF NOT EXISTS" in statements
+    for property_name, data_type in {
+        "singleton_id": "STRING",
+        "database_name": "STRING",
+        "digest": "STRING",
+        "naming_version": "INTEGER",
+        "key_fingerprint": "STRING",
+        "schema_version": "INTEGER",
+        "created_at": "STRING",
+    }.items():
+        assert (
+            f"CREATE PROPERTY {TENANT_MANIFEST_TYPE}.{property_name} IF NOT EXISTS {data_type}"
+        ) in statements
+    assert f"CREATE INDEX ON {TENANT_MANIFEST_TYPE} (singleton_id) UNIQUE" in statements
 
 
 def test_lsm_vector_ddl_carries_dimensions_and_cosine_full_precision() -> None:

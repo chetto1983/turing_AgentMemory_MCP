@@ -10,6 +10,7 @@ live container required.
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 from urllib.error import HTTPError, URLError
@@ -339,3 +340,115 @@ def test_probe_reflects_recovery_after_transient_failure(monkeypatch: pytest.Mon
 
     assert client.probe() is False
     assert client.probe() is True
+
+
+# -- 05-04 server lifecycle commands used by ready-last tenant provisioning --
+
+
+def _assert_server_request(request: object, command: str) -> None:
+    assert request.method == "POST"
+    assert request.full_url == "http://127.0.0.1:2480/api/v1/server"
+    assert json.loads(request.data.decode("utf-8")) == {"command": command}
+    expected_auth = "Basic " + base64.b64encode(b"root:pw").decode("ascii")
+    assert request.headers["Authorization"] == expected_auth
+    assert request.headers["Content-type"] == "application/json"
+    assert request.headers.get("Arcadedb-session-id") is None
+
+
+def test_list_databases_posts_authenticated_server_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    transport = _ScriptedUrlopen(
+        [
+            _FakeResponse(
+                status=200,
+                body=json.dumps({"result": ["agentmem_t_v1_a", "agentmem_t_v1_b"]}).encode(),
+            )
+        ]
+    )
+    monkeypatch.setattr("turing_agentmemory_mcp.arcadedb_client.urlopen", transport)
+
+    result = _unit_client().list_databases()
+
+    assert result == frozenset({"agentmem_t_v1_a", "agentmem_t_v1_b"})
+    _assert_server_request(transport.calls[0], "list databases")
+
+
+@pytest.mark.parametrize(
+    "result",
+    [None, {}, "unit_test", ["unit_test", 3]],
+)
+def test_list_databases_rejects_malformed_results(
+    monkeypatch: pytest.MonkeyPatch, result: object
+) -> None:
+    transport = _ScriptedUrlopen(
+        [_FakeResponse(status=200, body=json.dumps({"result": result}).encode())]
+    )
+    monkeypatch.setattr("turing_agentmemory_mcp.arcadedb_client.urlopen", transport)
+
+    with pytest.raises(RuntimeError, match="database list"):
+        _unit_client().list_databases()
+
+    assert len(transport.calls) == 1
+
+
+def test_create_database_posts_bound_authenticated_server_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    transport = _ScriptedUrlopen(
+        [_FakeResponse(status=200, body=json.dumps({"result": "ok"}).encode())]
+    )
+    monkeypatch.setattr("turing_agentmemory_mcp.arcadedb_client.urlopen", transport)
+
+    assert _unit_client().create_database() is None
+
+    _assert_server_request(transport.calls[0], "create database unit_test")
+
+
+@pytest.mark.parametrize("operation", ["list", "create"])
+def test_lifecycle_command_retries_identical_request_then_decodes_success(
+    monkeypatch: pytest.MonkeyPatch, operation: str
+) -> None:
+    result: object = ["unit_test"] if operation == "list" else "ok"
+    transport = _ScriptedUrlopen(
+        [
+            URLError("temporary"),
+            _FakeResponse(status=200, body=json.dumps({"result": result}).encode()),
+        ]
+    )
+    monkeypatch.setattr("turing_agentmemory_mcp.arcadedb_client.urlopen", transport)
+    monkeypatch.setattr("turing_agentmemory_mcp.arcadedb_client.time.sleep", lambda _delay: None)
+    client = _unit_client(max_attempts=2)
+
+    decoded = client.list_databases() if operation == "list" else client.create_database()
+
+    expected = frozenset({"unit_test"}) if operation == "list" else None
+    command = "list databases" if operation == "list" else "create database unit_test"
+    assert decoded == expected
+    assert len(transport.calls) == 2
+    for request in transport.calls:
+        _assert_server_request(request, command)
+
+
+@pytest.mark.parametrize(
+    ("script", "message"),
+    [
+        ([URLError("down"), URLError("still down")], "unavailable"),
+        ([_http_error(400, {"detail": "bad command"})], "HTTP 400"),
+        ([_FakeResponse(status=200, body=b"not-json")], "undecodable response"),
+    ],
+)
+def test_lifecycle_transport_failures_preserve_runtime_error_classification(
+    monkeypatch: pytest.MonkeyPatch,
+    script: list[object],
+    message: str,
+) -> None:
+    transport = _ScriptedUrlopen(script)
+    monkeypatch.setattr("turing_agentmemory_mcp.arcadedb_client.urlopen", transport)
+    monkeypatch.setattr("turing_agentmemory_mcp.arcadedb_client.time.sleep", lambda _delay: None)
+    client = _unit_client(max_attempts=2)
+
+    with pytest.raises(RuntimeError, match=message):
+        client.list_databases()
+
+    assert len(transport.calls) == len(script)

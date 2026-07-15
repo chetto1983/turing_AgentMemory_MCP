@@ -247,10 +247,20 @@ class ArcadeDBClient:
 
     def ensure_database(self) -> None:
         """Idempotently create `self.database` on the server if absent."""
-        decoded, _session = self._server_command("list databases")
-        existing = decoded.get("result")
-        if isinstance(existing, list) and self.database in existing:
+        if self.database in self.list_databases():
             return
+        self.create_database()
+
+    def list_databases(self) -> frozenset[str]:
+        """Return the exact server database inventory or fail closed on malformed data."""
+        decoded, _session = self._server_command("list databases")
+        result = decoded.get("result")
+        if not isinstance(result, list) or not all(isinstance(name, str) for name in result):
+            raise RuntimeError("ArcadeDB server returned an invalid database list")
+        return frozenset(result)
+
+    def create_database(self) -> None:
+        """Create the database permanently bound to this immutable client."""
         self._server_command(f"create database {self.database}")
 
     def _server_command(self, command: str) -> tuple[dict[str, Any], str | None]:

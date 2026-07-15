@@ -49,6 +49,7 @@ from turing_agentmemory_mcp.ids import cypher_var
 
 DEFAULT_MAX_CONNECTIONS = 16
 DEFAULT_BEAM_WIDTH = 100
+TENANT_MANIFEST_TYPE = "TenantManifest"
 
 VERTEX_TYPES: tuple[str, ...] = (
     "User",
@@ -58,6 +59,7 @@ VERTEX_TYPES: tuple[str, ...] = (
     "Entity",
     "Fact",
     "Community",
+    TENANT_MANIFEST_TYPE,
 )
 EDGE_TYPES: tuple[str, ...] = (
     "HAS_MEMORY",
@@ -205,6 +207,7 @@ def bootstrap(client: SchemaClient, *, dimensions: int, version: int = 1) -> Sch
     for edge_type in EDGE_TYPES:
         _create_type_if_missing(client, "EDGE", edge_type)
 
+    _bootstrap_tenant_manifest(client)
     _bootstrap_user_identity(client)
 
     for type_name in STABLE_ID_TYPES:
@@ -216,6 +219,23 @@ def bootstrap(client: SchemaClient, *, dimensions: int, version: int = 1) -> Sch
         _bootstrap_full_text_channel(client, type_name)
 
     return config
+
+
+def _bootstrap_tenant_manifest(client: SchemaClient) -> None:
+    for property_name, data_type in (
+        ("singleton_id", "STRING"),
+        ("database_name", "STRING"),
+        ("digest", "STRING"),
+        ("naming_version", "INTEGER"),
+        ("key_fingerprint", "STRING"),
+        ("schema_version", "INTEGER"),
+        ("created_at", "STRING"),
+    ):
+        _create_property_if_missing(client, TENANT_MANIFEST_TYPE, property_name, data_type)
+    _create_index_idempotent(
+        client,
+        f"CREATE INDEX ON {TENANT_MANIFEST_TYPE} (singleton_id) UNIQUE",
+    )
 
 
 def _bootstrap_user_identity(client: SchemaClient) -> None:
