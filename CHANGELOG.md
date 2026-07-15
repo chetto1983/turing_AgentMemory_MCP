@@ -37,6 +37,16 @@ after the first stable release; pre-1.0 releases may change interfaces.
   valid-but-foreign `user_identifier` before any client call, span, or audit
   event; unbound stores (`StaticStoreResolver`, direct construction) keep
   delegating to the central exact validator unchanged (ARC-07).
+- ARC-07 gap closure: all 18 public store methods that accept
+  `user_identifier` (`add_entity`/`add_preference`/`add_fact`,
+  `update_memory`/`delete_memory`, `get_context`/`delete_document` were
+  previously unguarded) now call the binding-aware guard as their first
+  statement, and the six span-wrapped methods (`store_message`,
+  `store_messages`, `ingest_document_text`, `reindex_document_text`,
+  `search_documents`, `search_memory`) run the guard before opening their
+  span, so a rejected foreign identifier emits zero telemetry. A static
+  catalog test (`test_every_public_store_method_requires_user`) fails if a
+  future public method omits the guard.
 
 ### Fixed
 
