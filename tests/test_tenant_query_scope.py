@@ -10,10 +10,15 @@ from types import ModuleType
 import pytest
 
 from turing_agentmemory_mcp import (
+    store_documents,
     store_documents_queries,
     store_memory_queries,
+    store_memory_read,
+    store_memory_write,
+    store_rebuild,
     store_rebuild_queries,
     store_retrieval_queries,
+    store_search,
 )
 from turing_agentmemory_mcp.temporal_graph import (
     EdgeProjection,
@@ -401,3 +406,41 @@ def test_stable_resource_ids_are_paired_with_tenant_scope(
         assert "user_identifier = :user_identifier" in sql, _qualified(builder)
         assert RESOURCE_ID not in sql, _qualified(builder)
     assert resource_id_bound, _qualified(builder)
+
+
+# -- 05-10 Task 1/2: anti-regression catalog over the store mixin surface,
+# not the query-builder surface classified above. A future public store
+# method that accepts `user_identifier` but omits the binding-aware guard
+# must fail this test by name (D-18) -- mirrors the query-builder
+# classification pattern's fail-on-unclassified-discovery shape.
+
+STORE_MIXIN_MODULES: tuple[ModuleType, ...] = (
+    store_memory_write,
+    store_memory_read,
+    store_search,
+    store_documents,
+    store_rebuild,
+)
+
+
+def _public_store_methods(module: ModuleType) -> list[Callable[..., object]]:
+    methods: list[Callable[..., object]] = []
+    for _name, klass in inspect.getmembers(module, inspect.isclass):
+        if klass.__module__ != module.__name__:
+            continue
+        for method_name, candidate in inspect.getmembers(klass, inspect.isfunction):
+            if method_name.startswith("_") or candidate.__module__ != module.__name__:
+                continue
+            if "user_identifier" in inspect.signature(candidate).parameters:
+                methods.append(candidate)
+    return methods
+
+
+def test_every_public_store_method_requires_user() -> None:
+    missing = sorted(
+        f"{module.__name__}.{method.__qualname__}"
+        for module in STORE_MIXIN_MODULES
+        for method in _public_store_methods(module)
+        if "_require_user(" not in inspect.getsource(method)
+    )
+    assert not missing, f"public store methods missing the _require_user guard: {missing}"
