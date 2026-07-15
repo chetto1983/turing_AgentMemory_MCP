@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .tenant_identity import validate_user_identifier
+
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -64,11 +66,9 @@ class DocumentUploadStore:
         sha256: str,
         attributes: dict[str, Any] | None = None,
     ) -> dict[str, object]:
-        tenant = user_identifier.strip()
+        tenant = validate_user_identifier(user_identifier)
         safe_filename = Path(filename).name
         digest = sha256.strip().lower()
-        if not tenant:
-            raise ValueError("user_identifier is required")
         if not safe_filename or safe_filename in {".", ".."}:
             raise ValueError("filename is required")
         if total_bytes < 1 or total_bytes > self.max_file_bytes:
@@ -133,13 +133,14 @@ class DocumentUploadStore:
         sequence: int,
         content_base64: str,
     ) -> dict[str, object]:
+        tenant = validate_user_identifier(user_identifier)
         try:
             content = base64.b64decode(content_base64, validate=True)
         except (ValueError, TypeError) as exc:
             raise ValueError("content_base64 must be valid base64") from exc
         return self.append(
             upload_id,
-            user_identifier=user_identifier,
+            user_identifier=tenant,
             sequence=sequence,
             content=content,
         )
@@ -175,11 +176,10 @@ class DocumentUploadStore:
         return True
 
     def _session(self, upload_id: str, user_identifier: str) -> _UploadSession:
+        tenant = validate_user_identifier(user_identifier)
         session = self._sessions.get(upload_id)
-        if session is None:
+        if session is None or session.user_identifier != tenant:
             raise ValueError("upload_id is unknown")
-        if session.user_identifier != user_identifier.strip():
-            raise ValueError("upload tenant does not match user_identifier")
         return session
 
 

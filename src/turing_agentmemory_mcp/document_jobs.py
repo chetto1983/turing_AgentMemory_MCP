@@ -19,6 +19,7 @@ from turing_agentmemory_mcp.document_jobs_schema import (
     _json,
     _timestamp,
 )
+from turing_agentmemory_mcp.tenant_identity import validate_user_identifier
 
 BUSY_TIMEOUT_MS = 5000
 
@@ -105,12 +106,10 @@ class DocumentJobStore:
         max_attempts: int = 3,
         now: datetime | None = None,
     ) -> DocumentIngestJob:
-        tenant = user_identifier.strip()
+        tenant = validate_user_identifier(user_identifier)
         normalized_title = title.strip()
         safe_filename = Path(filename).name
         digest = sha256.strip().lower()
-        if not tenant:
-            raise ValueError("user_identifier is required")
         if not normalized_title:
             raise ValueError("title is required")
         if not safe_filename or safe_filename in {".", ".."}:
@@ -181,15 +180,17 @@ class DocumentJobStore:
         filename: str,
         sha256: str,
     ) -> str:
+        exact_identifier = validate_user_identifier(user_identifier)
         identity = document_id or Path(filename).name
-        material = "\0".join((user_identifier, identity, sha256)).encode("utf-8")
+        material = "\0".join((exact_identifier, identity, sha256)).encode("utf-8")
         return hashlib.sha256(material).hexdigest()
 
     def get(self, job_id: str, *, user_identifier: str) -> DocumentIngestJob | None:
+        tenant = validate_user_identifier(user_identifier)
         with self._connection() as connection:
             row = connection.execute(
                 "SELECT * FROM document_ingest_jobs WHERE job_id = ? AND user_identifier = ?",
-                (job_id, user_identifier.strip()),
+                (job_id, tenant),
             ).fetchone()
         return _job(row) if row is not None else None
 
@@ -335,9 +336,10 @@ class DocumentJobStore:
         user_identifier: str,
         now: datetime | None = None,
     ) -> DocumentIngestJob:
+        tenant = validate_user_identifier(user_identifier)
         timestamp = _timestamp(now)
         with self._transaction() as connection:
-            row = self._tenant_row(connection, job_id, user_identifier)
+            row = self._tenant_row(connection, job_id, tenant)
             if row["status"] == "queued":
                 connection.execute(
                     """
@@ -439,9 +441,10 @@ class DocumentJobStore:
         user_identifier: str,
         now: datetime | None = None,
     ) -> DocumentIngestJob:
+        tenant = validate_user_identifier(user_identifier)
         timestamp = _timestamp(now)
         with self._transaction() as connection:
-            row = self._tenant_row(connection, job_id, user_identifier)
+            row = self._tenant_row(connection, job_id, tenant)
             if row["status"] != "failed":
                 raise ValueError("only failed document ingestion jobs can be retried")
             connection.execute(
@@ -520,9 +523,10 @@ class DocumentJobStore:
         job_id: str,
         user_identifier: str,
     ) -> sqlite3.Row:
+        tenant = validate_user_identifier(user_identifier)
         row = connection.execute(
             "SELECT * FROM document_ingest_jobs WHERE job_id = ? AND user_identifier = ?",
-            (job_id, user_identifier.strip()),
+            (job_id, tenant),
         ).fetchone()
         if row is None:
             raise ValueError("document ingestion job is unknown")
