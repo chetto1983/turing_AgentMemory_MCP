@@ -124,8 +124,7 @@ def drop_staging_property_ddl(type_name: str, property_name: str) -> str:
 
 def vector_version_select_statement(*, version_id: str, user_identifier: str) -> Statement:
     return (
-        "SELECT version FROM VectorVersion WHERE id = :id "
-        "AND user_identifier = :user_identifier",
+        "SELECT version FROM VectorVersion WHERE id = :id AND user_identifier = :user_identifier",
         {"id": version_id, "user_identifier": user_identifier},
     )
 
