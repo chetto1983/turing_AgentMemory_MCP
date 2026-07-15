@@ -1,65 +1,45 @@
-"""Live database-per-tenant isolation proof for Phase 5."""
+"""Live database-per-tenant isolation and lifecycle proof for Phase 5."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from pathlib import Path
-
 import pytest
+from _arcadedb_physical_isolation_support import (
+    _IDENTITY_VARIANTS,
+    _NAMING_KEY,
+    _REQUIRED_OPERATIONS,
+    _TENANT_RECORD_TYPES,
+    _TENANTS,
+    _LiveEnvironment,
+    _run_physical_isolation_contract,
+    live_environment_context,
+)
 
 from turing_agentmemory_mcp.tenant_identity import derive_tenant_database_identity
 
-_NAMING_KEY = b"0123456789abcdef0123456789abcdef"
-_TENANTS = ("Tenant-A", "Tenant-B", "Tenant-C")
-_IDENTITY_VARIANTS = (*_TENANTS, "tenant-a", "T\u0435nant-A")
-_REQUIRED_OPERATIONS = {
-    "memory_store",
-    "memory_search",
-    "memory_list",
-    "memory_get",
-    "memory_update",
-    "memory_delete",
-    "document_ingest",
-    "document_search",
-    "document_reindex",
-    "document_delete",
-}
 
-
-@dataclass(frozen=True)
-class _PhysicalIsolationProof:
-    expected_databases: frozenset[str]
-    listed_databases: frozenset[str] = frozenset()
-    operations_by_tenant: dict[str, frozenset[str]] = field(default_factory=dict)
-    record_tenants_by_database: dict[str, frozenset[str]] = field(default_factory=dict)
-    manifest_databases: frozenset[str] = frozenset()
-    foreign_attempts_denied: bool = False
-    registry_bytes: bytes = b""
-    diagnostic_text: str = ""
-    invalid_identity_preserved_state: bool = False
-
-
-def _run_physical_isolation_contract(_tmp_path: Path) -> _PhysicalIsolationProof:
-    expected = frozenset(
-        derive_tenant_database_identity(identity, naming_key=_NAMING_KEY).database_name
-        for identity in _IDENTITY_VARIANTS
-    )
-    return _PhysicalIsolationProof(expected_databases=expected)
+@pytest.fixture(scope="module")
+def live_environment(tmp_path_factory: pytest.TempPathFactory):
+    with live_environment_context(tmp_path_factory) as environment:
+        yield environment
 
 
 @pytest.mark.integration
-def test_physical_three_tenant_database_and_predicate_isolation(tmp_path: Path) -> None:
-    proof = _run_physical_isolation_contract(tmp_path)
+def test_physical_three_tenant_database_and_predicate_isolation(
+    live_environment: _LiveEnvironment,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    proof = _run_physical_isolation_contract(live_environment, monkeypatch, caplog)
 
-    assert proof.expected_databases <= proof.listed_databases, (
-        "the live harness must provision every derived opaque physical database"
-    )
+    assert proof.expected_databases <= proof.listed_databases
     for tenant in _TENANTS:
         assert proof.operations_by_tenant[tenant] >= _REQUIRED_OPERATIONS
         database_name = derive_tenant_database_identity(
             tenant, naming_key=_NAMING_KEY
         ).database_name
         assert proof.record_tenants_by_database[database_name] == frozenset({tenant})
+        assert proof.bound_tenants_by_database[database_name] == frozenset({tenant})
+        assert proof.tenant_types_checked[database_name] == _TENANT_RECORD_TYPES
     assert proof.foreign_attempts_denied
     assert proof.manifest_databases == proof.expected_databases
 
