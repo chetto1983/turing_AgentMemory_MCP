@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 05
 current_phase_name: Per-Tenant ArcadeDB Isolation
 status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-07-15T11:22:26.425Z"
+stopped_at: Completed 05-05-PLAN.md
+last_updated: "2026-07-15T11:48:04.426Z"
 last_activity: 2026-07-15
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 13
   completed_phases: 4
   total_plans: 34
-  completed_plans: 30
-  percent: 31
+  completed_plans: 31
+  percent: 91
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 05 (Per-Tenant ArcadeDB Isolation) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-07-15 — Phase 05 execution started
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 91%
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Progress: [████████░░] 82%
 | Phase 05 P02 | 10min | 2 tasks | 2 files |
 | Phase 05 P03 | 11 min | 3 tasks | 7 files |
 | Phase 05 P04 | 21min | 2 tasks | 6 files |
+| Phase 05 P05 | 17min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -154,6 +155,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Promote the tenant registry to ready only after the immutable singleton manifest is durably reread and exactly verified. — A registry row cannot authorize serving an absent, partial, or mismatched physical tenant database.
 - [Phase 05]: Use the durable registry record's created_at as the authoritative manifest timestamp for all contenders. — Concurrent provisioners must converge on the registry winner instead of inventing divergent manifest identity.
 - [Phase 05]: Retry only classified transient failures and treat duplicate creation as a reconciliation candidate. — Finite retries preserve availability without masking deterministic isolation or integrity failures.
+- [Phase 05]: Use one opaque-database-keyed Future leader under a narrow RLock. — Provisioning, store construction, and waiter blocking stay outside the lock so unrelated tenants overlap.
+- [Phase 05]: Share frozen provider and governance dependencies while allocating fresh tenant runtime state. — Each store retains its own client, RuntimeSignals, and schema latch without duplicating heavyweight integrations.
+- [Phase 05]: Evict only router cache references. — Active immutable views stay usable and eviction never closes, drops, or mutates an ArcadeDB client or database.
 
 ### Pending Todos
 
@@ -192,6 +196,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T11:22:26.413Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-07-15T11:48:04.416Z
+Stopped at: Completed 05-05-PLAN.md
 Resume file: None
