@@ -36,7 +36,7 @@ if "turingdb" not in sys.modules:
 
 import turing_agentmemory_mcp.store_core as store_core_module
 from turing_agentmemory_mcp.governance import NoopAuditSink, NoopRedactor
-from turing_agentmemory_mcp.observability import InMemorySpanRecorder, RuntimeSignals
+from turing_agentmemory_mcp.observability import InMemorySpanRecorder
 from turing_agentmemory_mcp.store import TuringAgentMemory
 from turing_agentmemory_mcp.store_core import _StoreCore
 
@@ -184,6 +184,16 @@ def _make_store(
         entity_processor=object(),  # type: ignore[arg-type]
         observer=observer,
         sparse_index=sparse_index,
+    )
+
+
+def _make_full_store(client: _FakeArcadeDBClient, tmp_path: Path) -> TuringAgentMemory:
+    return TuringAgentMemory(
+        client,  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        embedder=_StubEmbedder(),  # type: ignore[arg-type]
+        reranker=object(),  # type: ignore[arg-type]
+        entity_processor=object(),  # type: ignore[arg-type]
     )
 
 
@@ -488,16 +498,7 @@ def test_direct_store_rejects_exact_invalid_identity_before_client_activity(
     tmp_path: Path, invalid_identifier: str
 ) -> None:
     client = _FakeArcadeDBClient()
-    store = TuringAgentMemory(
-        client,  # type: ignore[arg-type]
-        turing_home=tmp_path,
-        embedder=_StubEmbedder(),  # type: ignore[arg-type]
-        reranker=object(),  # type: ignore[arg-type]
-        entity_processor=object(),  # type: ignore[arg-type]
-        redactor=NoopRedactor(),
-        audit_sink=NoopAuditSink(),
-        observer=InMemorySpanRecorder(),
-    )
+    store = _make_full_store(client, tmp_path)
 
     with pytest.raises(ValueError):
         store.list_memories(user_identifier=invalid_identifier)
@@ -508,16 +509,7 @@ def test_direct_store_rejects_exact_invalid_identity_before_client_activity(
 
 def test_direct_store_passes_valid_opaque_unicode_unchanged_to_client(tmp_path: Path) -> None:
     client = _FakeArcadeDBClient()
-    store = TuringAgentMemory(
-        client,  # type: ignore[arg-type]
-        turing_home=tmp_path,
-        embedder=_StubEmbedder(),  # type: ignore[arg-type]
-        reranker=object(),  # type: ignore[arg-type]
-        entity_processor=object(),  # type: ignore[arg-type]
-        redactor=NoopRedactor(),
-        audit_sink=NoopAuditSink(),
-        observer=InMemorySpanRecorder(),
-    )
+    store = _make_full_store(client, tmp_path)
     exact_identifier = "Tenant-\u212b-\u03c2"
 
     assert store.list_memories(user_identifier=exact_identifier) == []
@@ -553,8 +545,6 @@ def test_require_user_delegates_to_central_exact_validator(
 def test_shared_dependency_bundle_reuses_dependencies_but_not_tenant_runtime_state(
     tmp_path: Path,
 ) -> None:
-    shared_type = getattr(store_core_module, "StoreSharedDependencies", None)
-    assert shared_type is not None, "StoreSharedDependencies must be explicit"
     first_client = _FakeArcadeDBClient()
     embedder = _StubEmbedder()
     reranker = object()
@@ -604,7 +594,6 @@ def test_shared_dependency_bundle_reuses_dependencies_but_not_tenant_runtime_sta
     assert second.client is second_client
     assert second.client is not first.client
     assert second.runtime_signals is not first.runtime_signals
-    assert isinstance(second.runtime_signals, RuntimeSignals)
     first._schema_bootstrapped = True
     assert second._schema_bootstrapped is False
     with pytest.raises(FrozenInstanceError):

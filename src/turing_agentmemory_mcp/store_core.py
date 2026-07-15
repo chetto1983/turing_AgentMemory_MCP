@@ -28,8 +28,11 @@ unbounded-per-document as the accepted design for this milestone.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from turing_agentmemory_mcp.arcadedb_client import ArcadeDBClient
@@ -58,6 +61,35 @@ from turing_agentmemory_mcp.provider_config import provider_env
 from turing_agentmemory_mcp.rerank import OpenAICompatibleReranker
 from turing_agentmemory_mcp.search_controls import validate_fusion_weights
 from turing_agentmemory_mcp.sparse_index import SparseIndex
+from turing_agentmemory_mcp.tenant_identity import validate_user_identifier
+
+
+@dataclass(frozen=True, slots=True)
+class StoreSharedDependencies:
+    turing_home: Path
+    graph: str
+    dimensions: int
+    memory_index: str
+    document_index: str
+    entity_index: str
+    fact_index: str
+    community_index: str
+    embedder: Embedder
+    reranker: OpenAICompatibleReranker
+    entity_processor: EntityProcessor
+    memory_extractor: MemoryExtractor | None
+    sparse_index: SparseIndex | None
+    fusion_enabled: bool
+    fusion_weights: Mapping[str, float]
+    community_detector: NativeLeidenDetector
+    community_rebuild_on_batch: bool
+    observer: SpanRecorder
+    redactor: Redactor
+    audit_sink: AuditSink
+    rerank_threshold: float
+    rerank_blend: bool
+    rerank_preserve_seed_margin: float
+    rerank_candidate_limit: int
 
 
 class _StoreCore:
@@ -65,7 +97,8 @@ class _StoreCore:
         self,
         client: ArcadeDBClient,
         *,
-        turing_home: str | Path,
+        turing_home: str | Path | None = None,
+        shared_dependencies: StoreSharedDependencies | None = None,
         graph: str = "agent_memory",
         dimensions: int = 768,
         memory_index: str = "agent_memory_vectors",
@@ -91,6 +124,37 @@ class _StoreCore:
         rerank_preserve_seed_margin: float | None = None,
         rerank_candidate_limit: int | None = None,
     ) -> None:
+        if shared_dependencies is not None:
+            if turing_home is not None or runtime_signals is not None:
+                raise ValueError(
+                    "shared_dependencies owns store configuration and requires fresh runtime state"
+                )
+            turing_home = shared_dependencies.turing_home
+            graph = shared_dependencies.graph
+            dimensions = shared_dependencies.dimensions
+            memory_index = shared_dependencies.memory_index
+            document_index = shared_dependencies.document_index
+            entity_index = shared_dependencies.entity_index
+            fact_index = shared_dependencies.fact_index
+            community_index = shared_dependencies.community_index
+            embedder = shared_dependencies.embedder
+            reranker = shared_dependencies.reranker
+            entity_processor = shared_dependencies.entity_processor
+            memory_extractor = shared_dependencies.memory_extractor
+            sparse_index = shared_dependencies.sparse_index
+            fusion_enabled = shared_dependencies.fusion_enabled
+            fusion_weights = dict(shared_dependencies.fusion_weights)
+            community_detector = shared_dependencies.community_detector
+            community_rebuild_on_batch = shared_dependencies.community_rebuild_on_batch
+            observer = shared_dependencies.observer
+            redactor = shared_dependencies.redactor
+            audit_sink = shared_dependencies.audit_sink
+            rerank_threshold = shared_dependencies.rerank_threshold
+            rerank_blend = shared_dependencies.rerank_blend
+            rerank_preserve_seed_margin = shared_dependencies.rerank_preserve_seed_margin
+            rerank_candidate_limit = shared_dependencies.rerank_candidate_limit
+        if turing_home is None:
+            raise ValueError("turing_home is required")
         self.client = client
         self.turing_home = Path(turing_home)
         self.graph = graph
@@ -102,8 +166,12 @@ class _StoreCore:
         self.community_index = community_index
         self._schema_bootstrapped = False
         self._schema_version = 1  # D-07 versioned-index foundation; 04-08 bumps this.
-        self.embedder = embedder or OpenAICompatibleEmbedder.from_env(dimensions=self.dimensions)
-        self.reranker = reranker or OpenAICompatibleReranker.from_env()
+        self.embedder = (
+            embedder
+            if embedder is not None
+            else OpenAICompatibleEmbedder.from_env(dimensions=self.dimensions)
+        )
+        self.reranker = reranker if reranker is not None else OpenAICompatibleReranker.from_env()
         self.rerank_candidate_limit = max(
             2,
             int(
@@ -112,7 +180,9 @@ class _StoreCore:
                 else rerank_candidate_limit
             ),
         )
-        self.entity_processor = entity_processor or entity_processor_from_env()
+        self.entity_processor = (
+            entity_processor if entity_processor is not None else entity_processor_from_env()
+        )
         self.memory_extractor = memory_extractor
         self.sparse_index = sparse_index
         if fusion_enabled is not None and not isinstance(fusion_enabled, bool):
@@ -129,11 +199,13 @@ class _StoreCore:
                 "community": 0.25,
             }
         )
-        self.community_detector = community_detector or NativeLeidenDetector()
+        self.community_detector = (
+            community_detector if community_detector is not None else NativeLeidenDetector()
+        )
         if not isinstance(community_rebuild_on_batch, bool):
             raise ValueError("community_rebuild_on_batch must be a boolean")
         self.community_rebuild_on_batch = community_rebuild_on_batch
-        self.runtime_signals = runtime_signals or RuntimeSignals()
+        self.runtime_signals = runtime_signals if runtime_signals is not None else RuntimeSignals()
         self.runtime_signals.configure_stage("graph", ready=False, identity={"graph": graph})
         self.runtime_signals.configure_stage(
             "extraction",
@@ -181,9 +253,9 @@ class _StoreCore:
             ready=self.fusion_enabled,
             identity={"backend": "graspologic-native", "seed": self.community_detector.seed},
         )
-        self.observer = observer or span_recorder_from_env()
-        self.redactor = redactor or redactor_from_env()
-        self.audit_sink = audit_sink or audit_sink_from_env()
+        self.observer = observer if observer is not None else span_recorder_from_env()
+        self.redactor = redactor if redactor is not None else redactor_from_env()
+        self.audit_sink = audit_sink if audit_sink is not None else audit_sink_from_env()
         self.rerank_threshold = (
             float(provider_env("RERANK_THRESHOLD", default="0"))
             if rerank_threshold is None
@@ -201,6 +273,34 @@ class _StoreCore:
         )
         self.data_dir = self.turing_home / "data"
         self.data_dir.mkdir(parents=True, exist_ok=True)
+
+    def shared_dependencies(self) -> StoreSharedDependencies:
+        return StoreSharedDependencies(
+            turing_home=self.turing_home,
+            graph=self.graph,
+            dimensions=self.dimensions,
+            memory_index=self.memory_index,
+            document_index=self.document_index,
+            entity_index=self.entity_index,
+            fact_index=self.fact_index,
+            community_index=self.community_index,
+            embedder=self.embedder,
+            reranker=self.reranker,
+            entity_processor=self.entity_processor,
+            memory_extractor=self.memory_extractor,
+            sparse_index=self.sparse_index,
+            fusion_enabled=self.fusion_enabled,
+            fusion_weights=MappingProxyType(dict(self.fusion_weights)),
+            community_detector=self.community_detector,
+            community_rebuild_on_batch=self.community_rebuild_on_batch,
+            observer=self.observer,
+            redactor=self.redactor,
+            audit_sink=self.audit_sink,
+            rerank_threshold=self.rerank_threshold,
+            rerank_blend=self.rerank_blend,
+            rerank_preserve_seed_margin=self.rerank_preserve_seed_margin,
+            rerank_candidate_limit=self.rerank_candidate_limit,
+        )
 
     def bootstrap(self) -> None:
         self.turing_home.mkdir(parents=True, exist_ok=True)
@@ -366,5 +466,4 @@ class _StoreCore:
 
     @staticmethod
     def _require_user(user_identifier: str) -> None:
-        if not user_identifier.strip():
-            raise ValueError("user_identifier is required")
+        validate_user_identifier(user_identifier)
