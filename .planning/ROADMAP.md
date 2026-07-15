@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: UTCP Spike** - Early findings-gated verdict on deeper UTCP support; no build commitment (completed 2026-07-12)
 - [x] **Phase 3: TuringDB Retrieval Baseline** - Recorded, versioned baseline snapshot before any ArcadeDB work (completed 2026-07-13)
 - [x] **Phase 4: ArcadeDB Direct Port** - `store.py` on ArcadeDB graph + native vector + native full-text, stable IDs preserved (completed 2026-07-14)
-- [ ] **Phase 5: Per-Tenant ArcadeDB Isolation** - One database per tenant with mandatory `user_identifier` scoping still enforced
+- [x] **Phase 5: Per-Tenant ArcadeDB Isolation** - One database per tenant with mandatory `user_identifier` scoping still enforced (completed 2026-07-15)
 - [ ] **Phase 6: Migration-Correctness Gate** - Ported stack provably meets-or-exceeds the baseline (hard exit criterion)
 - [ ] **Phase 7: Remove TuringDB + Dependency Hardening** - TuringDB cut, invariants rewritten, at-risk deps version-gated
 - [ ] **Phase 8: Document Ingestion & Storage Reliability** - Durable upload sessions, Garage S3 staging, multi-worker + cancellation
@@ -178,7 +178,7 @@ Plans:
   2. Every query still carries explicit `user_identifier` scoping and fails closed on an empty identifier — DB-level isolation never replaces the invariant-#1 contract.
   3. Concurrent multi-tenant isolation tests pass with no cross-tenant leakage under concurrency.
 
-**Plans**: 7/8 plans executed
+**Plans**: 8/8 plans complete
 
 Plans:
 
@@ -206,7 +206,7 @@ Plans:
 
 **Wave 6 — Live isolation gate**
 
-- [ ] 05-08-PLAN.md — Prove live A/B/C physical isolation, lifecycle chaos resilience, and operational contracts (ARC-07, TEST-05)
+- [x] 05-08-PLAN.md — Prove live A/B/C physical isolation, lifecycle chaos resilience, and operational contracts (ARC-07, TEST-05)
 
 ### Phase 6: Migration-Correctness Gate
 
@@ -318,7 +318,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
-| 5. Per-Tenant ArcadeDB Isolation | 7/8 | In Progress|  |
+| 5. Per-Tenant ArcadeDB Isolation | 8/8 | Complete   | 2026-07-15 |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |

@@ -4,17 +4,17 @@ milestone: v2.2.0
 milestone_name: milestone
 current_phase: 05
 current_phase_name: Per-Tenant ArcadeDB Isolation
-status: executing
-stopped_at: Completed 05-07-PLAN.md
-last_updated: "2026-07-15T12:41:00.392Z"
+status: verifying
+stopped_at: Completed 05-08-PLAN.md
+last_updated: "2026-07-15T13:38:46.381Z"
 last_activity: 2026-07-15
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 13
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 34
-  completed_plans: 33
-  percent: 31
+  completed_plans: 34
+  percent: 38
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 
 Phase: 05 (Per-Tenant ArcadeDB Isolation) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-15 — Phase 05 execution started
 
 Progress: [█████████░] 91%
@@ -89,6 +89,7 @@ Progress: [█████████░] 91%
 | Phase 05 P05 | 17min | 2 tasks | 4 files |
 | Phase 05 P06 | 17min | 2 tasks | 7 files |
 | Phase 05 P07 | 19min | 2 tasks | 8 files |
+| Phase 05 P08 | 47min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -168,6 +169,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Resolve one tenant view per claimed document job — The manager retains only the shared resolver and never caches a tenant memory store across jobs.
 - [Phase 05]: Hide foreign upload-session existence — Absent and foreign upload ownership return the same non-enumerating unknown error.
 - [Phase 05]: Share active resolver across foreground and background work — Production document workers consume the same routing authority as MCP tools.
+- [Phase 05]: Constrain live fixture cleanup to exact opaque database names derived from a fixed key and tenant list. — Privileged isolation tests must never drop unrelated ArcadeDB state.
+- [Phase 05]: Treat a ready registry row with a missing database as a fail-closed recovery incident. — Automatic empty reprovisioning would disguise durable tenant data loss.
+- [Phase 05]: Remove ARCADEDB_DATABASE from production Compose tenant routing. — Tenant data is selected only through exact HMAC-derived physical databases.
 
 ### Pending Todos
 
@@ -206,6 +210,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T12:41:00.368Z
-Stopped at: Completed 05-07-PLAN.md
+Last session: 2026-07-15T13:38:46.358Z
+Stopped at: Completed 05-08-PLAN.md
 Resume file: None
