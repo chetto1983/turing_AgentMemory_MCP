@@ -85,6 +85,7 @@ def vector_version_schema_ddl() -> list[str]:
     return [
         "CREATE VERTEX TYPE VectorVersion IF NOT EXISTS",
         "CREATE PROPERTY VectorVersion.id IF NOT EXISTS STRING",
+        "CREATE PROPERTY VectorVersion.user_identifier IF NOT EXISTS STRING",
         "CREATE PROPERTY VectorVersion.version IF NOT EXISTS INTEGER",
         "CREATE INDEX ON VectorVersion (id) UNIQUE",
     ]
@@ -121,21 +122,31 @@ def drop_staging_property_ddl(type_name: str, property_name: str) -> str:
 # -- D-07 data statements ------------------------------------------------------
 
 
-def vector_version_select_statement(*, version_id: str) -> Statement:
-    return ("SELECT version FROM VectorVersion WHERE id = :id", {"id": version_id})
-
-
-def vector_version_create_statement(*, version_id: str, version: int) -> Statement:
+def vector_version_select_statement(*, version_id: str, user_identifier: str) -> Statement:
     return (
-        "CREATE VERTEX VectorVersion SET id = :id, version = :version",
-        {"id": version_id, "version": version},
+        "SELECT version FROM VectorVersion WHERE id = :id "
+        "AND user_identifier = :user_identifier",
+        {"id": version_id, "user_identifier": user_identifier},
     )
 
 
-def vector_version_update_statement(*, version_id: str, version: int) -> Statement:
+def vector_version_create_statement(
+    *, version_id: str, version: int, user_identifier: str
+) -> Statement:
     return (
-        "UPDATE VectorVersion SET version = :version WHERE id = :id",
-        {"id": version_id, "version": version},
+        "CREATE VERTEX VectorVersion SET id = :id, "
+        "user_identifier = :user_identifier, version = :version",
+        {"id": version_id, "user_identifier": user_identifier, "version": version},
+    )
+
+
+def vector_version_update_statement(
+    *, version_id: str, version: int, user_identifier: str
+) -> Statement:
+    return (
+        "UPDATE VectorVersion SET version = :version WHERE id = :id "
+        "AND user_identifier = :user_identifier",
+        {"id": version_id, "user_identifier": user_identifier, "version": version},
     )
 
 
@@ -149,16 +160,19 @@ def stage_vector_statement(
     embedding: list[float],
     lexical_tokens: list[int],
     lexical_weights: list[float],
+    user_identifier: str,
 ) -> Statement:
     return (
         f"UPDATE {type_name} SET {staging_embedding_property} = :embedding, "
         f"{staging_tokens_property} = :lexical_tokens, "
-        f"{staging_weights_property} = :lexical_weights WHERE id = :id",
+        f"{staging_weights_property} = :lexical_weights WHERE id = :id "
+        "AND user_identifier = :user_identifier",
         {
             "id": record_id,
             "embedding": embedding,
             "lexical_tokens": lexical_tokens,
             "lexical_weights": lexical_weights,
+            "user_identifier": user_identifier,
         },
     )
 
@@ -331,7 +345,8 @@ def community_replace_sqlscript(
             member_param = f"{prefix}_member_{member_index}"
             params[member_param] = member_id
             statements.append(
-                f"CREATE EDGE IN_COMMUNITY FROM (SELECT FROM Entity WHERE id = :{member_param}) "
+                f"CREATE EDGE IN_COMMUNITY FROM (SELECT FROM Entity "
+                f"WHERE id = :{member_param} AND user_identifier = :user_identifier) "
                 f"TO {community_var};"
             )
     body = "BEGIN;\n" + "\n".join(statements) + "\nCOMMIT;"

@@ -124,6 +124,7 @@ class _RebuildMixin:
                 embedding=vector,
                 lexical_tokens=tokens,
                 lexical_weights=weights,
+                user_identifier=user_identifier,
             )
             for (record_id, text), vector in zip(records, vectors, strict=True)
             for tokens, weights in (sparse_vector(text),)
@@ -149,7 +150,10 @@ class _RebuildMixin:
     def _active_vector_version(self, kind: str, user_identifier: str) -> int:
         self._ensure_vector_version_schema()
         version_id = rebuild_queries.vector_version_id(kind, user_identifier)
-        statement, params = rebuild_queries.vector_version_select_statement(version_id=version_id)
+        statement, params = rebuild_queries.vector_version_select_statement(
+            version_id=version_id,
+            user_identifier=user_identifier,
+        )
         rows = self._records(self._query(statement, operation="vector_version.read", params=params))
         if not rows:
             return 0
@@ -161,11 +165,15 @@ class _RebuildMixin:
         version_id = rebuild_queries.vector_version_id(kind, user_identifier)
         if previous_version == 0:
             statement, params = rebuild_queries.vector_version_create_statement(
-                version_id=version_id, version=version
+                version_id=version_id,
+                version=version,
+                user_identifier=user_identifier,
             )
         else:
             statement, params = rebuild_queries.vector_version_update_statement(
-                version_id=version_id, version=version
+                version_id=version_id,
+                version=version,
+                user_identifier=user_identifier,
             )
         self._write(statement, params=params)
 
