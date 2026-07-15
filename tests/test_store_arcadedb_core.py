@@ -23,15 +23,21 @@ import asyncio
 import re
 import sys
 import types
+from dataclasses import FrozenInstanceError
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
+import pytest
 
 if "turingdb" not in sys.modules:
     sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
-from turing_agentmemory_mcp.observability import InMemorySpanRecorder
+import turing_agentmemory_mcp.store_core as store_core_module
+from turing_agentmemory_mcp.governance import NoopAuditSink, NoopRedactor
+from turing_agentmemory_mcp.observability import InMemorySpanRecorder, RuntimeSignals
+from turing_agentmemory_mcp.store import TuringAgentMemory
 from turing_agentmemory_mcp.store_core import _StoreCore
 
 _STORE_CORE_PATH = (
@@ -472,3 +478,134 @@ def test_document_graph_batch_knobs_absent_from_source_and_env_wiring() -> None:
             "AGENTMEMORY_DOCUMENT_GRAPH_BATCH_BYTES",
         ):
             assert forbidden not in source, f"{path.name} still references {forbidden!r}"
+
+
+@pytest.mark.parametrize(
+    "invalid_identifier",
+    ["", "   ", " alice", "alice ", "ali\x00ce", "\ud800"],
+)
+def test_direct_store_rejects_exact_invalid_identity_before_client_activity(
+    tmp_path: Path, invalid_identifier: str
+) -> None:
+    client = _FakeArcadeDBClient()
+    store = TuringAgentMemory(
+        client,  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        embedder=_StubEmbedder(),  # type: ignore[arg-type]
+        reranker=object(),  # type: ignore[arg-type]
+        entity_processor=object(),  # type: ignore[arg-type]
+        redactor=NoopRedactor(),
+        audit_sink=NoopAuditSink(),
+        observer=InMemorySpanRecorder(),
+    )
+
+    with pytest.raises(ValueError):
+        store.list_memories(user_identifier=invalid_identifier)
+
+    assert client.queries == []
+    assert client.commands == []
+
+
+def test_direct_store_passes_valid_opaque_unicode_unchanged_to_client(tmp_path: Path) -> None:
+    client = _FakeArcadeDBClient()
+    store = TuringAgentMemory(
+        client,  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        embedder=_StubEmbedder(),  # type: ignore[arg-type]
+        reranker=object(),  # type: ignore[arg-type]
+        entity_processor=object(),  # type: ignore[arg-type]
+        redactor=NoopRedactor(),
+        audit_sink=NoopAuditSink(),
+        observer=InMemorySpanRecorder(),
+    )
+    exact_identifier = "Tenant-\u212b-\u03c2"
+
+    assert store.list_memories(user_identifier=exact_identifier) == []
+
+    assert client.queries
+    assert any(
+        params is not None and exact_identifier in params.values()
+        for _statement, params in client.queries
+    )
+
+
+def test_require_user_delegates_to_central_exact_validator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    def validate_user_identifier(value: str) -> str:
+        calls.append(value)
+        return value
+
+    monkeypatch.setattr(
+        store_core_module,
+        "validate_user_identifier",
+        validate_user_identifier,
+        raising=False,
+    )
+
+    _StoreCore._require_user("opaque-\u03a9")
+
+    assert calls == ["opaque-\u03a9"]
+
+
+def test_shared_dependency_bundle_reuses_dependencies_but_not_tenant_runtime_state(
+    tmp_path: Path,
+) -> None:
+    shared_type = getattr(store_core_module, "StoreSharedDependencies", None)
+    assert shared_type is not None, "StoreSharedDependencies must be explicit"
+    first_client = _FakeArcadeDBClient()
+    embedder = _StubEmbedder()
+    reranker = object()
+    entity_processor = object()
+    memory_extractor = SimpleNamespace(model_name="extractor")
+    sparse_index = _TrackingSparseIndex()
+    community_detector = SimpleNamespace(seed=17)
+    observer = InMemorySpanRecorder()
+    redactor = NoopRedactor()
+    audit_sink = NoopAuditSink()
+    first = _StoreCore(
+        first_client,  # type: ignore[arg-type]
+        turing_home=tmp_path,
+        embedder=embedder,  # type: ignore[arg-type]
+        reranker=reranker,  # type: ignore[arg-type]
+        entity_processor=entity_processor,  # type: ignore[arg-type]
+        memory_extractor=memory_extractor,  # type: ignore[arg-type]
+        sparse_index=sparse_index,  # type: ignore[arg-type]
+        community_detector=community_detector,  # type: ignore[arg-type]
+        observer=observer,
+        redactor=redactor,
+        audit_sink=audit_sink,
+        fusion_enabled=True,
+        community_rebuild_on_batch=True,
+        rerank_threshold=0.25,
+        rerank_blend=True,
+        rerank_preserve_seed_margin=0.2,
+        rerank_candidate_limit=19,
+    )
+
+    shared = first.shared_dependencies()
+    second_client = _FakeArcadeDBClient()
+    second = _StoreCore(second_client, shared_dependencies=shared)  # type: ignore[call-arg]
+
+    for name in (
+        "embedder",
+        "reranker",
+        "entity_processor",
+        "memory_extractor",
+        "sparse_index",
+        "community_detector",
+        "observer",
+        "redactor",
+        "audit_sink",
+    ):
+        assert getattr(second, name) is getattr(first, name)
+    assert second.client is second_client
+    assert second.client is not first.client
+    assert second.runtime_signals is not first.runtime_signals
+    assert isinstance(second.runtime_signals, RuntimeSignals)
+    first._schema_bootstrapped = True
+    assert second._schema_bootstrapped is False
+    with pytest.raises(FrozenInstanceError):
+        shared.dimensions = 5
