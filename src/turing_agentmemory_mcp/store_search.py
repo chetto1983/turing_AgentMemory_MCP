@@ -77,10 +77,12 @@ class _SearchMixin:
         explain: bool = False,
     ) -> list[MemoryItem]:
         self._require_user(user_identifier)
+        # user_identifier deliberately omitted -- _StoreCore._span sanitizes
+        # centrally (ARC-07/D-07); this call site should not read as
+        # exporting raw identity even though the choke point is the backstop.
         with self._span(
             "memory.search",
             {
-                "user_identifier": user_identifier,
                 "limit": limit,
                 "session_id": session_id,
                 "source": source,

@@ -52,9 +52,11 @@ class _MemoryWriteMixin:
         expires_at: str = "",
     ) -> MemoryItem:
         self._require_user(user_identifier)
-        with self._span(
-            "memory.store_message", {"user_identifier": user_identifier, "source": source}
-        ):
+        # user_identifier is deliberately omitted here -- _StoreCore._span
+        # sanitizes centrally (ARC-07/D-07); this call site should not read
+        # as exporting raw identity even though the choke point is the real
+        # backstop.
+        with self._span("memory.store_message", {"source": source}):
             if self.memory_extractor is not None:
                 return self.store_messages(
                     user_identifier=user_identifier,
@@ -107,9 +109,11 @@ class _MemoryWriteMixin:
         _audit_operation: str = "memory.store_messages",
     ) -> list[MemoryItem]:
         self._require_user(user_identifier)
+        # user_identifier deliberately omitted -- see store_message's
+        # comment above (ARC-07/D-07 central sanitizer is the backstop).
         with self._span(
             "memory.store_messages",
-            {"user_identifier": user_identifier, "source": source, "count": len(messages)},
+            {"source": source, "count": len(messages)},
         ):
             if not isinstance(refresh_communities, bool):
                 raise ValueError("refresh_communities must be a boolean")

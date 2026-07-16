@@ -223,7 +223,14 @@ def test_store_message_applies_redaction_before_embedding_and_audits_without_con
     assert audit.events[-1]["operation"] == "memory.store_message"
     assert audit.events[-1]["resource_type"] == "memory"
     assert audit.events[-1]["resource_id"] == item.id
-    assert audit.events[-1]["user_identifier"] == "alice"
+    # ARC-07 gap closure (05-11): _StoreCore._audit no longer forwards the
+    # raw user_identifier -- it is a justified contract-change rewrite (not
+    # a weakened assertion) of the old raw-identity expectation this test
+    # encoded. RecordingStore is constructed without a tenant_binding, so
+    # there is no opaque tenant_database correlation to assert here either;
+    # that bound-store behavior is covered by
+    # tests/test_tenant_telemetry_pseudonymity.py.
+    assert "user_identifier" not in audit.events[-1]
     assert "content" not in audit.events[-1]
 
 

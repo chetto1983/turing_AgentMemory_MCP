@@ -107,10 +107,12 @@ class _DocumentMixin:
         expires_at: str | None = None,
     ) -> IngestedDocument:
         self._require_user(user_identifier)
+        # user_identifier deliberately omitted -- _StoreCore._span sanitizes
+        # centrally (ARC-07/D-07); this call site should not read as
+        # exporting raw identity even though the choke point is the backstop.
         with self._span(
             "document.ingest_text",
             {
-                "user_identifier": user_identifier,
                 "document_id": document_id or "",
                 "source": source,
             },
@@ -186,9 +188,11 @@ class _DocumentMixin:
         expires_at: str | None = None,
     ) -> IngestedDocument:
         self._require_user(user_identifier)
+        # user_identifier deliberately omitted -- see ingest_document_text's
+        # comment above (ARC-07/D-07 central sanitizer is the backstop).
         with self._span(
             "document.reindex_text",
-            {"user_identifier": user_identifier, "document_id": document_id, "source": source},
+            {"document_id": document_id, "source": source},
         ):
             if not document_id.strip():
                 raise ValueError("document_id is required")
@@ -460,9 +464,11 @@ class _DocumentMixin:
         explain: bool = False,
     ) -> list[DocumentHit]:
         self._require_user(user_identifier)
+        # user_identifier deliberately omitted -- see ingest_document_text's
+        # comment above (ARC-07/D-07 central sanitizer is the backstop).
         with self._span(
             "document.search",
-            {"user_identifier": user_identifier, "document_id": document_id, "limit": limit},
+            {"document_id": document_id, "limit": limit},
         ):
             query = validate_search_query(query)
             limit = self._clean_limit(limit)
