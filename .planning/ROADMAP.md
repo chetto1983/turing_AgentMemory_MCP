@@ -262,13 +262,13 @@ Plans:
   2. CLAUDE.md invariants are updated — #2 (TuringDB canonical) superseded, #4/#6 (submit-before-match, `load_graph`) retired or replaced with the ArcadeDB equivalent — while #1 (tenant scope) and #3 (stable IDs) are reconfirmed as still enforced.
   3. `graspologic-native` and `fastmcp` have automated compatibility/version-gate checks so upgrades are tested before adoption.
 
-**Plans:** 8 plans
+**Plans:** 1/8 plans executed
 
 Plans:
 
 **Wave 1** — irreversible src-side removal + Bertoni app-state rename (parallel, disjoint files)
 
-- [ ] 07-01-PLAN.md — Entry GO-gate assertion + delete legacy TuringDB benchmark/eval/admin_repair harness cluster + prune cli.py
+- [x] 07-01-PLAN.md — Entry GO-gate assertion + delete legacy TuringDB benchmark/eval/admin_repair harness cluster + prune cli.py
 - [ ] 07-02-PLAN.md — Strip vestigial turingdb imports (e2e_score*/store_*) + remove turingdb==1.35 from pyproject.toml
 - [ ] 07-03-PLAN.md — Bertoni app-state rename (BERTONI_HOME, AGENTMEMORY_GRAPH, bertoni-data:/bertoni) + delete turingdb compose services/Dockerfile + flip test_compose_config.py
 
@@ -369,7 +369,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 4/4 | Complete    | 2026-07-16 |
-| 7. Remove TuringDB + Dependency Hardening | 0/8 | Not started | - |
+| 7. Remove TuringDB + Dependency Hardening | 1/8 | In Progress|  |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
 | 10. Security & Governance Hardening | 0/TBD | Not started | - |
@@ -400,15 +400,19 @@ kept as a separate change and independently schedulable from Phases 8-13)
   1. `src/turing_agentmemory_mcp/` is renamed to `src/bertoni_agentmemory_mcp/`, and every
      Python import, module invocation, test, script, package-data path, and CI reference uses
      `bertoni_agentmemory_mcp`.
+
   2. `pyproject.toml` publishes `bertoni-agentmemory-mcp`, installs the
      `bertoni-agentmemory-mcp` console entrypoint, and contains no stale package or entrypoint
      metadata under the former brand.
+
   3. The FastMCP server identity and bundled agent skill are renamed from
      `turing-agentmemory` to `bertoni-agentmemory`, including skill metadata, examples,
      generated/manual integration configuration, and contract tests.
+
   4. Docker images, Compose project/services, inter-service references, healthchecks, build
      targets, volumes, and operational commands use the `bertoni-agentmemory-*` naming family;
      a clean Compose configuration validates under the new names.
+
   5. Public and operator docs, repository guidance, examples, fixtures, and user-facing text
      consistently use Bertoni; a repository-wide legacy-name audit finds no unintended branded
      `turing_agentmemory_mcp`, `turing-agentmemory-mcp`, `turing-agentmemory`, or

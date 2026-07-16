@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 7
+current_phase: 07
 current_phase_name: Remove TuringDB + Dependency Hardening
 status: executing
-stopped_at: Phase 7 context gathered
-last_updated: "2026-07-16T14:56:52.634Z"
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-07-16T19:06:41.495Z"
 last_activity: 2026-07-16
-last_activity_desc: "Completed quick task 260716-lel: strip HTML/Wikipedia navigation boilerplate in document conversion"
+last_activity_desc: Phase 07 execution started
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 6
-  total_plans: 42
-  completed_plans: 42
+  total_plans: 50
+  completed_plans: 43
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 06 — migration-correctness-gate
+**Current focus:** Phase 07 — Remove TuringDB + Dependency Hardening
 
 ## Current Position
 
-Phase: 7 — Remove TuringDB + Dependency Hardening
-Plan: Not started
+Phase: 07 (Remove TuringDB + Dependency Hardening) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-07-16 — Completed quick task 260716-lel: strip HTML/Wikipedia navigation boilerplate in document conversion
+Last activity: 2026-07-16 -- Phase 07 execution started
 
-Progress: [██████████] 100%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
@@ -103,6 +103,7 @@ Progress: [██████████] 100%
 | Phase 06 P02 | 12min | 2 tasks | 2 files |
 | Phase 06 P03 | 95min | 2 tasks | 5 files |
 | Phase 06 P04 | 55min | 3 tasks | 4 files |
+| Phase 07 P01 | 5min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -201,6 +202,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 06-03: N=3 frozen-question benchmark mean clears all locked metrics (mrr@20=0.6843, recall@1=0.5889, recall@20=0.8556) with all 5 normattiva_* PDFs retrieving non-zero MRR for the first time; latency 3345ms mean well under the 5.4s baseline (preview only -- authoritative verdict is 06-04's scope)
 - [Phase ?]: 06-04: gate_diff.py's --derive-corrected-baseline flag is a pipeline modifier, not a standalone single-file CLI mode -- derived e2e-baseline-corrected.json via the already-exported corrected_checks() function instead (Rule 3 fix, no gate_diff.py changes)
 - [Phase ?]: 06-04: ARC-09 gate verdict computed GO -- all three locked aggregate metrics (mrr_at_20/recall_at_1/recall_at_20) clear the epsilon=0.03 band vs the D-01 bug-corrected 7-doc bar, corpus zero-drift verified, provider confirmed non-stub; Phase 7 TuringDB removal authorized
+- [Phase ?]: 07-01: Deleted admin_repair.py wholesale (all three functions), not just CLI-wired repair_vector_index -- repair_sparse_projection targets a SparseIndex read path store_evidence.py already proves dead, repair_community_projection was never CLI-wired
 
 ### Pending Todos
 
@@ -241,6 +243,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T13:57:25.898Z
-Stopped at: Phase 7 context gathered
-Resume file: .planning/phases/07-remove-turingdb-dependency-hardening/07-CONTEXT.md
+Last session: 2026-07-16T19:06:41.485Z
+Stopped at: Completed 07-01-PLAN.md
+Resume file: None
