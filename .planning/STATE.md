@@ -2,18 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 05
-current_phase_name: per-tenant-arcadedb-isolation
 status: executing
-stopped_at: Completed 05-10-PLAN.md
-last_updated: "2026-07-15T15:33:34.929Z"
-last_activity: 2026-07-15
-last_activity_desc: Phase 05 execution started
+stopped_at: Completed 05-11-PLAN.md
+last_updated: "2026-07-16T07:04:34.675Z"
+last_activity: 2026-07-16
 progress:
   total_phases: 13
   completed_phases: 4
   total_plans: 38
-  completed_plans: 36
+  completed_plans: 37
   percent: 31
 ---
 
@@ -29,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 05 (per-tenant-arcadedb-isolation) — EXECUTING
-Plan: 3 of 12
+Plan: 2 of 12
 Status: Ready to execute
-Last activity: 2026-07-15 -- Phase 05 execution started
+Last activity: 2026-07-16
 
-Progress: [█████████░] 91%
+Progress: [██████████] 97%
 
 ## Performance Metrics
 
@@ -92,6 +89,7 @@ Progress: [█████████░] 91%
 | Phase 05 P08 | 47min | 3 tasks | 14 files |
 | Phase 05 P09 | 27min | 3 tasks | 10 files |
 | Phase 05 P10 | 25min | 2 tasks | 7 files |
+| Phase 05 P11 | 15min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -178,6 +176,8 @@ Recent decisions affecting current work:
 - [Phase ?]: tenant_binding is per-tenant runtime state assigned next to self.client, deliberately excluded from StoreSharedDependencies (that bundle is reused across tenants and would poison the binding)
 - [Phase ?]: Split test_store_arcadedb_core.py (already at exactly 600 LOC) into core/identity/shared-fixtures files rather than trimming coverage, when Task 2's tenant-binding assertions would have exceeded the no-allowlist 600-LOC cap
 - [Phase ?]: 05-10: All 18 public store methods now call the binding-aware guard as their first statement; six span-wrapped methods run it before the span opens, closing ARC-07 gap 1's guard-reachability and telemetry-leak defects
+- [Phase ?]: 05-11: _StoreCore._span mutates the caller's attributes dict in place (not a detached copy) to preserve store_chunking.py's post-yield chunk_count mutation while still sanitizing centrally
+- [Phase ?]: 05-11: fixed a real, previously-unenumerated audit leak in store_rebuild.py (resource_id=user_identifier) found live via the plan's own full-surface leak test -- in scope of ARC-07/D-07
 
 ### Pending Todos
 
@@ -216,6 +216,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-15T15:33:34.915Z
-Stopped at: Completed 05-10-PLAN.md
+Last session: 2026-07-16T07:04:34.652Z
+Stopped at: Completed 05-11-PLAN.md
 Resume file: None

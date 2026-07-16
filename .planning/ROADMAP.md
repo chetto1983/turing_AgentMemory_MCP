@@ -218,7 +218,7 @@ Plans:
 
 **Wave 9 — Gap closure: pseudonymous telemetry** *(closes verification gap 2 — raw identity in shared spans/audits)*
 
-- [ ] 05-11-PLAN.md — Sanitize span and audit events centrally to opaque tenant correlation (ARC-07)
+- [x] 05-11-PLAN.md — Sanitize span and audit events centrally to opaque tenant correlation (ARC-07)
 
 **Wave 10 — Gap closure: live proof and phase gate**
 
@@ -334,7 +334,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 2. UTCP Spike | 3/3 | Complete    | 2026-07-12 |
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
-| 5. Per-Tenant ArcadeDB Isolation | 10/12 | In Progress|  |
+| 5. Per-Tenant ArcadeDB Isolation | 11/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 0/TBD | Not started | - |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
