@@ -6,9 +6,10 @@
 
 An Agent Memory MCP server (`turing_agentmemory_mcp`) that exposes memory-lifecycle
 and document tools over FastMCP, stores canonical graph + vector records in a graph+vector
-database, and serves tenant-scoped, cited retrieval. It is currently TuringDB-backed and
-**migrates to ArcadeDB as its sole backend this milestone** (chosen on licensing —
-Apache-2.0). Provider integrations
+database, and serves tenant-scoped, cited retrieval. **ArcadeDB is its sole canonical
+backend** (chosen on licensing — Apache-2.0); the TuringDB-to-ArcadeDB migration completed
+this milestone and TuringDB has been fully removed from the codebase and Compose stack.
+Provider integrations
 (embedding, rerank, GLiNER2 entity extraction) are OpenAI-compatible HTTP endpoints.
 This milestone hardens an already-built system: it stands the **entire infrastructure
 up on Docker as a reliable one-command stack**, works through **every concern** in the
@@ -23,9 +24,9 @@ correctness or tenant isolation is a failure, not progress.
 
 ### Constraints
 
-- **Tech stack**: Python 3.11–3.14, FastMCP 3.4–4, TuringDB 1.35, ruff (line-length 100, E501 ignored), pytest — [established; changes are themselves audited concerns, not free choices]
-- **Architecture — replaced this milestone**: CLAUDE.md invariant #2 (TuringDB canonical) is superseded — **ArcadeDB becomes the sole canonical backend**; TuringDB is removed. ArcadeDB's native vector + full-text are ACID-consistent with graph writes, retiring the SQLite-FTS5 outbox as a separate rebuildable projection. CLAUDE.md invariants must be updated as part of this milestone. The port must preserve tenant isolation (invariant #1) and stable/deterministic IDs (invariant #3).
-- **Tenant isolation**: every read/write explicitly scoped by `user_identifier`, fail-closed on empty — non-negotiable through the port; reinforced by one ArcadeDB database per tenant — [CLAUDE.md invariant #1]
+- **Tech stack**: Python 3.11–3.14, FastMCP 3.4–4, ArcadeDB (sole canonical backend, accessed via a thin stdlib-`urllib` HTTP/JSON client), ruff (line-length 100, E501 ignored), pytest — [established; changes are themselves audited concerns, not free choices]
+- **Architecture — completed this milestone**: **ArcadeDB is the sole canonical backend** (CLAUDE.md invariant #2); TuringDB has been fully removed, with no `AGENTMEMORY_BACKEND` switch or coexistence path. ArcadeDB's native vector (`LSM_VECTOR`/HNSW) + native Lucene full-text are ACID-consistent with graph writes; the SQLite-FTS5 outbox as a separate rebuildable projection has been retired (`SparseIndex` itself survives as a `fusion_enabled`-gated channel, not deleted). The port preserved tenant isolation (invariant #1) and stable/deterministic IDs (invariant #4).
+- **Tenant isolation**: every read/write explicitly scoped by `user_identifier`, fail-closed on empty — non-negotiable; reinforced by one ArcadeDB database per tenant plus `TenantBinding` — [CLAUDE.md invariant #1, #3]
 - **Durability**: ArcadeDB data, the SQLite job DB, staged files (moving to Garage/S3), and audit/span JSONL are the durable state; ArcadeDB persists to its own data volume — [server-side CSV vector loading was a TuringDB constraint and no longer applies]
 - **GPU dependency**: embed/rerank sidecars are GPU-mandatory for the full stack — [CI must degrade gracefully on GPU-less runners]
 
@@ -56,7 +57,7 @@ correctness or tenant isolation is a failure, not progress.
 
 ## Key Dependencies
 
-- turingdb 1.35 - Primary graph + vector database with local CSV vector storage (`src/turing_agentmemory_mcp/store.py`, `src/turing_agentmemory_mcp/server.py`)
+- ArcadeDB 26.7.1 - Sole canonical graph + native vector (`LSM_VECTOR`/HNSW) + native Lucene full-text database, accessed via a thin stdlib-`urllib` HTTP/JSON client (`src/turing_agentmemory_mcp/arcadedb_client.py`, `src/turing_agentmemory_mcp/store.py`, `src/turing_agentmemory_mcp/server.py`)
 - graspologic-native 1.3.1 - Leiden hierarchical community detection algorithm for graph clustering (`src/turing_agentmemory_mcp/community_detection.py:330`)
 - markitdown 0.1.6–0.2 (with pdf, docx, pptx, xlsx plugins) - Converts Microsoft Office, spreadsheets, HTML, and other formats to markdown (`src/turing_agentmemory_mcp/document_processing.py:15–18`)
 - pypdfium2 4.30–5 - PDF text extraction with page-level awareness (`src/turing_agentmemory_mcp/document_processing.py:22–59`)
