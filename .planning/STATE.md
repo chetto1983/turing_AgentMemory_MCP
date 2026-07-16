@@ -2,18 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 06
-current_phase_name: Migration-Correctness Gate
-status: ready_to_plan
-stopped_at: Phase 05 complete (12/12, verified 10/10) — next Phase 06 Migration-Correctness Gate
-last_updated: 2026-07-16T07:38:05.945Z
-last_activity: 2026-07-16
-last_activity_desc: Phase 05 complete (12/12, verified 10/10); next Phase 06 Migration-Correctness Gate
+status: planning
+stopped_at: Phase 6 context gathered
+last_updated: "2026-07-16T08:08:12.717Z"
+last_activity: 2026-07-16 — Phase 05 complete (verified 10/10); next Phase 06
 progress:
   total_phases: 13
   completed_phases: 5
   total_plans: 38
   completed_plans: 38
+  percent: 38
 ---
 
 # Project State
@@ -226,6 +224,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T07:26:06.365Z
-Stopped at: Completed 05-12-PLAN.md
-Resume file: None
+Last session: 2026-07-16T08:08:12.706Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-migration-correctness-gate/06-CONTEXT.md
