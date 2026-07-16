@@ -51,6 +51,19 @@ def test_physical_three_tenant_database_and_predicate_isolation(
         assert raw_identifier not in proof.diagnostic_text
     assert proof.invalid_identity_preserved_state
 
+    # Anti-vacuity guards: without these, a harness that silently stopped recording
+    # would pass the absence assertions below trivially -- the exact failure mode
+    # that let gap 2 ship (span/audit events were never captured or scanned).
+    assert proof.span_event_count > 0
+    assert proof.audit_event_count > 0
+    for raw_identifier in _IDENTITY_VARIANTS:
+        assert raw_identifier not in proof.telemetry_text, (
+            f"exact tenant identifier {raw_identifier!r} leaked into telemetry_text"
+        )
+    assert any(
+        database_name in proof.telemetry_text for database_name in proof.expected_databases
+    )
+
 
 @pytest.mark.integration
 def test_lifecycle_chaos_preserves_tenant_binding_and_durable_data(
