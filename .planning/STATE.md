@@ -4,9 +4,9 @@ milestone: v2.2.0
 milestone_name: milestone
 current_phase: 7
 current_phase_name: Remove TuringDB + Dependency Hardening
-status: planning
+status: executing
 stopped_at: Phase 7 context gathered
-last_updated: "2026-07-16T13:57:25.911Z"
+last_updated: "2026-07-16T14:56:52.634Z"
 last_activity: 2026-07-16
 last_activity_desc: "Completed quick task 260716-lel: strip HTML/Wikipedia navigation boilerplate in document conversion"
 progress:
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 
 Phase: 7 — Remove TuringDB + Dependency Hardening
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-07-16 — Completed quick task 260716-lel: strip HTML/Wikipedia navigation boilerplate in document conversion
 
 Progress: [██████████] 100%
@@ -227,6 +227,7 @@ None yet.
 
 - Phase 1 edited: SC#1 dropped file-size allowlist (no exemptions); added SC#5 store.py decomposition; REQUIREMENTS CI-01 updated to match
 - Phase 13 added: Harden UTCP support (follow-up to Phase 2 stay-manual verdict; scope open, to be set in plan-phase)
+- Phase 14 added: Full turing-to-bertoni package/product rebrand (after Phase 7; kept separate from the irreversible TuringDB removal)
 
 ## Deferred Items
 
