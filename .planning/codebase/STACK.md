@@ -1,77 +1,99 @@
 # Technology Stack
 
-**Analysis Date:** 2026-07-14
+**Analysis Date:** 2026-07-16
 
 ## Languages
 
 **Primary:**
-- Python 3.11+ - Server, storage, ingestion, retrieval, CLI, scripts, and tests in `src/turing_agentmemory_mcp/`, `scripts/`, and `tests/`; supported versions are declared in `pyproject.toml`.
-
-**Secondary:**
-- JavaScript, HTML, CSS - Browser-native AgentMemory Lab in `src/turing_agentmemory_mcp/frontend/`.
-- Shell, Make, YAML - Automation and configuration in `scripts/`, `Makefile`, `compose.yaml`, `lefthook.yml`, and `.github/`.
+- Python 3.11–3.14 - All source code, CLI tools, and test suites (pyproject.toml specifies support for Python 3.11, 3.12, 3.13, 3.14)
 
 ## Runtime
 
 **Environment:**
-- CPython >=3.11; CI uses Python 3.12 in `.github/workflows/ci.yml`, while `Dockerfile` uses Python 3.14 slim.
-- Docker Engine with Compose runs the reference topology in `compose.yaml`; NVIDIA GPU access is required for its local embedding/rerank sidecars (`docs/deployment.md`).
+- Python 3.14 slim (Docker image for standardized deployment: `python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1`)
+- Docker & Docker Compose for containerized stack orchestration
 
 **Package Manager:**
-- pip with Hatchling >=1.27 from `pyproject.toml`.
-- Lockfile: missing; direct dependencies are constrained in `pyproject.toml`, and container bases are digest-pinned in `Dockerfile` and `docker/*.Dockerfile`.
+- pip (installed via hatchling build system)
+- Lockfile: Not used — version pinning is declared in `pyproject.toml` (build-backend: hatchling>=1.27)
 
 ## Frameworks
 
 **Core:**
-- FastMCP >=3.4,<4 - MCP serving, client proxy, auth, and tool registration in `src/turing_agentmemory_mcp/server.py`, `src/turing_agentmemory_mcp/server_memory_tools.py`, `src/turing_agentmemory_mcp/server_document_tools.py`, and `src/turing_agentmemory_mcp/file_pipe.py`.
-- TuringDB 1.35 - retained daemon/benchmark/coexistence runtime in `pyproject.toml`, `docker/turingdb.Dockerfile`, and `src/turing_agentmemory_mcp/e2e_score_stubs.py`; new canonical store queries use ArcadeDB through `src/turing_agentmemory_mcp/arcadedb_client.py`.
+- fastmcp 3.4–4 - Model Context Protocol (MCP) server framework. Provides tool definitions, transport layers (stdio/HTTP/SSE), and resource management (`src/turing_agentmemory_mcp/server.py`)
+- starlette - Web framework for HTTP response handling (JSON serialization for `/health` and custom routes in MCP server)
 
 **Testing:**
-- pytest >=8.2 and pytest-cov 7.1.0 - test tiers under `tests/` and a 78% CI coverage floor in `.github/workflows/ci.yml`.
+- pytest 8.2+ - Test runner and framework (config in `pyproject.toml:tool.pytest.ini_options`, testpaths=tests, pythonpath=src)
+- pytest-cov 7.1.0 - Coverage reporting (dev extra)
 
 **Build/Dev:**
-- Hatchling - Python build backend configured in `pyproject.toml`.
-- Ruff 0.15.21 - formatting/import/lint checks configured in `pyproject.toml`, `lefthook.yml`, and `.github/workflows/ci.yml`.
-- Lefthook 2.1.10 - parallel local Git gates in `lefthook.yml`.
-- Docker BuildKit and GitHub Actions - images and CI in `Dockerfile`, `docker/`, and `.github/workflows/`.
+- hatchling 1.27+ - Python build backend and package manager (build-system)
+- ruff 0.15.21 - Unified linting and code formatting (enforces E, F, I, B, UP rules; line-length 100; E501 ignored)
+- lefthook 2.1.10 - Git hook framework for pre-commit/pre-push validation (dev extra)
 
 ## Key Dependencies
 
-**Critical:**
-- `fastmcp>=3.4,<4` - public MCP protocol boundary (`src/turing_agentmemory_mcp/server.py`).
-- `markitdown[pdf,docx,pptx,xlsx]>=0.1.6,<0.2` and `pypdfium2>=4.30,<6` - document conversion (`src/turing_agentmemory_mcp/document_processing.py`).
-- `graspologic-native==1.3.1` - Leiden community detection (`src/turing_agentmemory_mcp/community_detection.py`).
-- `turingdb==1.35` - legacy/coexistence evaluation runtime; do not introduce new production queries through it (`src/turing_agentmemory_mcp/server.py`).
+**Critical (Core Functionality):**
+- ArcadeDB 26.7.1 - Sole canonical graph + native vector (`LSM_VECTOR`/HNSW) + native Lucene full-text database. Accessed via thin stdlib `urllib` HTTP/JSON client (`src/turing_agentmemory_mcp/arcadedb_client.py`). Stores graph, vector indexes, and full-text indexes for all tenant data with ACID guarantees. Per-tenant physical separation at the database level.
 
-**Infrastructure:**
-- ArcadeDB 26.7.1 - active graph/vector backend from `compose.yaml`, accessed by `src/turing_agentmemory_mcp/arcadedb_client.py`.
-- Python SQLite/FTS5 - sparse projection and durable jobs in `src/turing_agentmemory_mcp/sparse_index.py` and `src/turing_agentmemory_mcp/document_jobs.py`.
-- Optional `gliner`, `gliner2`, and `gliner2-onnx` extras - in-process extraction in `src/turing_agentmemory_mcp/entity_extraction.py`.
-- `fast_gliner==0.2.1` and llama.cpp CUDA server - extraction, embedding, and rerank sidecars from `docker/gliner-provider.Dockerfile`, `docker/llama-provider.Dockerfile`, and `compose.yaml`.
+**Infrastructure & Processing:**
+- graspologic-native 1.3.1 - Leiden hierarchical community detection algorithm for entity-fact graph clustering (`src/turing_agentmemory_mcp/community_detection.py`)
+- markitdown 0.1.6–0.2 (with pdf, docx, pptx, xlsx extras) - Universal document format converter (Microsoft Office, PDF, HTML, markdown, etc. to markdown) (`src/turing_agentmemory_mcp/document_processing.py`)
+- pypdfium2 4.30–5 - PDF text extraction with page-level awareness (`src/turing_agentmemory_mcp/document_processing.py`)
+
+**Optional (Entity Extraction, dev extra: `gliner`):**
+- gliner 0.2.27+ - Named entity recognition framework (base library)
+- gliner2 1.3.2 - GLiNER v2 model suite with typed entity support
+- gliner2-onnx - ONNX runtime acceleration for GLiNER2
 
 ## Configuration
 
 **Environment:**
-- Environment variables are documented in `docs/configuration.md` and read at boundaries including `src/turing_agentmemory_mcp/server.py`, `src/turing_agentmemory_mcp/provider_config.py`, and `src/turing_agentmemory_mcp/arcadedb_client.py`.
-- `.env.example` exists as a template; Compose reads repository-root environment configuration through `compose.yaml`. Never commit or inspect `.env` contents.
-- Use `ARCADEDB_*`, `EMBED_*`, `RERANK_*`, `GLINER_*`, and `AGENTMEMORY_*` families for database, providers, extraction, and application controls (`docs/configuration.md`).
+- `.env.example` defines all runtime configuration (in repo root; sensitive defaults marked for production override)
+- Key config sources:
+  - `ARCADEDB_URL`, `ARCADEDB_USER`, `ARCADEDB_PASSWORD` - ArcadeDB connection
+  - `EMBED_BASE_URL`, `EMBED_DIMENSIONS`, `EMBED_MODEL` - Embedding provider
+  - `RERANK_BASE_URL`, `RERANK_MODEL` - Reranking provider
+  - `GLINER_ENABLED`, `GLINER_BASE_URL`, `GLINER_MODEL` - Entity extraction
+  - `BERTONI_HOME` - Application state directory (default /bertoni)
+  - `AGENTMEMORY_*` - MCP server behavior (fusion, tenant routing, auth, observability)
 
 **Build:**
-- `pyproject.toml`, `Dockerfile`, `docker/*.Dockerfile`, `compose.yaml`, `Makefile`, and `lefthook.yml` define builds and developer gates.
+- `pyproject.toml` - Project metadata, dependencies, version, entry points, pytest config, ruff config
+- `Dockerfile` - Multi-stage Python 3.14 image with editable install, read-only layer for production
+- `docker/llama-provider.Dockerfile` - llama.cpp-based embedding/reranking sidecar (CUDA GPU-required)
+- `docker/gliner-provider.Dockerfile` - GLiNER2 HTTP entity extraction provider sidecar (CPU-capable)
+- `compose.yaml` - Complete 8+ service stack (ArcadeDB, embedding, reranking, GLiNER, MCP server, Lab UI, E2E test runner)
+
+**Formatting & Linting:**
+- `.ruff.lint` configured in `pyproject.toml`:
+  - select: E (pycodestyle), F (pyflakes), I (isort), B (flake8-bugbear), UP (pyupgrade)
+  - ignore: E501 (line too long)
+  - target-version: py311
+  - line-length: 100 characters
+- Pre-push hook validation (lefthook) runs:
+  1. `python -m ruff format --check src tests scripts` (formatting check)
+  2. `python -m ruff check src tests scripts` (linting)
+  3. `bash scripts/check-file-size.sh` (600 LOC per-file cap)
 
 ## Platform Requirements
 
 **Development:**
-- Use Python >=3.11, pip, Git, Bash-compatible scripts, and `pip install -e ".[dev]"` (`README.md`).
-- Use Docker Compose for live ArcadeDB integration; GPU hardware is optional for deterministic tests but required for the reference real embedding/rerank stack (`.github/workflows/ci.yml`, `docs/deployment.md`).
-- Preserve Ruff's 100-column/Python 3.11 rules and run commands from `Makefile` and `lefthook.yml`.
+- Python 3.11 or higher
+- Docker & Docker Compose
+- NVIDIA GPU + CUDA (for local embedding/reranking sidecars; CPU-only fallback available but with degraded performance)
+- Disk space for model caches (HuggingFace models ~500MB each for embedding/reranking)
 
 **Production:**
-- Reference target is single-node Compose with persistent database/data/model volumes in `compose.yaml`.
-- Run the non-root image from `Dockerfile`; place TLS termination and tenant-binding authorization in a gateway because the application provides neither (`docs/deployment.md`).
-- Keep ArcadeDB and provider endpoints private, persist queue/staging paths, and keep embedding dimensions consistent with every vector index (`docs/configuration.md`).
+- Python 3.11+ runtime (or Docker Compose stack as reference deployment)
+- Docker & Docker Compose (reference architecture)
+- NVIDIA GPU with CUDA + Docker GPU support (`nvidia-docker` or native Docker GPU support)
+- Persistent volumes for:
+  - ArcadeDB databases (`arcadedb-data`)
+  - Application state: tenant registry, job queue, document staging, audit JSONL (`bertoni-data`)
+  - Model cache for HuggingFace models (`agentmemory-llama-cache`, `agentmemory-gliner-cache`)
 
 ---
 
-*Stack analysis: 2026-07-14*
+*Stack analysis: 2026-07-16*
