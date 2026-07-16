@@ -171,11 +171,26 @@ Adopted from the Aura project's working discipline, adapted to this Python repo:
 
 After every source edit, before moving on, run the narrowest affected checks:
 
+- `python -m ruff format --check src tests scripts`
 - `python -m ruff check src tests scripts`
 - `python -m pytest tests/test_<affected>.py -q` (the narrowest tests first)
 
-Before closing a task, run the full gate: `python -m pytest -q`,
-`python -m ruff check src tests scripts`, and `docker compose config --quiet`.
+**Run before every commit — this is the lint job CI enforces, in its order:**
+
+```powershell
+python -m ruff format --check src tests scripts   # add without --check to fix
+python -m ruff check src tests scripts
+bash scripts/check-file-size.sh
+```
+
+`ruff format --check` is a separate gate from `ruff check` and fails on its own;
+a green `ruff check` says nothing about it. CI pins `ruff==0.15.21` — format with
+a different version and CI will disagree with you. Re-run `check-file-size.sh`
+after any format pass: reformatting changes line counts and can push a file over
+the 600-LOC cap.
+
+Before closing a task, run the full gate: the three commands above, plus
+`python -m pytest -q` and `docker compose config --quiet`.
 Fix issues before proceeding — do not leave a red gate.
 
 ## Definition of Done
