@@ -180,3 +180,12 @@ None beyond what the plan's own `user_setup` block specified (bringing up the GP
 ---
 *Phase: 06-migration-correctness-gate*
 *Completed: 2026-07-16*
+
+## Self-Check: PASSED
+
+- FOUND: baseline/06-gate/e2e-results.json
+- FOUND: baseline/06-gate/real-document-benchmark-run1.json
+- FOUND: baseline/06-gate/real-document-benchmark-run2.json
+- FOUND: baseline/06-gate/real-document-benchmark-run3.json
+- FOUND: baseline/06-gate/capture-provider-env.txt
+- FOUND: 5020ac5 (docs, this summary)

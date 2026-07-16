@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase: 06
 current_phase_name: migration-correctness-gate
 status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-07-16T09:48:13.594Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-07-16T10:37:31.545Z"
 last_activity: 2026-07-16
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 42
-  completed_plans: 40
+  completed_plans: 41
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 06 (migration-correctness-gate) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-07-16
 
-Progress: [██████████] 95%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
@@ -99,6 +99,7 @@ Progress: [██████████] 95%
 | Phase 05 P12 | 20min | 3 tasks | 2 files |
 | Phase 06 P01 | 25min | 2 tasks | 2 files |
 | Phase 06 P02 | 12min | 2 tasks | 2 files |
+| Phase 06 P03 | 95min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 06-01: compute_verdict() gates on the three locked aggregate metrics only (mrr_at_20/recall_at_1/recall_at_20 within epsilon=0.03 of the N=3-run mean); per-document regressions are surfaced in metrics_diff.per_document for transparency (D-02) but do not independently flip the verdict
 - [Phase ?]: 06-02: validate_gate_result_schema raises ValueError for schema violations; assert_gate_go wraps into AssertionError at the load_verdict boundary for one fail-closed contract
 - [Phase ?]: 06-02: dropped a self-referential no-pytest.skip test (paradoxical) in favor of the plan's own grep-based verification allowance
+- [Phase ?]: 06-03: Real-provider ArcadeDB e2e capture confirms check #13 (document_search exact-top1) now passes -- the Phase-3 baseline document_id-length IndexError bug is fixed on the port (D-03)
+- [Phase ?]: 06-03: N=3 frozen-question benchmark mean clears all locked metrics (mrr@20=0.6843, recall@1=0.5889, recall@20=0.8556) with all 5 normattiva_* PDFs retrieving non-zero MRR for the first time; latency 3345ms mean well under the 5.4s baseline (preview only -- authoritative verdict is 06-04's scope)
 
 ### Pending Todos
 
@@ -231,6 +234,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T09:48:13.582Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-07-16T10:37:31.533Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
