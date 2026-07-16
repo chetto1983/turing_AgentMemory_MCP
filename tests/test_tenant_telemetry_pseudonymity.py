@@ -10,12 +10,7 @@ the `_StoreCore`/`FakeArcadeDBClient` seam fixtures established in
 from __future__ import annotations
 
 import json
-import sys
-import types
 from pathlib import Path
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from _store_arcadedb_core_shared import FakeArcadeDBClient, StubEmbedder
 

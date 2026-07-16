@@ -12,17 +12,11 @@ matrix needs a working `.embed()`/`.embed_many()` embedder and a real
 
 from __future__ import annotations
 
-import sys
-import types
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
-
 from _store_arcadedb_core_shared import FakeArcadeDBClient
 
 from turing_agentmemory_mcp.entity_extraction import NoopEntityProcessor

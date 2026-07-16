@@ -2,14 +2,9 @@ from __future__ import annotations
 
 import json
 import math
-import sys
-import types
 from pathlib import Path
 
 import pytest
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.community_detection import (
     CommunityEntity,

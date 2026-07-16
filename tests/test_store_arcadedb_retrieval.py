@@ -10,13 +10,8 @@ required.
 from __future__ import annotations
 
 import re
-import sys
-import types
 from pathlib import Path
 from typing import Any
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from _batch_memory_shared import CountingBatchEmbedder
 from _retrieval_arcadedb_shared import (
@@ -46,7 +41,6 @@ _STORE_RETRIEVAL_QUERIES_PATH = (
     / "turing_agentmemory_mcp"
     / "store_retrieval_queries.py"
 )
-
 
 # ============================================================================
 # Task 1: fused-search seed channels (native HNSW dense + BOTH-channels

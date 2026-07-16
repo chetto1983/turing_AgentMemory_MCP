@@ -11,12 +11,7 @@ this exact rebuild path with -- no live ArcadeDB container required.
 
 from __future__ import annotations
 
-import sys
-import types
 from pathlib import Path
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from _arcadedb_rebuild_fake import FakeArcadeDBClient, make_store, row, seed_vertex
 from _batch_memory_shared import CountingBatchEmbedder

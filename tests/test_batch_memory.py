@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import sys
-import types
 from pathlib import Path
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from _batch_memory_shared import CountingBatchEmbedder, RecordingMemoryStore
 
@@ -32,7 +27,6 @@ def test_tenant_vector_index_names_are_deterministic_and_isolated(tmp_path: Path
 # `tests/test_community_detection.py`'s updated
 # `test_store_rebuilds_embeds_and_grounds_communities_via_native_lexical_channel`,
 # which prove `rebuild_communities` succeeds without touching the outbox at all.
-
 
 # `test_rebuild_vector_projection_reembeds_each_active_canonical_kind` and
 # `test_canonical_vector_records_use_active_document_chunk_text` were deleted

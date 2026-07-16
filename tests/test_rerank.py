@@ -1,12 +1,7 @@
 import json
-import sys
 import threading
-import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object)
 
 from turing_agentmemory_mcp.models import DocumentHit
 from turing_agentmemory_mcp.rerank import (

@@ -18,15 +18,10 @@ without a real ArcadeDB container.
 from __future__ import annotations
 
 import re
-import sys
 import threading
-import types
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.governance import NoopAuditSink, NoopRedactor
 from turing_agentmemory_mcp.observability import InMemorySpanRecorder

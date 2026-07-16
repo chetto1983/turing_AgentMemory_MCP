@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
-import types
 from pathlib import Path
 
 import pytest
@@ -15,8 +13,6 @@ pytest.importorskip("utcp_text")
 # Windows. It is unmarked (not integration/gpu) so CI's no-skip-as-green guard
 # (which only enforces integration/gpu markers) never trips when spike deps are
 # absent -- importorskip above is the only skip path, and it is not CI-enforced.
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.utcp import utcp_manual_from_env  # noqa: E402
 

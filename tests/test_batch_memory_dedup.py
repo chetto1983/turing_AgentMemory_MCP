@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-import sys
 import types
 from pathlib import Path
 
 import pytest
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
-
 from _batch_memory_shared import (
     CountingBatchEmbedder,
     RecordingMemoryExtractor,

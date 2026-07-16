@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-import sys
-import types
 from pathlib import Path
 from typing import Any
 
 import pytest
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.entity_extraction import ProcessedText
 from turing_agentmemory_mcp.models import IngestedDocument, MemoryItem

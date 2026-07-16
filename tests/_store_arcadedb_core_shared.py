@@ -11,13 +11,8 @@ tests/test_store_arcadedb_identity.py, which both import from here.
 
 from __future__ import annotations
 
-import sys
-import types
 from pathlib import Path
 from typing import Any
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.store import TuringAgentMemory
 from turing_agentmemory_mcp.store_core import _StoreCore

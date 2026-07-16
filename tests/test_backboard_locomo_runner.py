@@ -2,14 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-import sys
-import types
 from pathlib import Path
 
 import pytest
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(

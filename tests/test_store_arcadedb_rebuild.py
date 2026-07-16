@@ -13,12 +13,7 @@ container is required.
 
 from __future__ import annotations
 
-import sys
-import types
 from pathlib import Path
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from _arcadedb_rebuild_fake import (
     FakeArcadeDBClient,
@@ -46,7 +41,6 @@ _STORE_REBUILD_QUERIES_PATH = (
     / "store_rebuild_queries.py"
 )
 _STORE_PATH = Path(__file__).resolve().parents[1] / "src" / "turing_agentmemory_mcp" / "store.py"
-
 
 # -- Task 1, Test 1: builds a NEW versioned index, populates, swaps, drops --
 # in that order --

@@ -1,13 +1,8 @@
 from __future__ import annotations
 
 import json
-import sys
-import types
 from pathlib import Path
 from typing import Any
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.memory_extraction import (

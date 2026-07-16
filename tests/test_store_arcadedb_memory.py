@@ -14,13 +14,8 @@ stubbed, matching the established `tests/_batch_memory_shared.py` convention.
 from __future__ import annotations
 
 import re
-import sys
-import types
 from pathlib import Path
 from typing import Any
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from _batch_memory_shared import CountingBatchEmbedder, RecordingMemoryExtractor
 

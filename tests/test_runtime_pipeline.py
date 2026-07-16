@@ -1,15 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import sys
-import types
 from pathlib import Path
 
 import httpx
 import pytest
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.community_detection import NativeLeidenDetector
 from turing_agentmemory_mcp.entity_extraction import NoopEntityProcessor

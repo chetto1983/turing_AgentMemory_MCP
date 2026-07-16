@@ -9,12 +9,7 @@ ArcadeDB container is required.
 
 from __future__ import annotations
 
-import sys
-import types
 from pathlib import Path
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from _batch_memory_shared import CountingBatchEmbedder
 from _documents_arcadedb_shared import (
@@ -39,7 +34,6 @@ _STORE_DOCUMENTS_QUERIES_PATH = (
     / "turing_agentmemory_mcp"
     / "store_documents_queries.py"
 )
-
 
 # -- Task 1, Test 1: ingest CREATEs one Document + N Chunk vertices + N
 # HAS_CHUNK + (N-1) NEXT_CHUNK edges in ONE managed transaction --

@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import sys
-import types
 from pathlib import Path
 
 import yaml
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.server import auth_from_env, create_mcp_app
 

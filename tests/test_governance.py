@@ -2,15 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
-import types
 from pathlib import Path
 from typing import Any
 
 from fastmcp import Client
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.models import IngestedDocument, MemoryItem
 from turing_agentmemory_mcp.server import create_mcp_app

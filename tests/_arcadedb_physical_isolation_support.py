@@ -6,9 +6,7 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 import threading
-import types
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
@@ -16,9 +14,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-if "turingdb" not in sys.modules:
-    sys.modules["turingdb"] = types.SimpleNamespace(TuringDB=object, __version__="test")
 
 from turing_agentmemory_mcp.arcadedb_client import ArcadeDBClient
 from turing_agentmemory_mcp.embeddings import HashingEmbedder
