@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 07
-current_phase_name: Remove TuringDB + Dependency Hardening
-status: verifying
-stopped_at: Completed 07-08-PLAN.md (cut-proof approved; phase completion pending orchestrator)
-last_updated: "2026-07-16T20:38:25.010Z"
+current_phase: 08
+current_phase_name: Document Ingestion & Storage Reliability
+status: ready_to_plan
+stopped_at: Phase 07 complete (8/8) — next: Phase 8 (Phases 8–11 parallelize off Phase 7; Phase 14 rebrand is deliberately last)
+last_updated: 2026-07-16T20:49:18.211Z
 last_activity: 2026-07-16
 progress:
   total_phases: 8
@@ -22,13 +22,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 07 — Remove TuringDB + Dependency Hardening
+**Current focus:** Phase 07 complete — next: Phase 8 (Document Ingestion & Storage Reliability); Phases 8–11 parallelize off Phase 7
 
 ## Current Position
 
-Phase: 07 (Remove TuringDB + Dependency Hardening) — EXECUTING
-Plan: 8 of 8
-Status: Phase complete — ready for verification
+Phase: 8 — Document Ingestion & Storage Reliability (next)
+Plan: Not started
+Status: Phase 07 complete — ready to discuss/plan Phase 8
 Last activity: 2026-07-16
 
 Progress: [██████████] 100%
@@ -37,7 +37,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 42
+- Total plans completed: 50
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -51,6 +51,7 @@ Progress: [██████████] 100%
 | 04 | 10 | - | - |
 | 05 | 12 | - | - |
 | 6 | 4 | - | - |
+| 07 | 8 | - | - |
 
 **Recent Trend:**
 

@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: ArcadeDB Direct Port** - `store.py` on ArcadeDB graph + native vector + native full-text, stable IDs preserved (completed 2026-07-14)
 - [x] **Phase 5: Per-Tenant ArcadeDB Isolation** - One database per tenant with mandatory `user_identifier` scoping still enforced (completed 2026-07-15)
 - [x] **Phase 6: Migration-Correctness Gate** - Ported stack provably meets-or-exceeds the baseline (hard exit criterion) (completed 2026-07-16)
-- [ ] **Phase 7: Remove TuringDB + Dependency Hardening** - TuringDB cut, invariants rewritten, at-risk deps version-gated
+- [x] **Phase 7: Remove TuringDB + Dependency Hardening** - TuringDB cut, invariants rewritten, at-risk deps version-gated (completed 2026-07-16)
 - [ ] **Phase 8: Document Ingestion & Storage Reliability** - Durable upload sessions, Garage S3 staging, multi-worker + cancellation
 - [ ] **Phase 9: Retrieval Performance & Vector Lifecycle** - Batched embedding/extraction, fetch tuning, versioned vector indexes
 - [ ] **Phase 10: Security & Governance Hardening** - OIDC identity, hard-delete + purge, redaction/audit durability, metrics hooks
@@ -369,7 +369,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 4/4 | Complete    | 2026-07-16 |
-| 7. Remove TuringDB + Dependency Hardening | 8/8 | In Progress|  |
+| 7. Remove TuringDB + Dependency Hardening | 8/8 | Complete    | 2026-07-16 |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
 | 10. Security & Governance Hardening | 0/TBD | Not started | - |
