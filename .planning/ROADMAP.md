@@ -235,7 +235,13 @@ Plans:
   2. Retrieval quality meets or exceeds the baseline (not merely "runs without crashing"); a shortfall blocks removal of TuringDB and everything downstream.
   3. The comparison result is recorded as the gate artifact that authorizes (or blocks) cutover.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Gate engine: corpus sha256 verify + corrected-baseline derivation + diff/tolerance/GO|NO_GO verdict (TDD)
+- [ ] 06-02-PLAN.md — Phase-7 fail-closed guard: D-09 schema validator + assert_gate_go (TDD)
+- [ ] 06-03-PLAN.md — GPU-backed matched capture: real-provider e2e + N=3 frozen-question benchmark + latency
+- [ ] 06-04-PLAN.md — Compute + commit gate artifact (gate-result.json + GATE.md) + committed-artifact verification tests
 
 ### Phase 7: Remove TuringDB + Dependency Hardening
 

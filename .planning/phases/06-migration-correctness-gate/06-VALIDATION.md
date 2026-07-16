@@ -40,7 +40,15 @@ created: 2026-07-16
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| (seeded — planner populates per-task rows) | — | — | ARC-09 | — | N/A | unit | `python -m pytest -q` | ❌ W0 | ⬜ pending |
+| 06-01 T1 (corpus verify D-11 + corrected-baseline D-05) | 06-01 | 1 | ARC-09 | T-06-01-01, T-06-01-04 | Fail-closed corpus sha256; stub-provider detection | unit (tdd) | `python -m pytest tests/test_gate_diff.py -q` | ❌ W0 | ⬜ pending |
+| 06-01 T2 (bar + per-doc/aggregate diff + verdict D-01/D-02/D-04) | 06-01 | 1 | ARC-09 | T-06-01-02, T-06-01-03 | NO_GO forced on stub/corpus-mismatch; per-doc granularity | unit (tdd) | `python -m pytest tests/test_gate_diff.py -q` | ❌ W0 | ⬜ pending |
+| 06-02 T1 (D-09 schema validator) | 06-02 | 1 | ARC-09 | T-06-02-03 | Fail-loud on malformed artifact | unit (tdd) | `python -m pytest tests/test_phase7_gate_guard.py -q` | ❌ W0 | ⬜ pending |
+| 06-02 T2 (assert_gate_go fail-closed D-10) | 06-02 | 1 | ARC-09 | T-06-02-01, T-06-02-02 | Read-fresh, refuse unless GO, no skip | unit (tdd) | `python -m pytest tests/test_phase7_gate_guard.py -q` | ❌ W0 | ⬜ pending |
+| 06-03 T1 (real-provider e2e capture D-07/D-03) | 06-03 | 2 | ARC-09 | T-06-03-01, T-06-03-02 | sha-verify pre-flight; non-stub sidecar URLs; #13 passes | integration + human | `python -c` JSON-shape assert (see plan) + `<human-check>` | ❌ W0 | ⬜ pending |
+| 06-03 T2 (N=3 frozen-question benchmark + latency D-08/D-06) | 06-03 | 2 | ARC-09 | T-06-03-03, T-06-03-04 | Exact 60-question replay; non-zero normattiva | integration + human | `python -c` JSON-shape assert (see plan) + `<human-check>` | ❌ W0 | ⬜ pending |
+| 06-04 T1 (compute gate-result.json D-05/D-09) | 06-04 | 3 | ARC-09 | T-06-04-01, T-06-04-03 | NO_GO on stub/corpus-mismatch; provenance preserved | integration | `python -c` D-09 field assert (see plan) | ❌ W0 | ⬜ pending |
+| 06-04 T2 (author GATE.md D-09) | 06-04 | 3 | ARC-09 | T-06-04-02 | Figures match gate-result.json; honest bar | doc + human | `python -c` section assert + `<human-check>` | ❌ W0 | ⬜ pending |
+| 06-04 T3 (committed-artifact tests SC#3/D-10) | 06-04 | 3 | ARC-09 | T-06-04-04 | No-skip; assert_gate_go on real artifact | unit | `python -m pytest tests/test_gate_artifact_schema.py -q` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
