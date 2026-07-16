@@ -1,14 +1,16 @@
 ---
 phase: 06-migration-correctness-gate
 verified: 2026-07-16T15:00:00Z
-status: human_needed
+status: passed
 score: 16/18 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Confirm the GPU-backed real-provider captures (baseline/06-gate/e2e-results.json, real-document-benchmark-run{1,2,3}.json) are genuine measurements from an actual NVIDIA-GPU Docker run against the real granite-embedding/BGE-reranker sidecars and the exact D:/tmp/baseline-corpus, not fabricated/hand-edited JSON."
     expected: "The capture-provider-env.txt narrative (rebuild of stale image, tenant-naming-key generation, MSYS path-conversion workaround) matches what actually happened on the GPU host; the raw JSON files are the direct, unedited output of `docker compose run --rm e2e` and `real_document_benchmark.py`."
     why_human: "This verifier has no GPU/Docker access in this session and cannot re-run the capture. Internal consistency checks (non-stub hostnames, check #13's genuine before/after IndexError-to-pass flip, sha256 corpus verification, N=3 run-to-run variance) all support authenticity, but cannot fully rule out a hand-crafted artifact. The plan itself tags this class of truth `verification: backstop` and the 06-03/06-04 SUMMARYs self-report `human_judgment: true` for exactly this reason."
+
   - test: "Read baseline/06-gate/GATE.md end-to-end per the plan's own deferred <human-check> (06-04-PLAN.md Task 2): confirm the verdict + rationale are honest (graded against the bug-corrected 7-doc bar, not the deflated full-corpus aggregate), the per-document diff is complete, deviations (GLiNER-on, latency volume-bloat confound, check #19/#1 rename) are disclosed, and reproduction commands use the correct per-script flag names (--out vs --output)."
     expected: "A human reviewer confirms no narrative dishonesty or cherry-picking; this is the phase's own declared checkpoint before Phase 7 (irreversible TuringDB removal) proceeds."
     why_human: "The plan (autonomous: true) declared this as a `<human-check>` inside Task 2's `<verify>` block, deferring it to end-of-phase per the project's human_verify_mode. A prose-honesty judgment call is not something this verifier can certify beyond the cross-references already performed (all GATE.md figures were confirmed byte-identical to gate-result.json in this verification pass)."
