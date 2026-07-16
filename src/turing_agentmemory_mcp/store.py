@@ -1,4 +1,4 @@
-"""Canonical TuringDB-backed memory/document store. See docs/architecture.md.
+"""Canonical ArcadeDB-backed memory/document store. See docs/architecture.md.
 
 `TuringAgentMemory` is composed from `store_<concern>.py` sibling mixins (D-08/D-09,
 phase 01 decomposition) behind this thin facade; the import path

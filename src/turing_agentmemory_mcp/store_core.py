@@ -2,17 +2,16 @@
 
 Split out of store.py (D-08/D-09, phase 01-01). Owns `__init__` (and therefore every
 `self.<attr>` the other `store_<concern>.py` mixins read), plus the ArcadeDB
-query/write/span/audit primitives every other mixin builds on (ported 04-04 from
-TuringDB -- see `.planning/phases/04-arcadedb-direct-port/04-SPIKE-FINDINGS.md`).
+query/write/span/audit primitives every other mixin builds on (see
+`.planning/phases/04-arcadedb-direct-port/04-SPIKE-FINDINGS.md`).
 
 D-08: `_write_many` is ONE managed `begin`/`command`/`commit-retry-N` transaction
-(`ArcadeDBClient.run_in_transaction`), not TuringDB's per-batch submit-before-match
-loop -- the session-header transaction model gives read-your-writes across every
-`command` call scoped to that one session (spike-confirmed, not `sqlscript`'s
-self-contained `LET` chaining).
+(`ArcadeDBClient.run_in_transaction`) -- the session-header transaction model gives
+read-your-writes across every `command` call scoped to that one session
+(spike-confirmed, not `sqlscript`'s self-contained `LET` chaining).
 
 MD-01: a document is committed as one unbounded `_write_many` transaction.
-This mixin used to also validate and store a pair of TuringDB-era
+This mixin used to also validate and store a pair of legacy
 transaction-size constructor knobs (see CHANGELOG.md's Removed section for
 the retired names) that nothing ever consulted -- deleted rather than wired
 into `_create_document`'s statement list, because splitting a document's
@@ -314,9 +313,9 @@ class _StoreCore:
         self._refresh_graph_readiness()
 
     def reconnect(self) -> bool:
-        """D-10: reconnect is a reachability re-probe, not TuringDB's
-        load-graph-after-restart step -- the public entry point external
-        callers (benchmark/e2e harnesses) use after restarting the backend.
+        """D-10: reconnect is an ArcadeDB reachability re-probe -- the public
+        entry point external callers (benchmark/e2e harnesses) use after
+        restarting the backend.
         """
         return self._refresh_graph_readiness()
 

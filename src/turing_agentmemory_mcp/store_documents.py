@@ -8,10 +8,9 @@ live in store_search.py — both keep this module under the 600-LOC cap.
 Ported to ArcadeDB (04-06, ARC-04/ARC-05/ARC-06/PERF-01): document + chunk
 ingest builds a flat list of bound-param `Statement`s (`store_documents_queries.py`)
 committed in ONE managed transaction via `store_core.py`'s `_write_many` (D-08)
--- the old TuringDB-shaped byte-budget batch splitter (`_document_graph_queries`/
-`_document_chunk_batch_query`) is retired along with it, since D-08's single
-managed transaction has no submit-before-match visibility gap to work around
-(store_core.py's docstring). Every Chunk's `id` is `ids.stable_id()` (ARC-08);
+-- the batch mechanism is that single managed transaction, with no separate
+byte-budget batch splitter needed (`store_core.py`'s docstring). Every Chunk's
+`id` is `ids.stable_id()` (ARC-08);
 the dense `embedding` and both lexical channels (`lexical_tokens`/
 `lexical_weights`, the both-channels decision) are inline record properties --
 no legacy synthetic-integer join property, no separate CSV vector-load step
@@ -369,9 +368,8 @@ class _DocumentMixin:
             previous_chunk_id = chunk_id
 
         # D-08: the whole document + every chunk + every edge is ONE managed
-        # transaction -- no byte-budget batch splitter is needed (that solved
-        # TuringDB's submit-before-match visibility gap, which does not exist
-        # under ArcadeDB's session-header read-your-writes model).
+        # transaction under ArcadeDB's session-header read-your-writes model
+        # -- no separate byte-budget batch splitter is needed.
         self._write_many(statements)
         return IngestedDocument(
             document_id=document_id,

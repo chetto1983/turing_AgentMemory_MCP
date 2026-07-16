@@ -5,10 +5,9 @@ rebuildable from canonical graph data (invariant #2 / CLAUDE.md), not a second
 source of truth.
 
 Ported to ArcadeDB (04-08, ARC-04/ARC-05): `rebuild_vector_projection`/
-`rebuild_communities`'s vector step now use the D-07 versioned atomic-swap
-flow (`store_rebuild_queries.py`) instead of the retired TuringDB CSV
-LOAD-VECTOR/synthetic-integer join-property mechanism -- see that module's
-docstring for the full mechanism. `_replace_community_graph` (Task 2) is one
+`rebuild_communities`'s vector step uses the D-07 versioned atomic-swap
+flow (`store_rebuild_queries.py`) on ArcadeDB's native `LSM_VECTOR` index --
+see that module's docstring for the full mechanism. `_replace_community_graph` (Task 2) is one
 `sqlscript` BEGIN/LET/COMMIT transaction with inline vectors keyed on
 `stable_id`, no synthetic-integer join property. `_fact_ids_for_memory`/`_existing_entity_ids`
 (live call sites in `store_memory_read.py`/`store_memory_write.py`, per
