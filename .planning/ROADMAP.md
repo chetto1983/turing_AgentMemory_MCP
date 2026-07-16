@@ -235,12 +235,12 @@ Plans:
   2. Retrieval quality meets or exceeds the baseline (not merely "runs without crashing"); a shortfall blocks removal of TuringDB and everything downstream.
   3. The comparison result is recorded as the gate artifact that authorizes (or blocks) cutover.
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Gate engine: corpus sha256 verify + corrected-baseline derivation + diff/tolerance/GO|NO_GO verdict (TDD)
+- [x] 06-01-PLAN.md — Gate engine: corpus sha256 verify + corrected-baseline derivation + diff/tolerance/GO|NO_GO verdict (TDD)
 - [ ] 06-02-PLAN.md — Phase-7 fail-closed guard: D-09 schema validator + assert_gate_go (TDD)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -349,7 +349,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
-| 6. Migration-Correctness Gate | 0/TBD | Not started | - |
+| 6. Migration-Correctness Gate | 1/4 | In Progress|  |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |

@@ -2,16 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-status: planned
-stopped_at: Phase 6 planned (4 plans, 3 waves)
-last_updated: "2026-07-16T08:08:12.717Z"
-last_activity: 2026-07-16 — Phase 06 planned (4 plans, 3 waves); ready to execute
+current_phase: 06
+current_phase_name: migration-correctness-gate
+status: executing
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-07-16T09:39:03.387Z"
+last_activity: 2026-07-16
 progress:
-  total_phases: 13
+  total_phases: 6
   completed_phases: 5
-  total_plans: 38
-  completed_plans: 38
-  percent: 38
+  total_plans: 42
+  completed_plans: 39
 ---
 
 # Project State
@@ -21,16 +22,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 06 — Migration-Correctness Gate
+**Current focus:** Phase 06 — migration-correctness-gate
 
 ## Current Position
 
-Phase: 06 — Migration-Correctness Gate
-Plan: 4 plans across 3 waves
-Status: Ready to execute (/gsd-execute-phase 6)
-Last activity: 2026-07-16 — Phase 06 planned (4 plans, 3 waves); ready to execute
+Phase: 06 (migration-correctness-gate) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-07-16
 
-Progress: [████░░░░░░] 38%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -96,6 +97,7 @@ Progress: [████░░░░░░] 38%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 05 P12 | 20min | 3 tasks | 2 files |
+| Phase 06 P01 | 25min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -186,6 +188,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 05-11: fixed a real, previously-unenumerated audit leak in store_rebuild.py (resource_id=user_identifier) found live via the plan's own full-surface leak test -- in scope of ARC-07/D-07
 - [Phase ?]: 05-12: mutation-check target for 05-11 revert was store_rebuild.py's resource_id fix (positional _audit() argument, not covered by the key-based sanitize_tenant_attributes choke point) rather than the 6 mixin span-attribute sites, which are already caught centrally even when reverted
 - [Phase ?]: 05-12: ran scripts/e2e_score.py via the documented sys.modules['turingdb'] stub (Windows retained-dependency shim, same pattern as ~47 test files) since turingdb==1.35 has no distribution for this platform -- 19/19 checks, score 10.0, VALIDATED_10_10
+- [Phase ?]: 06-01: Confirmed D-05 contingency via git ancestry (8120efd ancestor of ab7abd0) -- check() already computes ok=bool(detail) at HEAD; corrected_checks() is a pure derivation over the committed baseline JSON, not a source edit
+- [Phase ?]: 06-01: compute_verdict() gates on the three locked aggregate metrics only (mrr_at_20/recall_at_1/recall_at_20 within epsilon=0.03 of the N=3-run mean); per-document regressions are surfaced in metrics_diff.per_document for transparency (D-02) but do not independently flip the verdict
 
 ### Pending Todos
 
@@ -224,6 +228,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T08:08:12.706Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-migration-correctness-gate/06-CONTEXT.md
+Last session: 2026-07-16T09:38:54.508Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: None
