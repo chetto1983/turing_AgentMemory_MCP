@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase: 06
 current_phase_name: migration-correctness-gate
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-07-16T09:39:03.387Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-07-16T09:48:13.594Z"
 last_activity: 2026-07-16
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 42
-  completed_plans: 39
+  completed_plans: 40
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 06 (migration-correctness-gate) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-07-16
 
-Progress: [█████████░] 93%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -98,6 +98,7 @@ Progress: [█████████░] 93%
 |------|----------|-------|-------|
 | Phase 05 P12 | 20min | 3 tasks | 2 files |
 | Phase 06 P01 | 25min | 2 tasks | 2 files |
+| Phase 06 P02 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -190,6 +191,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 05-12: ran scripts/e2e_score.py via the documented sys.modules['turingdb'] stub (Windows retained-dependency shim, same pattern as ~47 test files) since turingdb==1.35 has no distribution for this platform -- 19/19 checks, score 10.0, VALIDATED_10_10
 - [Phase ?]: 06-01: Confirmed D-05 contingency via git ancestry (8120efd ancestor of ab7abd0) -- check() already computes ok=bool(detail) at HEAD; corrected_checks() is a pure derivation over the committed baseline JSON, not a source edit
 - [Phase ?]: 06-01: compute_verdict() gates on the three locked aggregate metrics only (mrr_at_20/recall_at_1/recall_at_20 within epsilon=0.03 of the N=3-run mean); per-document regressions are surfaced in metrics_diff.per_document for transparency (D-02) but do not independently flip the verdict
+- [Phase ?]: 06-02: validate_gate_result_schema raises ValueError for schema violations; assert_gate_go wraps into AssertionError at the load_verdict boundary for one fail-closed contract
+- [Phase ?]: 06-02: dropped a self-referential no-pytest.skip test (paradoxical) in favor of the plan's own grep-based verification allowance
 
 ### Pending Todos
 
@@ -228,6 +231,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T09:38:54.508Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-07-16T09:48:13.582Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
