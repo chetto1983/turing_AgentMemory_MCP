@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase: 07
 current_phase_name: Remove TuringDB + Dependency Hardening
 status: executing
-stopped_at: Completed 07-05-PLAN.md
-last_updated: "2026-07-16T19:57:24.549Z"
+stopped_at: Completed 07-06-PLAN.md
+last_updated: "2026-07-16T20:14:25.942Z"
 last_activity: 2026-07-16
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 50
-  completed_plans: 47
+  completed_plans: 48
 ---
 
 # Project State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 07 (Remove TuringDB + Dependency Hardening) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-07-16
 
-Progress: [█████████░] 94%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
@@ -107,6 +107,7 @@ Progress: [█████████░] 94%
 | Phase 07 P03 | 20min | 3 tasks | 6 files |
 | Phase 07 P04 | 20min | 2 tasks | 33 files |
 | Phase 07 P05 | 12min | 3 tasks | 3 files |
+| Phase 07 P06 | 25min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -214,6 +215,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-04: Fixed a dangling stale comment in test_utcp_conformance.py orphaned by the stub removal (Rule 1, discovered on touch)
 - [Phase ?]: Generalized the existing test_store_arcadedb_core.py single-file forbidden-substring pattern to a src-wide rglob scan, keeping the narrower store_core.py-specific guard untouched.
 - [Phase ?]: No pytest.skip in any of the three compat/grep-gate test files -- graspologic-native and fastmcp are unconditional pyproject dependencies, so there is no legitimate skip condition.
+- [Phase ?]: 07-06: Dropped turingdb_version from lab.py REQUIRED_BENCHMARK_FIELDS entirely (not renamed) -- no live producer after 07-01's benchmark.py cluster deletion
+- [Phase ?]: 07-06: Fixed-on-touch two pre-existing doc bugs found while sweeping TuringDB text -- README/operations.md referenced the already-deleted repair-vector-index CLI (07-01) and agent_quality_eval.py; rewrote to reference memory_rebuild_vector_projection and real_document_benchmark.py
+- [Phase ?]: 07-06: Updated tests/test_docker_hardening.py's README backup-command assertions to bertoni-data:/bertoni to stay in lockstep with the README rewrite, though that test file was not in this plan's files_modified
 
 ### Pending Todos
 
@@ -254,6 +258,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T19:57:24.533Z
-Stopped at: Completed 07-05-PLAN.md
+Last session: 2026-07-16T20:14:25.926Z
+Stopped at: Completed 07-06-PLAN.md
 Resume file: None

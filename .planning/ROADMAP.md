@@ -262,7 +262,7 @@ Plans:
   2. CLAUDE.md invariants are updated — #2 (TuringDB canonical) superseded, #4/#6 (submit-before-match, `load_graph`) retired or replaced with the ArcadeDB equivalent — while #1 (tenant scope) and #3 (stable IDs) are reconfirmed as still enforced.
   3. `graspologic-native` and `fastmcp` have automated compatibility/version-gate checks so upgrades are tested before adoption.
 
-**Plans:** 5/8 plans executed
+**Plans:** 6/8 plans executed
 
 Plans:
 
@@ -276,7 +276,7 @@ Plans:
 
 - [x] 07-04-PLAN.md — Remove the sys.modules[turingdb] stub from all 31 test files (strictly after src-side imports gone)
 - [x] 07-05-PLAN.md — DEP-01/DEP-02 compat-smoke tests + src-wide no-`import turingdb` grep-gate
-- [ ] 07-06-PLAN.md — Docs/skill/CHANGELOG sweep + Lab/frontend UI ArcadeDB labels
+- [x] 07-06-PLAN.md — Docs/skill/CHANGELOG sweep + Lab/frontend UI ArcadeDB labels
 - [ ] 07-07-PLAN.md — Rewrite CLAUDE.md + .claude/CLAUDE.md invariants for the ArcadeDB reality
 
 **Wave 3** — cut proof
@@ -369,7 +369,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 4/4 | Complete    | 2026-07-16 |
-| 7. Remove TuringDB + Dependency Hardening | 5/8 | In Progress|  |
+| 7. Remove TuringDB + Dependency Hardening | 6/8 | In Progress|  |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
 | 10. Security & Governance Hardening | 0/TBD | Not started | - |
