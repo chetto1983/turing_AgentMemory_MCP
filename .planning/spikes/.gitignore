@@ -1,0 +1,3 @@
+# Store file-state scratch dirs created by spike runs (audit/spans/sparse).
+**/home-*/
+**/.store-home/

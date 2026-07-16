@@ -1,0 +1,104 @@
+{
+  "spike": "001-doc-entity-graph-substrate",
+  "steps": [
+    {
+      "build_store": "ok",
+      "database": "spike_docgraphrag"
+    },
+    {
+      "ingest": "ok",
+      "chunk_count": 3
+    },
+    {
+      "write_graph": "ok",
+      "entity_vertices": 10,
+      "mentions_edges": 14
+    }
+  ],
+  "extracted": [
+    {
+      "document_id": "arcadedb-overview",
+      "chunk_id": "chunk_728f76fb5f94faa6",
+      "entities": [
+        "arcadedb (product)",
+        "luca garulli (person)",
+        "arcadedb (product)",
+        "hnsw (library)",
+        "lucene (library)",
+        "arcadedb (product)"
+      ]
+    },
+    {
+      "document_id": "fusion-retrieval",
+      "chunk_id": "chunk_f7375f95563c166e",
+      "entities": [
+        "retrieval (task)",
+        "turing agentmemory server (product)",
+        "davide (person)",
+        "gliner (technology)",
+        "arcadedb (library)",
+        "recall (task)"
+      ]
+    },
+    {
+      "document_id": "gliner-extraction",
+      "chunk_id": "chunk_744a70f4f8149c3f",
+      "entities": [
+        "gliner (technology)",
+        "turing agentmemory server (technology)",
+        "gliner (technology)",
+        "arcadedb (framework)",
+        "gliner (technology)",
+        "entity vertices (feature)"
+      ]
+    }
+  ],
+  "canonicalization_comparison": {
+    "typed_key_entities": 13,
+    "typed_key_cross_doc_bridges": 1,
+    "name_key_entities": 10,
+    "name_key_cross_doc_bridges": 3,
+    "note": "temporal_graph.py keys entity id on (entity_type, canonical_name); GLiNER type-drift on a shared surface splits it, shrinking the bridge count. Name-only resolution recovers the cross-doc bridges."
+  },
+  "traversal": {
+    "seed_chunk": "chunk_728f76fb5f94faa6",
+    "seed_document": "arcadedb-overview",
+    "entities_of_seed": [
+      {
+        "canonical_name": "lucene",
+        "entity_type": "library"
+      },
+      {
+        "canonical_name": "luca garulli",
+        "entity_type": "person"
+      },
+      {
+        "canonical_name": "hnsw",
+        "entity_type": "library"
+      },
+      {
+        "canonical_name": "arcadedb",
+        "entity_type": "product"
+      }
+    ],
+    "co_mention_chunk_count": 2,
+    "reached_other_documents": [
+      "fusion-retrieval",
+      "gliner-extraction"
+    ]
+  },
+  "match_syntax": {
+    "cypher_arrow": {
+      "ok": false,
+      "error": "RuntimeError: ArcadeDB HTTP 500 at /api/v1/query/spike_docgraphrag: {\"error\":\"Error on transaction commit\",\"detail\":\"SQL syntax error at line 1, column 6: misma"
+    },
+    "object_notation": {
+      "ok": true,
+      "rows": 2
+    }
+  },
+  "verdict": {
+    "substrate_ok": true,
+    "reason": "Chunk->Entity MENTIONS edges written; cross-document co-mention traversal reached other documents (with name-only entity resolution)"
+  }
+}
