@@ -1,8 +1,11 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from turing_agentmemory_mcp.document_processing import convert_document_to_markdown
+
+_BASELINE_CORPUS_HTML = Path("D:/tmp/baseline-corpus/apprendimento_automatico_wikipedia.html")
 
 
 class FakeMarkItDown:
@@ -100,3 +103,44 @@ def test_convert_pdf_uses_pagewise_pdfium_fast_path(monkeypatch, tmp_path):
         "source_path": str(source),
     }
     assert closed == ["text", "page", "text", "page", "pdf"]
+
+
+def test_convert_html_strips_wikipedia_nav_boilerplate(tmp_path):
+    source = tmp_path / "page.html"
+    source.write_text(
+        """
+        <html>
+        <body>
+        <nav>ultime modifiche</nav>
+        <div id="mw-content-text">
+        <p>L'apprendimento automatico è una branca dell'intelligenza artificiale.</p>
+        <p>Tra le tecniche più usate vi è il clustering dei dati.</p>
+        <span class="mw-editsection">[<a href="/w/index.php?title=x&action=edit">modifica</a>]</span>
+        </div>
+        <footer><a href="/w/index.php?title=Special:Log">index.php</a></footer>
+        </body>
+        </html>
+        """,
+        encoding="utf-8",
+    )
+
+    result = convert_document_to_markdown(source)
+
+    lowered = result.text.lower()
+    assert "ultime modifiche" not in lowered
+    assert "index.php" not in lowered
+    assert "apprendimento automatico" in lowered
+    assert "clustering" in lowered
+    assert result.metadata["converter"] == "markitdown-html-cleaned"
+    assert result.metadata["boilerplate_stripped"] is True
+
+
+@pytest.mark.skipif(not _BASELINE_CORPUS_HTML.exists(), reason="baseline corpus HTML not present")
+def test_convert_html_strips_boilerplate_from_real_corpus_file():
+    result = convert_document_to_markdown(_BASELINE_CORPUS_HTML)
+
+    lowered = result.text.lower()
+    assert "ultime modifiche" not in lowered
+    assert "index.php" not in lowered
+    assert "apprendimento automatico" in lowered
+    assert "clustering" in lowered
