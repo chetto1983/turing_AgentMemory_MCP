@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 05
-current_phase_name: per-tenant-arcadedb-isolation
-status: executing
-stopped_at: Completed 05-12-PLAN.md
-last_updated: "2026-07-16T07:26:06.382Z"
+current_phase: 06
+current_phase_name: Migration-Correctness Gate
+status: ready_to_plan
+stopped_at: Phase 05 complete (12/12, verified 10/10) — next Phase 06 Migration-Correctness Gate
+last_updated: 2026-07-16T07:38:05.945Z
 last_activity: 2026-07-16
+last_activity_desc: Phase 05 complete (12/12, verified 10/10); next Phase 06 Migration-Correctness Gate
 progress:
-  total_phases: 6
+  total_phases: 13
   completed_phases: 5
   total_plans: 38
   completed_plans: 38
@@ -22,22 +23,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 05 — per-tenant-arcadedb-isolation
+**Current focus:** Phase 06 — Migration-Correctness Gate
 
 ## Current Position
 
-Phase: 05 (per-tenant-arcadedb-isolation) — EXECUTING
-Plan: 3 of 12
-Status: Ready to execute
-Last activity: 2026-07-16
+Phase: 06 — Migration-Correctness Gate
+Plan: Not started
+Status: Ready to plan (needs /gsd-discuss-phase 6)
+Last activity: 2026-07-16 — Phase 05 complete (verified 10/10); next Phase 06
 
-Progress: [██████████] 100%
+Progress: [████░░░░░░] 38%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 26
+- Total plans completed: 38
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -49,6 +50,7 @@ Progress: [██████████] 100%
 | 02 | 3 | - | - |
 | 03 | 4 | - | - |
 | 04 | 10 | - | - |
+| 05 | 12 | - | - |
 
 **Recent Trend:**
 
