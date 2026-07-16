@@ -262,7 +262,26 @@ Plans:
   2. CLAUDE.md invariants are updated — #2 (TuringDB canonical) superseded, #4/#6 (submit-before-match, `load_graph`) retired or replaced with the ArcadeDB equivalent — while #1 (tenant scope) and #3 (stable IDs) are reconfirmed as still enforced.
   3. `graspologic-native` and `fastmcp` have automated compatibility/version-gate checks so upgrades are tested before adoption.
 
-**Plans**: TBD
+**Plans:** 8 plans
+
+Plans:
+
+**Wave 1** — irreversible src-side removal + Bertoni app-state rename (parallel, disjoint files)
+
+- [ ] 07-01-PLAN.md — Entry GO-gate assertion + delete legacy TuringDB benchmark/eval/admin_repair harness cluster + prune cli.py
+- [ ] 07-02-PLAN.md — Strip vestigial turingdb imports (e2e_score*/store_*) + remove turingdb==1.35 from pyproject.toml
+- [ ] 07-03-PLAN.md — Bertoni app-state rename (BERTONI_HOME, AGENTMEMORY_GRAPH, bertoni-data:/bertoni) + delete turingdb compose services/Dockerfile + flip test_compose_config.py
+
+**Wave 2** — stub sweep + oracles + docs/invariants (07-04/05 blocked on 07-01+02; 07-06/07 on 07-01+02+03)
+
+- [ ] 07-04-PLAN.md — Remove the sys.modules[turingdb] stub from all 31 test files (strictly after src-side imports gone)
+- [ ] 07-05-PLAN.md — DEP-01/DEP-02 compat-smoke tests + src-wide no-`import turingdb` grep-gate
+- [ ] 07-06-PLAN.md — Docs/skill/CHANGELOG sweep + Lab/frontend UI ArcadeDB labels
+- [ ] 07-07-PLAN.md — Rewrite CLAUDE.md + .claude/CLAUDE.md invariants for the ArcadeDB reality
+
+**Wave 3** — cut proof
+
+- [ ] 07-08-PLAN.md — Full-suite + compose + E2E cut-proof gate + human review of the invariant rewrite
 
 ### Phase 8: Document Ingestion & Storage Reliability
 
@@ -350,7 +369,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 4/4 | Complete    | 2026-07-16 |
-| 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
+| 7. Remove TuringDB + Dependency Hardening | 0/8 | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
 | 10. Security & Governance Hardening | 0/TBD | Not started | - |
@@ -367,6 +386,38 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 Plans:
 
 - [ ] TBD (run /gsd-plan-phase 13 to break down)
+
+### Phase 14: Full turing-to-bertoni package/product rebrand
+
+**Goal:** Bertoni owns the complete package and product identity across Python, MCP, CLI,
+containers, skills, configuration, tests, and documentation, with no unintended legacy
+Turing AgentMemory identifiers left behind.
+**Requirements**: TBD
+**Depends on:** Phase 7 (must land only after the irreversible TuringDB removal; deliberately
+kept as a separate change and independently schedulable from Phases 8-13)
+**Success Criteria** (what must be TRUE):
+
+  1. `src/turing_agentmemory_mcp/` is renamed to `src/bertoni_agentmemory_mcp/`, and every
+     Python import, module invocation, test, script, package-data path, and CI reference uses
+     `bertoni_agentmemory_mcp`.
+  2. `pyproject.toml` publishes `bertoni-agentmemory-mcp`, installs the
+     `bertoni-agentmemory-mcp` console entrypoint, and contains no stale package or entrypoint
+     metadata under the former brand.
+  3. The FastMCP server identity and bundled agent skill are renamed from
+     `turing-agentmemory` to `bertoni-agentmemory`, including skill metadata, examples,
+     generated/manual integration configuration, and contract tests.
+  4. Docker images, Compose project/services, inter-service references, healthchecks, build
+     targets, volumes, and operational commands use the `bertoni-agentmemory-*` naming family;
+     a clean Compose configuration validates under the new names.
+  5. Public and operator docs, repository guidance, examples, fixtures, and user-facing text
+     consistently use Bertoni; a repository-wide legacy-name audit finds no unintended branded
+     `turing_agentmemory_mcp`, `turing-agentmemory-mcp`, `turing-agentmemory`, or
+     `turing-agentmemory-*` references.
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 14 to break down)
 
 ---
 *Roadmap created: 2026-07-11*
