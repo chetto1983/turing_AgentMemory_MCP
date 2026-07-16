@@ -2,18 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 07
-current_phase_name: Remove TuringDB + Dependency Hardening
 status: executing
-stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-07-16T19:14:42.709Z"
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-07-16T19:27:16.755Z"
 last_activity: 2026-07-16
-last_activity_desc: Phase 07 execution started
 progress:
-  total_phases: 8
+  total_phases: 14
   completed_phases: 6
   total_plans: 50
-  completed_plans: 44
+  completed_plans: 45
+  percent: 43
 ---
 
 # Project State
@@ -28,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 07 (Remove TuringDB + Dependency Hardening) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
-Last activity: 2026-07-16 -- Phase 07 execution started
+Last activity: 2026-07-16
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -105,6 +103,7 @@ Progress: [█████████░] 88%
 | Phase 06 P04 | 55min | 3 tasks | 4 files |
 | Phase 07 P01 | 5min | 3 tasks | 13 files |
 | Phase 07 P02 | 15min | 3 tasks | 7 files |
+| Phase 07 P03 | 20min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -206,6 +205,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-01: Deleted admin_repair.py wholesale (all three functions), not just CLI-wired repair_vector_index -- repair_sparse_projection targets a SparseIndex read path store_evidence.py already proves dead, repair_community_projection was never CLI-wired
 - [Phase ?]: 07-02: Removed TuringDaemon/wait_rest from e2e_score.py's re-export list too (not just e2e_score_stubs.py's definitions) since they would otherwise raise ImportError once e2e_score_stubs.py no longer defines them
 - [Phase ?]: 07-02: Reworded e2e_score.py/e2e_score_stubs.py module docstrings to drop dangling references to the already-deleted legacy benchmark.py/agent_quality_eval.py harnesses (removed in 07-01)
+- [Phase ?]: 07-03: TURINGDB_GRAPH renamed to AGENTMEMORY_GRAPH (not deleted), default agent_memory unchanged -- locked discretion decision, feeds index_prefix/telemetry not a connection detail
+- [Phase ?]: 07-03: test_docker_hardening.py's turingdb/turingdb-volume-init assertions left failing on purpose -- owned by 07-04-PLAN.md, out of this plan's files_modified scope
 
 ### Pending Todos
 
@@ -246,6 +247,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T19:14:42.697Z
-Stopped at: Completed 07-02-PLAN.md
+Last session: 2026-07-16T19:27:16.738Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None

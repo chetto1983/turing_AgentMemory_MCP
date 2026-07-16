@@ -262,7 +262,7 @@ Plans:
   2. CLAUDE.md invariants are updated — #2 (TuringDB canonical) superseded, #4/#6 (submit-before-match, `load_graph`) retired or replaced with the ArcadeDB equivalent — while #1 (tenant scope) and #3 (stable IDs) are reconfirmed as still enforced.
   3. `graspologic-native` and `fastmcp` have automated compatibility/version-gate checks so upgrades are tested before adoption.
 
-**Plans:** 2/8 plans executed
+**Plans:** 3/8 plans executed
 
 Plans:
 
@@ -270,7 +270,7 @@ Plans:
 
 - [x] 07-01-PLAN.md — Entry GO-gate assertion + delete legacy TuringDB benchmark/eval/admin_repair harness cluster + prune cli.py
 - [x] 07-02-PLAN.md — Strip vestigial turingdb imports (e2e_score*/store_*) + remove turingdb==1.35 from pyproject.toml
-- [ ] 07-03-PLAN.md — Bertoni app-state rename (BERTONI_HOME, AGENTMEMORY_GRAPH, bertoni-data:/bertoni) + delete turingdb compose services/Dockerfile + flip test_compose_config.py
+- [x] 07-03-PLAN.md — Bertoni app-state rename (BERTONI_HOME, AGENTMEMORY_GRAPH, bertoni-data:/bertoni) + delete turingdb compose services/Dockerfile + flip test_compose_config.py
 
 **Wave 2** — stub sweep + oracles + docs/invariants (07-04/05 blocked on 07-01+02; 07-06/07 on 07-01+02+03)
 
@@ -369,7 +369,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 4/4 | Complete    | 2026-07-16 |
-| 7. Remove TuringDB + Dependency Hardening | 2/8 | In Progress|  |
+| 7. Remove TuringDB + Dependency Hardening | 3/8 | In Progress|  |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
 | 10. Security & Governance Hardening | 0/TBD | Not started | - |
