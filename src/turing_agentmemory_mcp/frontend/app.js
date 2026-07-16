@@ -16,7 +16,8 @@ const typeColors = {
 };
 
 const queryPresets = {
-  memory: "MATCH (m:Memory)-[r]->(store:TuringDB) RETURN m,r,store LIMIT 25",
+  memory:
+    "MATCH {type: Memory, as: m}.out('PERSISTS'){as: store, where: (store.label = 'ArcadeDB')} RETURN m, store LIMIT 25",
   docs: "MATCH (d:Document)-[r]->(chunk) RETURN d,r,chunk LIMIT 25",
   bench: "MATCH (b:Benchmark)-[r:MEASURES]->(op) RETURN b,r,op ORDER BY op.p95_ms DESC",
 };
