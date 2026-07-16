@@ -386,7 +386,7 @@ def test_readme_documents_backup_restore_and_build_attestation() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "## Backup And Restore" in readme
-    assert "docker run --rm -v turing-agentmemory-mcp_turing-data:/turing:ro" in readme
-    assert "docker run --rm -v turing-agentmemory-mcp_turing-data:/turing" in readme
+    assert "docker run --rm -v turing-agentmemory-mcp_bertoni-data:/bertoni:ro" in readme
+    assert "docker run --rm -v turing-agentmemory-mcp_bertoni-data:/bertoni" in readme
     assert "## Build Attestation" in readme
     assert "docker buildx build --provenance=true --sbom=true" in readme
