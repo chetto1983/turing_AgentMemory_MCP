@@ -88,7 +88,12 @@ class _RebuildMixin:
             operation="vector_projection.rebuild",
             user_identifier=user_identifier,
             resource_type="vector_projection",
-            resource_id=user_identifier,
+            # No single sub-resource exists for a tenant-wide rebuild -- the
+            # opaque tenant_database correlation _audit adds already
+            # identifies which tenant, so resource_id must not duplicate the
+            # raw identifier here (ARC-07/D-07, found live via the 05-11
+            # full-surface leak test).
+            resource_id="",
             details={"counts": counts, "total": result["total"]},
         )
         return result

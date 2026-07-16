@@ -15,6 +15,7 @@ pseudonymous (D-07).
 from __future__ import annotations
 
 import hmac
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from turing_agentmemory_mcp.tenant_identity import (
@@ -23,6 +24,7 @@ from turing_agentmemory_mcp.tenant_identity import (
 )
 
 TENANT_CORRELATION_KEY = "tenant_database"
+TENANT_IDENTITY_KEYS = frozenset({"user_identifier", "identifier"})
 
 
 class TenantBindingError(ValueError):
@@ -50,3 +52,36 @@ class TenantBinding:
 
     def correlation(self) -> dict[str, str]:
         return {TENANT_CORRELATION_KEY: self.identity.database_name}
+
+
+def sanitize_tenant_attributes(
+    attributes: Mapping[str, object] | None, binding: TenantBinding | None
+) -> dict[str, object]:
+    """Strip raw tenant-identity keys, then merge in the opaque correlation.
+
+    This is the shared sanitizer `_StoreCore._span`/`_audit` call before
+    anything reaches the process-wide observer or audit sink (ARC-07/D-07),
+    so a mixin that still passes a raw identifier attribute cannot leak it.
+    Stripping is key-based, not value-based: value scrubbing would need the
+    raw identity in hand and would be defeated by substring or normalization
+    differences. It does not reach into arbitrary strings -- that is the
+    redactor's job (`governance.PatternRedactor`), a different threat.
+    """
+    clean = {
+        str(key): _strip_nested_identity(value)
+        for key, value in (attributes or {}).items()
+        if str(key).lower() not in TENANT_IDENTITY_KEYS
+    }
+    if binding is not None:
+        clean.update(binding.correlation())
+    return clean
+
+
+def _strip_nested_identity(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {
+            str(key): _strip_nested_identity(item)
+            for key, item in value.items()
+            if str(key).lower() not in TENANT_IDENTITY_KEYS
+        }
+    return value

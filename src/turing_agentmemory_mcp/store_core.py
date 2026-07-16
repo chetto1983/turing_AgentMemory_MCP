@@ -61,7 +61,7 @@ from turing_agentmemory_mcp.provider_config import provider_env
 from turing_agentmemory_mcp.rerank import OpenAICompatibleReranker
 from turing_agentmemory_mcp.search_controls import validate_fusion_weights
 from turing_agentmemory_mcp.sparse_index import SparseIndex
-from turing_agentmemory_mcp.tenant_binding import TenantBinding
+from turing_agentmemory_mcp.tenant_binding import TenantBinding, sanitize_tenant_attributes
 from turing_agentmemory_mcp.tenant_identity import validate_user_identifier
 
 
@@ -375,7 +375,23 @@ class _StoreCore:
         )
 
     def _span(self, name: str, attributes: dict[str, object] | None = None) -> Any:
-        return self.observer.span(name, attributes or {})
+        # Sanitized HERE, not left to each mixin: self.observer is one
+        # process-wide span recorder shared across every tenant, so this
+        # choke point is the only place that can guarantee the pseudonymity
+        # contract (ARC-07/D-07) regardless of what a caller passes.
+        #
+        # Mutate `payload` in place (clear + update) rather than handing the
+        # observer a fresh dict: at least one caller (store_chunking.py's
+        # `_chunk_document_text`) keeps its own reference to the attributes
+        # dict and mutates it (`attributes["chunk_count"] = ...`) after
+        # entering the span but before it exits -- `InMemorySpanRecorder`
+        # only reads `attributes` at yield-return (span exit), so it must
+        # still be the SAME object the caller mutates, not a detached copy.
+        payload = attributes if attributes is not None else {}
+        sanitized = sanitize_tenant_attributes(payload, self.tenant_binding)
+        payload.clear()
+        payload.update(sanitized)
+        return self.observer.span(name, payload)
 
     def _audit(
         self,
@@ -387,18 +403,26 @@ class _StoreCore:
         success: bool = True,
         details: dict[str, object] | None = None,
     ) -> None:
-        self.audit_sink.record(
-            audit_event(
-                {
-                    "operation": operation,
-                    "user_identifier": user_identifier,
-                    "resource_type": resource_type,
-                    "resource_id": resource_id,
-                    "success": success,
-                    "details": details or {},
-                }
-            )
-        )
+        # user_identifier is already verified by the caller's _require_user
+        # guard; it is intentionally never forwarded into the event below.
+        # self.audit_sink is the other process-wide sink shared across every
+        # tenant, so this choke point (not the mixin call site) is what
+        # guarantees pseudonymity (ARC-07/D-07). `details` is sanitized with
+        # binding=None (identity-key stripping only, no correlation merge --
+        # the correlation belongs at the event's top level, not duplicated
+        # inside `details`) so a caller-supplied dict cannot smuggle identity
+        # through.
+        del user_identifier
+        event: dict[str, object] = {
+            "operation": operation,
+            "resource_type": resource_type,
+            "resource_id": resource_id,
+            "success": success,
+            "details": sanitize_tenant_attributes(details, None),
+        }
+        if self.tenant_binding is not None:
+            event.update(self.tenant_binding.correlation())
+        self.audit_sink.record(audit_event(event))
 
     def _query(
         self, query: str, *, operation: str, params: dict[str, object] | None = None
