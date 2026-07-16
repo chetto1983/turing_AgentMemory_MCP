@@ -1,82 +1,6 @@
 name: turing-agentmemory-mcp
 
 services:
-  turingdb-volume-init:
-    build:
-      context: .
-      dockerfile: docker/turingdb.Dockerfile
-    image: turing-agentmemory-turingdb:local
-    entrypoint: ["/bin/sh", "-c", "chown -R 10001:10001 /turing"]
-    volumes:
-      - turing-data:/turing
-    user: "0:0"
-    restart: "no"
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp
-      - /run
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 128m
-
-  turingdb:
-    build:
-      context: .
-      dockerfile: docker/turingdb.Dockerfile
-    image: turing-agentmemory-turingdb:local
-    depends_on:
-      turingdb-volume-init:
-        condition: service_completed_successfully
-    entrypoint: ["/bin/sh", "-lc"]
-    command:
-      - |
-        set -eu
-        rm -f /turing/turingdb.sock
-        touch /tmp/.turing_history
-        shutdown() {
-          turingdb stop -turing-dir /turing || true
-          exit 0
-        }
-        trap shutdown TERM INT
-        turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon
-        while :; do
-          sleep 3600 &
-          wait $!
-        done
-    environment:
-      - HOME=/tmp
-      - XDG_CACHE_HOME=/tmp/.cache
-      - PYTHONPYCACHEPREFIX=/tmp/pycache
-    ports:
-      - "127.0.0.1:6666:6666"
-    volumes:
-      - turing-data:/turing
-    user: "10001:10001"
-    init: true
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp
-      - /run
-    healthcheck:
-      test: ["CMD-SHELL", "python - <<'PY'\nfrom turingdb import TuringDB\nTuringDB(type='json', host='http://127.0.0.1:6666').try_reach(timeout=2)\nPY"]
-      interval: 5s
-      timeout: 3s
-      retries: 80
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: "4.0"
-          memory: 8g
-        reservations:
-          cpus: "0.25"
-          memory: 256m
-
   arcadedb:
     image: arcadedata/arcadedb:26.7.1
     environment:
@@ -168,8 +92,6 @@ services:
         PYPROJECT_EXTRAS: ${PYPROJECT_EXTRAS:-dev}
     image: turing-agentmemory-mcp:local
     depends_on:
-      turingdb:
-        condition: service_healthy
       arcadedb:
         condition: service_healthy
       agentmemory-embed:
@@ -182,18 +104,11 @@ services:
       - HOME=/tmp
       - XDG_CACHE_HOME=/tmp/.cache
       - PYTHONPYCACHEPREFIX=/tmp/pycache
-      - TURINGDB_URL=http://turingdb:6666
-      - TURINGDB_HOME=/turing
-      - TURINGDB_GRAPH=agent_memory
-      - TURINGDB_MEMORY_INDEX=${TURINGDB_MEMORY_INDEX:-agent_memory_episode_vectors_768}
-      - TURINGDB_DOCUMENT_INDEX=${TURINGDB_DOCUMENT_INDEX:-agent_memory_document_vectors_768}
-      - TURINGDB_ENTITY_INDEX=${TURINGDB_ENTITY_INDEX:-agent_memory_entity_vectors_768}
-      - TURINGDB_FACT_INDEX=${TURINGDB_FACT_INDEX:-agent_memory_fact_vectors_768}
-      - TURINGDB_COMMUNITY_INDEX=${TURINGDB_COMMUNITY_INDEX:-agent_memory_community_vectors_768}
+      - BERTONI_HOME=/bertoni
+      - AGENTMEMORY_GRAPH=agent_memory
       # ArcadeDB is canonical. The production tenant router derives a separate
       # database for every exact user_identifier; it never accepts a shared
-      # ARCADEDB_DATABASE fallback. TURINGDB_* remains wired only for the
-      # transitional shared runtime paths scheduled for later removal.
+      # ARCADEDB_DATABASE fallback.
       - ARCADEDB_URL=http://arcadedb:2480
       - ARCADEDB_USER=${ARCADEDB_USER:-root}
       # LO-03: dev-only fallback documented canonically in .env.example and
@@ -240,16 +155,16 @@ services:
       - GLINER_PROVIDERS
       - GLINER_MEMORY_SCHEMA=memory-v1
       - AGENTMEMORY_FUSION_ENABLED=1
-      - AGENTMEMORY_SPARSE_PATH=/turing/data/agent-memory-fts.sqlite3
+      - AGENTMEMORY_SPARSE_PATH=/bertoni/data/agent-memory-fts.sqlite3
       - AGENTMEMORY_COMMUNITY_REBUILD_ON_BATCH=1
-      - AGENTMEMORY_DOCUMENT_JOB_PATH=/turing/data/agent-memory-document-jobs.sqlite3
-      - AGENTMEMORY_DOCUMENT_STAGING_ROOT=/turing/data/document-ingest
+      - AGENTMEMORY_DOCUMENT_JOB_PATH=/bertoni/data/agent-memory-document-jobs.sqlite3
+      - AGENTMEMORY_DOCUMENT_STAGING_ROOT=/bertoni/data/document-ingest
       - AGENTMEMORY_DOCUMENT_JOB_LEASE_SECONDS=${AGENTMEMORY_DOCUMENT_JOB_LEASE_SECONDS:-900}
       - AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS=${AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS:-15}
       - AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS=${AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS:-1}
       - AGENTMEMORY_DOCUMENT_JOB_MAX_ATTEMPTS=${AGENTMEMORY_DOCUMENT_JOB_MAX_ATTEMPTS:-3}
       - AGENTMEMORY_TENANT_NAMING_KEY
-      - AGENTMEMORY_TENANT_REGISTRY_PATH=${AGENTMEMORY_TENANT_REGISTRY_PATH:-/turing/data/agent-memory-tenant-registry.sqlite3}
+      - AGENTMEMORY_TENANT_REGISTRY_PATH=${AGENTMEMORY_TENANT_REGISTRY_PATH:-/bertoni/data/agent-memory-tenant-registry.sqlite3}
       - AGENTMEMORY_TENANT_CACHE_CAPACITY=${AGENTMEMORY_TENANT_CACHE_CAPACITY:-128}
       - AGENTMEMORY_TENANT_CACHE_IDLE_TTL_SECONDS=${AGENTMEMORY_TENANT_CACHE_IDLE_TTL_SECONDS:-900}
       - AGENTMEMORY_TENANT_PROVISION_ATTEMPTS=${AGENTMEMORY_TENANT_PROVISION_ATTEMPTS:-3}
@@ -276,7 +191,7 @@ services:
     ports:
       - "127.0.0.1:8095:8080"
     volumes:
-      - turing-data:/turing
+      - bertoni-data:/bertoni
     user: "10001:10001"
     init: true
     restart: unless-stopped
@@ -655,8 +570,7 @@ services:
       - .:/work
     environment:
       # ArcadeDB (04-09): e2e_score.py connects to the compose-network arcadedb
-      # service instead of spawning a local turingdb daemon (ARCADEDB_E2E_HOME
-      # replaces the retired TURINGDB_E2E_HOME). The restart leg additionally
+      # service instead of spawning a local daemon. The restart leg additionally
       # needs `docker compose` on the host this container runs alongside --
       # not available inside this container itself, so that one check reports
       # ok=false (not fabricated, not a script crash) when run this way; run
@@ -674,7 +588,7 @@ services:
       RUFF_CACHE_DIR: /tmp/ruff-cache
 
 volumes:
-  turing-data:
+  bertoni-data:
   agentmemory-llama-cache:
   agentmemory-gliner-cache:
   arcadedb-data:
