@@ -2,16 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
+current_phase: 05
+current_phase_name: per-tenant-arcadedb-isolation
 status: executing
-stopped_at: Completed 05-11-PLAN.md
-last_updated: "2026-07-16T07:04:34.675Z"
+stopped_at: Completed 05-12-PLAN.md
+last_updated: "2026-07-16T07:26:06.382Z"
 last_activity: 2026-07-16
 progress:
-  total_phases: 13
-  completed_phases: 4
+  total_phases: 6
+  completed_phases: 5
   total_plans: 38
-  completed_plans: 37
-  percent: 31
+  completed_plans: 38
 ---
 
 # Project State
@@ -26,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 05 (per-tenant-arcadedb-isolation) — EXECUTING
-Plan: 2 of 12
+Plan: 3 of 12
 Status: Ready to execute
 Last activity: 2026-07-16
 
-Progress: [██████████] 97%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -90,6 +91,11 @@ Progress: [██████████] 97%
 | Phase 05 P09 | 27min | 3 tasks | 10 files |
 | Phase 05 P10 | 25min | 2 tasks | 7 files |
 | Phase 05 P11 | 15min | 3 tasks | 11 files |
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 05 P12 | 20min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -178,6 +184,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 05-10: All 18 public store methods now call the binding-aware guard as their first statement; six span-wrapped methods run it before the span opens, closing ARC-07 gap 1's guard-reachability and telemetry-leak defects
 - [Phase ?]: 05-11: _StoreCore._span mutates the caller's attributes dict in place (not a detached copy) to preserve store_chunking.py's post-yield chunk_count mutation while still sanitizing centrally
 - [Phase ?]: 05-11: fixed a real, previously-unenumerated audit leak in store_rebuild.py (resource_id=user_identifier) found live via the plan's own full-surface leak test -- in scope of ARC-07/D-07
+- [Phase ?]: 05-12: mutation-check target for 05-11 revert was store_rebuild.py's resource_id fix (positional _audit() argument, not covered by the key-based sanitize_tenant_attributes choke point) rather than the 6 mixin span-attribute sites, which are already caught centrally even when reverted
+- [Phase ?]: 05-12: ran scripts/e2e_score.py via the documented sys.modules['turingdb'] stub (Windows retained-dependency shim, same pattern as ~47 test files) since turingdb==1.35 has no distribution for this platform -- 19/19 checks, score 10.0, VALIDATED_10_10
 
 ### Pending Todos
 
@@ -216,6 +224,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T07:04:34.652Z
-Stopped at: Completed 05-11-PLAN.md
+Last session: 2026-07-16T07:26:06.365Z
+Stopped at: Completed 05-12-PLAN.md
 Resume file: None
