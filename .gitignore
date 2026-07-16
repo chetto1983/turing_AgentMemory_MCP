@@ -10,7 +10,6 @@ __pycache__/
 dist/
 build/
 *.egg-info/
-.turingdb/
 .benchmarks/
 e2e-results.json
 run.log
