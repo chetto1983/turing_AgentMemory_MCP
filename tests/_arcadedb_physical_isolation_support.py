@@ -23,7 +23,7 @@ if "turingdb" not in sys.modules:
 from turing_agentmemory_mcp.arcadedb_client import ArcadeDBClient
 from turing_agentmemory_mcp.embeddings import HashingEmbedder
 from turing_agentmemory_mcp.entity_extraction import NoopEntityProcessor
-from turing_agentmemory_mcp.governance import NoopAuditSink, NoopRedactor
+from turing_agentmemory_mcp.governance import NoopRedactor
 from turing_agentmemory_mcp.observability import InMemorySpanRecorder
 from turing_agentmemory_mcp.rerank import Scored
 from turing_agentmemory_mcp.store import TuringAgentMemory
@@ -76,6 +76,18 @@ class _IdentityReranker:
         return [Scored(index=index, score=1.0 - index / 1000) for index in range(len(documents))]
 
 
+class _RecordingAuditSink:
+    """Thread-safe audit sink that keeps every event observable (mirrors JsonlAuditSink locking)."""
+
+    def __init__(self) -> None:
+        self.events: list[dict[str, object]] = []
+        self._lock = threading.Lock()
+
+    def record(self, event: dict[str, object]) -> None:
+        with self._lock:
+            self.events.append(event)
+
+
 @dataclass(frozen=True)
 class _LiveEnvironment:
     root: Path
@@ -84,6 +96,8 @@ class _LiveEnvironment:
     provisioner: TenantProvisioner
     shared_dependencies: Any
     router: TenantRouter
+    observer: InMemorySpanRecorder
+    audit_sink: _RecordingAuditSink
 
 
 @dataclass(frozen=True)
@@ -107,6 +121,9 @@ class _PhysicalIsolationProof:
     registry_bytes: bytes = b""
     diagnostic_text: str = ""
     invalid_identity_preserved_state: bool = False
+    span_event_count: int = 0
+    audit_event_count: int = 0
+    telemetry_text: str = ""
 
 
 def _client(database: str = "fixture-control-not-tenant-data") -> ArcadeDBClient:
@@ -193,6 +210,8 @@ def live_environment_context(
         key_fingerprint=tenant_key_fingerprint(_NAMING_KEY),
     )
     registry.initialize()
+    observer = InMemorySpanRecorder()
+    audit_sink = _RecordingAuditSink()
     assembly_store = TuringAgentMemory(
         base_client,
         turing_home=root,
@@ -201,8 +220,8 @@ def live_environment_context(
         reranker=_IdentityReranker(),  # type: ignore[arg-type]
         entity_processor=NoopEntityProcessor(),
         redactor=NoopRedactor(),
-        audit_sink=NoopAuditSink(),
-        observer=InMemorySpanRecorder(),
+        audit_sink=audit_sink,
+        observer=observer,
     )
     shared_dependencies = assembly_store.shared_dependencies()
     provisioner = TenantProvisioner(
@@ -227,6 +246,8 @@ def live_environment_context(
             capacity=16,
             idle_ttl_s=300,
         ),
+        observer=observer,
+        audit_sink=audit_sink,
     )
     try:
         yield environment
@@ -481,6 +502,16 @@ def _run_physical_isolation_contract(
     status_values = [environment.router.runtime_status()]
     status_values.extend(environment.router.tenant_status(tenant) for tenant in _IDENTITY_VARIANTS)
     view_reprs = [repr(environment.router.resolve(tenant)) for tenant in _IDENTITY_VARIANTS]
+
+    span_events = list(environment.observer.events)
+    audit_events = list(environment.audit_sink.events)
+    telemetry_text = json.dumps(
+        {"spans": span_events, "audits": audit_events},
+        ensure_ascii=False,
+        sort_keys=True,
+        default=str,
+    )
+
     diagnostic_text = "\n".join(
         [
             caplog.text,
@@ -489,6 +520,7 @@ def _run_physical_isolation_contract(
             *view_reprs,
             json.dumps(status_values, sort_keys=True, default=str),
             *safe_manifest_text,
+            telemetry_text,
         ]
     )
     return _PhysicalIsolationProof(
@@ -505,4 +537,7 @@ def _run_physical_isolation_contract(
         registry_bytes=_registry_bytes(environment.registry_path),
         diagnostic_text=diagnostic_text,
         invalid_identity_preserved_state=invalid_preserved,
+        span_event_count=len(span_events),
+        audit_event_count=len(audit_events),
+        telemetry_text=telemetry_text,
     )
