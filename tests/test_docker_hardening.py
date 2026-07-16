@@ -44,14 +44,12 @@ GEMMA_URL = (
 
 def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
     app = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-    turingdb = (ROOT / "docker" / "turingdb.Dockerfile").read_text(encoding="utf-8")
     llama = (ROOT / "docker" / "llama-provider.Dockerfile").read_text(encoding="utf-8")
     gliner = (ROOT / "docker" / "gliner-provider.Dockerfile").read_text(encoding="utf-8")
 
-    for dockerfile in (app, turingdb):
-        assert PINNED_PYTHON_RE.search(dockerfile)
-        assert "10001" in dockerfile
-        assert "USER app" in dockerfile
+    assert PINNED_PYTHON_RE.search(app)
+    assert "10001" in app
+    assert "USER app" in app
     assert PINNED_LLAMA_RE.search(llama)
     assert "10001" in llama
     assert "USER app" in llama
@@ -66,12 +64,9 @@ def test_runtime_dockerfiles_pin_base_image_and_run_as_non_root() -> None:
 
 def test_dockerfiles_use_pip_cache_mounts() -> None:
     app = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-    turingdb = (ROOT / "docker" / "turingdb.Dockerfile").read_text(encoding="utf-8")
 
     assert app.count("--mount=type=cache,target=/root/.cache/pip") >= 2
-    assert "--mount=type=cache,target=/root/.cache/pip" in turingdb
     assert "--no-cache-dir" not in app
-    assert "--no-cache-dir" not in turingdb
 
 
 def test_app_dependency_layer_is_not_invalidated_by_documentation_changes() -> None:
@@ -89,16 +84,13 @@ def test_compose_declares_runtime_hardening_controls() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
 
-    for name in ("turingdb", "turing-agentmemory-mcp"):
-        service = services[name]
-        assert service["restart"] == "unless-stopped"
-        assert "healthcheck" in service
-        assert service["security_opt"] == ["no-new-privileges:true"]
-        limits = service["deploy"]["resources"]["limits"]
-        assert limits["cpus"]
-        assert limits["memory"]
-
     app = services["turing-agentmemory-mcp"]
+    assert app["restart"] == "unless-stopped"
+    assert "healthcheck" in app
+    assert app["security_opt"] == ["no-new-privileges:true"]
+    limits = app["deploy"]["resources"]["limits"]
+    assert limits["cpus"]
+    assert limits["memory"]
     assert app["read_only"] is True
     assert {"/tmp", "/run"} <= set(app["tmpfs"])
 
@@ -368,45 +360,6 @@ def test_compose_gates_e2e_harness_behind_an_explicit_profile() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
 
     assert compose["services"]["e2e"]["profiles"] == ["e2e"]
-
-
-def test_compose_repairs_legacy_volume_ownership_before_turingdb_start() -> None:
-    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
-    services = compose["services"]
-
-    init = services["turingdb-volume-init"]
-    assert init["user"] == "0:0"
-    assert init["restart"] == "no"
-    assert init["entrypoint"] == ["/bin/sh", "-c", "chown -R 10001:10001 /turing"]
-
-    turingdb_deps = services["turingdb"]["depends_on"]
-    assert turingdb_deps["turingdb-volume-init"]["condition"] == "service_completed_successfully"
-    assert services["turingdb"]["user"] == "10001:10001"
-
-
-def test_turingdb_startup_cleans_runtime_socket_and_allows_slow_vector_load() -> None:
-    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
-    service = compose["services"]["turingdb"]
-    command = service["command"][0]
-
-    assert "rm -f /turing/turingdb.sock" in command
-    assert "touch /tmp/.turing_history" in command
-    assert "turingdb start -turing-dir /turing -i 0.0.0.0 -p 6666 -demon" in command
-    assert "turingdb stop -turing-dir /turing" in command
-    assert "trap shutdown TERM INT" in command
-    assert "while :; do" in command
-    assert "sleep 3600 &" in command
-    assert "wait $!" in command
-    assert "try_reach" not in command
-    assert "stdin_open" not in service
-    assert "exec turingdb start" not in command
-    assert "-start-timeout" not in command
-    assert "healthcheck" in service
-    assert service["healthcheck"]["retries"] >= 80
-    assert service["deploy"]["resources"]["limits"] == {
-        "cpus": "4.0",
-        "memory": "8g",
-    }
 
 
 def test_compose_serves_agentmemory_lab_frontend_on_local_port() -> None:
