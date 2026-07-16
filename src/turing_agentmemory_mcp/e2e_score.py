@@ -1,25 +1,20 @@
 """Deterministic E2E score gate. `main`/`run_e2e` are the CLI entrypoint and are
 imported unchanged by `scripts/e2e_score.py` and `cli.py` — do not remove them.
 
-Split by concern per D-08/D-09: the in-process stub embed/rerank HTTP servers,
-the local TuringDB daemon wrapper, and the ArcadeDB E2E backend live in
-`e2e_score_stubs.py`; the MCP scenario checks live in `e2e_score_scenarios.py`.
-This module wires them together and owns the top-level run/score/CLI
-orchestration.
+Split by concern per D-08/D-09: the in-process stub embed/rerank HTTP servers
+and the ArcadeDB E2E backend live in `e2e_score_stubs.py`; the MCP scenario
+checks live in `e2e_score_scenarios.py`. This module wires them together and
+owns the top-level run/score/CLI orchestration.
 
-Rewired to ArcadeDB (04-09, scope item D): `run_e2e()` now drives the store
+Rewired to ArcadeDB (04-09, scope item D): `run_e2e()` drives the store
 through `ArcadeE2EBackend` (a dedicated, drop-and-recreate database on the
-already-running `arcadedb` compose service) instead of a local `turingdb` CLI
-daemon — the store has spoken ArcadeDB exclusively since 04-04, so a
-TuringDB-backed harness here would not exercise the real code path at all.
-Requires `docker compose up -d arcadedb` to already be running; the restart
-leg additionally requires `docker`/`docker compose` on PATH and host-level
-control of that service (see `ArcadeE2EBackend.restart_backend_and_wait_ready`).
-`TuringDaemon`/`LocalEmbedServer`/`LocalRerankServer`/`free_port`/`wait_rest`
-stay re-exported unchanged: they are still imported directly from this module
-by the legacy, still-TuringDB-backed `benchmark.py`/`agent_quality_eval.py`
-harnesses (out of this milestone's scope; `turingdb` stays retained for
-Phase 6/7 coexistence, ARC-10).
+already-running `arcadedb` compose service) — the store has spoken ArcadeDB
+exclusively since 04-04. Requires `docker compose up -d arcadedb` to already
+be running; the restart leg additionally requires `docker`/`docker compose`
+on PATH and host-level control of that service (see
+`ArcadeE2EBackend.restart_backend_and_wait_ready`).
+`LocalEmbedServer`/`LocalRerankServer`/`free_port` stay re-exported unchanged
+as this module's public import path.
 """
 
 from __future__ import annotations
@@ -32,17 +27,13 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from turingdb import __version__ as turingdb_version
-
 from turing_agentmemory_mcp.e2e_score_scenarios import check, run_mcp_checks
 from turing_agentmemory_mcp.e2e_score_stubs import (  # noqa: F401 - preserved public import path
     ARCADEDB_E2E_IMAGE,
     ArcadeE2EBackend,
     LocalEmbedServer,
     LocalRerankServer,
-    TuringDaemon,
     free_port,
-    wait_rest,
 )
 from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.rerank import truncate_runes
@@ -168,11 +159,6 @@ def run_e2e(out: Path) -> dict[str, Any]:
         "check_count": len(checks),
         "backend": "arcadedb",
         "arcadedb_image": ARCADEDB_E2E_IMAGE,
-        # Kept for baseline/03-turingdb field-shape parity (Phase-6
-        # diffability, scope item D) -- turingdb stays an installed, retained
-        # dependency (ARC-10) even though the store itself no longer connects
-        # through it.
-        "turingdb_version": turingdb_version,
         "checks": checks,
         "cleanup": cleanup,
     }

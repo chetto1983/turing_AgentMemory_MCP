@@ -1,14 +1,10 @@
-"""In-process stub embed/rerank HTTP servers, the local TuringDB daemon
-wrapper, and the ArcadeDB E2E backend used by the deterministic E2E score
-gate (`e2e_score.py`) and the legacy synthetic benchmark harness
-(`benchmark.py`/`agent_quality_eval.py`, both still TuringDB-backed and out
-of this milestone's scope -- `turingdb` stays retained for Phase 6/7
-coexistence per ARC-10).
+"""In-process stub embed/rerank HTTP servers and the ArcadeDB E2E backend
+used by the deterministic E2E score gate (`e2e_score.py`).
 
-`ArcadeE2EBackend` (04-09) is the ArcadeDB counterpart of `TuringDaemon`,
-added for `e2e_score.py`'s own ArcadeDB-backed rewire -- see its own
-docstring for why it connects to the EXISTING `arcadedb` compose service
-rather than spawning its own container.
+`ArcadeE2EBackend` (04-09) connects to the already-running `arcadedb`
+compose service for the E2E score gate's own ArcadeDB-backed rewire -- see
+its own docstring for why it reuses the existing service rather than
+spawning its own container.
 """
 
 from __future__ import annotations
@@ -20,10 +16,7 @@ import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from typing import Any
-
-from turingdb import TuringDB
 
 from turing_agentmemory_mcp.arcadedb_client import ArcadeDBClient
 from turing_agentmemory_mcp.embeddings import HashingEmbedder
@@ -36,20 +29,6 @@ def free_port() -> int:
     port = int(sock.getsockname()[1])
     sock.close()
     return port
-
-
-def wait_rest(port: int, timeout_s: float = 30.0) -> None:
-    deadline = time.time() + timeout_s
-    client = TuringDB(type="json", host=f"http://127.0.0.1:{port}")
-    last_error: Exception | None = None
-    while time.time() < deadline:
-        try:
-            client.try_reach(timeout=2)
-            return
-        except Exception as exc:
-            last_error = exc
-            time.sleep(0.5)
-    raise RuntimeError(f"TuringDB did not become ready on {port}: {last_error}")
 
 
 class LocalEmbedServer:
@@ -168,59 +147,6 @@ class LocalRerankServer:
             self.thread.join(timeout=5)
 
 
-class TuringDaemon:
-    def __init__(self, home: Path) -> None:
-        self.home = home
-        self.port = free_port()
-        self.log_path = home / "server.log"
-        self.proc: subprocess.Popen[bytes] | None = None
-
-    def start(self) -> None:
-        self.home.mkdir(parents=True, exist_ok=True)
-        (self.home / "data").mkdir(parents=True, exist_ok=True)
-        log = self.log_path.open("ab")
-        self.proc = subprocess.Popen(
-            [
-                "turingdb",
-                "start",
-                "-turing-dir",
-                str(self.home),
-                "-i",
-                "127.0.0.1",
-                "-p",
-                str(self.port),
-                "-demon",
-                "-start-timeout",
-                "5000",
-            ],
-            stdout=log,
-            stderr=subprocess.STDOUT,
-        )
-        log.close()
-        wait_rest(self.port)
-
-    def stop(self) -> dict[str, Any]:
-        if not self.home.exists():
-            return {"stopped": False}
-        with self.log_path.open("ab") as log:
-            proc = subprocess.run(
-                ["turingdb", "stop", "-turing-dir", str(self.home), "-timeout", "5000"],
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                timeout=30,
-            )
-        if self.proc is not None and self.proc.poll() is None:
-            self.proc.terminate()
-            try:
-                self.proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.proc.kill()
-        return {"stopped": proc.returncode == 0, "returncode": proc.returncode}
-
-    def client(self) -> TuringDB:
-        return TuringDB(type="json", host=f"http://127.0.0.1:{self.port}")
-
-
 ARCADEDB_E2E_DATABASE = "e2e_agent_memory"
 ARCADEDB_E2E_IMAGE = "arcadedata/arcadedb:26.7.1"
 
@@ -239,9 +165,8 @@ class ArcadeE2EBackend:
     stack shares.
 
     A dedicated, isolated database (`ARCADEDB_E2E_DATABASE`) is dropped and
-    recreated on `start()` for a clean slate (the same guarantee
-    `shutil.rmtree(home)` gave the retired `TuringDaemon` path), so repeated
-    runs never see stale data from a previous run.
+    recreated on `start()` for a clean slate, so repeated runs never see
+    stale data from a previous run.
     """
 
     def __init__(self) -> None:
