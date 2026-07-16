@@ -59,9 +59,8 @@ python -m venv .venv
   (also `http`/`sse` with `--host`/`--port`).
 
 The console entrypoint `turing-agentmemory-mcp` (see `cli.py`) also dispatches
-`file-pipe`, `e2e-score`, `agent-quality-eval`, `utcp-manual`, `lab`, and
-`repair-vector-index`. E2E stack requires an NVIDIA GPU visible to Docker for the
-default CUDA embed/rerank sidecars.
+`file-pipe`, `e2e-score`, `utcp-manual`, and `lab`. E2E stack requires an NVIDIA
+GPU visible to Docker for the default CUDA embed/rerank sidecars.
 
 ## Architecture
 
