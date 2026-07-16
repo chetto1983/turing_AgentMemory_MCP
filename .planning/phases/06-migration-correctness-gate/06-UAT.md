@@ -1,44 +1,73 @@
 ---
-status: testing
+status: complete
 phase: 06-migration-correctness-gate
 source: [06-VERIFICATION.md]
 started: 2026-07-16T11:03:38Z
-updated: 2026-07-16T11:03:38Z
+updated: 2026-07-16T11:43:08Z
 ---
 
 ## Current Test
 
-number: 1
-name: GPU-backed capture authenticity
-expected: |
-  The GPU-backed real-provider captures (baseline/06-gate/e2e-results.json and
-  real-document-benchmark-run{1,2,3}.json) are genuine measurements from an actual
-  NVIDIA-GPU Docker run against the real granite-embedding / BGE-reranker sidecars
-  and the exact sha256-verified D:/tmp/baseline-corpus — not fabricated or hand-edited
-  JSON. The capture-provider-env.txt narrative (stale-image rebuild, tenant-naming-key
-  generation, MSYS path-conversion workaround) matches what actually happened; the raw
-  JSON is the direct, unedited output of `docker compose run --rm e2e` and
-  `real_document_benchmark.py`.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
 ### 1. GPU-backed capture authenticity
 expected: The captures are genuine real-hardware, real-provider ArcadeDB measurements (non-stub sidecar hostnames, sha256-verified corpus, check #13's real IndexError→pass flip, N=3 run-to-run variance), not hand-crafted artifacts.
-note: The orchestrator directly observed this capture live during this session — GPU stack containers running (embed/rerank/gliner/arcadedb/mcp healthy), GPU at 88–100% during active inference, 500+ MCP tool-calls per 3-min window, and it re-ran all three benchmark runs itself at the orchestrator level after the executor's backgrounded run was orphaned. Strong first-hand evidence of authenticity; formal human sign-off still requested before the irreversible Phase-7 removal.
-result: [pending]
+result: pass
+source: reproduced-live
+evidence: |
+  Independently reproduced against the live GPU stack during this UAT session (not
+  a static read of the committed JSON):
+  - GPU present: NVIDIA RTX A2000 Laptop, 4096 MiB — matches capture-provider-env.txt exactly.
+  - Fresh 4th benchmark run (benchmark_id real-documents-direct-mcp-20260716T113526Z,
+    11:35:26→11:39:49Z) produced full-corpus mrr_at_20=0.6953 / recall_at_1=0.60 /
+    recall_at_20=0.8667 / latency_mean=3324ms / 60 questions / 0 search errors — lands
+    inside the committed run1/2/3 band (0.6787/0.6787/0.6955) and matches run3 almost exactly.
+  - GPU genuinely inferring during the fresh run: 20s dmon trace showed SM bursts of
+    82/75/87/79/88% then idle between batches — the real granite-embed + BGE-rerank +
+    GLiNER inference signature, matching the "88–100% during active inference" narrative.
+  - Corpus sha256: all 12 files byte-identical to baseline/03-turingdb/corpus-manifest.json,
+    zero drift, zero missing — independently reproduces the gate's D-11 pre-flight.
+  - Provider config non-stub: sidecar hostnames agentmemory-embed:8080 / agentmemory-rerank:8080
+    (not 127.0.0.1); all sidecars healthy.
+  - Committed runs show genuine-measurement hallmarks: sequential back-to-back timestamps
+    (~4 min each), real latency noise between runs, a real 8033ms outlier in run3, and a
+    run3 metric flip on the DPR-156 decree (mrr 0.70→0.90) — not hand-copied values.
+  Verified by the orchestrator directly this session; no dependence on the prior (cleared) session.
 
 ### 2. GATE.md honest-narration read-through
-expected: Reading baseline/06-gate/GATE.md end-to-end confirms the verdict + rationale are honest — the port is graded against the D-01 bug-corrected 7-doc bar (0.5979 / 0.5143 / 0.7714), NOT the deflated full-corpus aggregate; the per-document diff is complete; deviations (GLiNER-on, latency volume-bloat confound, D-05 already-fixed-at-HEAD, check-name rename) are disclosed; and reproduction commands use the correct per-script flags (--out for e2e_score.py, --output for real_document_benchmark.py). Every figure matches gate-result.json exactly (already cross-checked mechanically in verification).
-result: [pending]
+expected: GATE.md's verdict + rationale are honest — graded against the bug-corrected 7-doc bar (not the deflated full-corpus aggregate), complete per-document diff, disclosed deviations (GLiNER-on, latency volume-bloat confound, D-05 already-fixed, check-name rename), correct per-script repro flags (--out for e2e_score.py, --output for real_document_benchmark.py).
+result: pass
+source: read-through + code + user domain confirmation
+evidence: |
+  Read GATE.md end-to-end; every figure matches gate-result.json; deviations disclosed;
+  repro flags correct (--out vs --output, explicitly warned not to conflate).
+  One caveat examined and resolved: the aggregate table's port_mean (mrr 0.6843, +0.0863
+  margin) is the full-12-doc N=3 mean, compared against the 7-doc baseline bar (0.5979).
+  A same-subset (7-doc) comparison shows the port TIES the baseline (mrr +0.0004,
+  recall_at_1 +0.0000, recall_at_20 +0.0000). This is NOT dishonesty:
+  - It is the LOCKED D-01 design ("grade the port's full corpus against the baseline's
+    working 7-doc quality... credits the port for fixing the bug"), disclosed in GATE.md's
+    header ("full-corpus retrieval quality clears the 7-doc bar").
+  - The 7-doc tie is EXPECTED because document_search is legacy dense+lexical+rerank RAG
+    (blend_hybrid_score → _rerank_documents in store_documents.py) — it consumes no
+    entity/graph/community channel, so GLiNER/entity extraction does not affect it (D-06).
+    The bug-unaffected docs therefore retrieve identically to the TuringDB baseline.
+  - The port's real lift is the 5 normattiva docs recovering 0.0→~0.8 (the document_id-length
+    bug fix), credited per D-01 and shown separately as normattiva_evidence.
+  Verdict GO is robust: it holds under both the D-01 full-corpus framing AND the honest
+  same-subset framing (0.5983≥0.5800, 0.5143≥0.4989, 0.7714≥0.7483 all clear the 3% floor).
 
 ## Summary
 
 total: 2
-passed: 0
+passed: 2
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+[none]
