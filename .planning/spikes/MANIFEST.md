@@ -37,6 +37,17 @@ Design decisions that emerge from spiking (non-negotiable for a real build).
   server-side fusion; the graph channel stays a MATCH feeding the Python RRF.
 - Every channel fused via `fuse_rankings` must agree on candidate identity
   `(candidate_id, kind, content, source_memory_id, ...)` (002).
+- **A doc graph channel adds ~0 lift on the current yardstick** (003): the frozen
+  questions are single-passage grounded lookups that dense+lexical+rerank already
+  nail (MRR@20 0.767, 0/15 improved). Its value is a DISTINCT capability (multi-hop
+  / entity-bridged), so any build must be gated on a NEW multi-hop eval, not this one.
+- **Italian NER is adequate on the current `gliner2-base` model** (003): 9.8
+  entities/chunk of real Italian terms. The `gliner_multi-v2.1` swap (a sidecar
+  rewrite: v2.1/transformers.js ONNX ≠ fast_gliner/gliner2) is deferred — no
+  evidence of need. GPU sidecar = a separate ingestion-perf concern.
+- **Fix-on-touch gaps in existing code:** ingest runs GLiNER on whole-document text
+  → HTTP 400 on large docs (TEST-08, 003); `temporal_graph.py:137` `(type,name)`
+  entity keying fragments the graph (001).
 
 ## Spikes
 
@@ -44,4 +55,4 @@ Design decisions that emerge from spiking (non-negotiable for a real build).
 |---|------|------|-----------|---------|------|
 | 001 | doc-entity-graph-substrate | standard | Chunk→Entity `MENTIONS` extraction + cross-doc SQL traversal on live ArcadeDB | ✓ VALIDATED | graph, arcadedb, gliner |
 | 002 | doc-graph-channel-fusion | standard | Entity-anchored graph channel fused into document_search (Python RRF vs native `vector.fuse`) | ✓ VALIDATED | fusion, retrieval, arcadedb |
-| 003 | doc-graphrag-quality-signal | standard | Lift vs the dense+lexical+rerank baseline on the frozen 60-question yardstick | PENDING | benchmark, quality |
+| 003 | doc-graphrag-quality-signal | standard | Lift vs the dense+lexical+rerank baseline on the frozen-question yardstick | ⚠ PARTIAL | benchmark, quality, italian |

@@ -1,0 +1,259 @@
+{
+  "spike": "003-doc-graphrag-quality-signal",
+  "subset": [
+    "Corso Base Robot.docx",
+    "apprendimento_automatico_wikipedia.html",
+    "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf"
+  ],
+  "ingest": {
+    "docs": [
+      {
+        "file": "Corso Base Robot.docx",
+        "status": "ok",
+        "chars": 1752
+      },
+      {
+        "file": "apprendimento_automatico_wikipedia.html",
+        "status": "ok",
+        "chars": 80000
+      },
+      {
+        "file": "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf",
+        "status": "ok",
+        "chars": 80000
+      }
+    ],
+    "total_chunks": 167
+  },
+  "link": {
+    "entities": 1143,
+    "mentions_edges": 1637,
+    "avg_entities_per_chunk": 9.8,
+    "entity_sample": [
+      "/wiki/speciale%3apaginacasuale",
+      "aiuto",
+      "albero di decisione",
+      "apprendimento profondo",
+      "apprendimento+automatico",
+      "approcci",
+      "arco",
+      "attiva/disattiva",
+      "baricentro",
+      "cella robotizzata",
+      "cerchio",
+      "clustering",
+      "comunit\u00e0",
+      "data mining e apprendimento automatico",
+      "frame",
+      "generalit\u00e0",
+      "il wikipediano",
+      "index.php",
+      "it",
+      "movimenti del robot",
+      "payload",
+      "plc",
+      "portale comunit\u00e0",
+      "programmazione",
+      "raccordi tra i punti",
+      "robot",
+      "safety",
+      "safety option",
+      "simulatori",
+      "singolarit\u00e0",
+      "spazi logici",
+      "spazio",
+      "tcp",
+      "tip and tricks",
+      "tool",
+      "tpc",
+      "ultime modifiche",
+      "velocit\u00e0",
+      "vetrina",
+      "wikipedia"
+    ]
+  },
+  "question_count": 15,
+  "metrics": {
+    "production": {
+      "question_count": 15,
+      "search_error_count": 0,
+      "mrr_at_20": 0.7666666666666667,
+      "recall_at_k": {
+        "1": 0.7333333333333333,
+        "5": 0.8,
+        "20": 0.8
+      },
+      "latency_ms": {
+        "mean": 1547.283208333829,
+        "max": 2441.545164998388
+      },
+      "documents": {
+        "Corso Base Robot.docx": {
+          "question_count": 5,
+          "search_error_count": 0,
+          "mrr_at_20": 1.0,
+          "recall_at_k": {
+            "1": 1.0,
+            "5": 1.0,
+            "20": 1.0
+          },
+          "latency_ms": {
+            "mean": 1682.721540199418,
+            "max": 2441.545164998388
+          }
+        },
+        "apprendimento_automatico_wikipedia.html": {
+          "question_count": 5,
+          "search_error_count": 0,
+          "mrr_at_20": 0.6,
+          "recall_at_k": {
+            "1": 0.6,
+            "5": 0.6,
+            "20": 0.6
+          },
+          "latency_ms": {
+            "mean": 1565.85454060114,
+            "max": 1814.3839180011128
+          }
+        },
+        "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf": {
+          "question_count": 5,
+          "search_error_count": 0,
+          "mrr_at_20": 0.7,
+          "recall_at_k": {
+            "1": 0.6,
+            "5": 0.8,
+            "20": 0.8
+          },
+          "latency_ms": {
+            "mean": 1393.2735442009289,
+            "max": 1834.3392650021997
+          }
+        }
+      }
+    },
+    "fused_base": {
+      "question_count": 15,
+      "search_error_count": 0,
+      "mrr_at_20": 0.7666666666666667,
+      "recall_at_k": {
+        "1": 0.7333333333333333,
+        "5": 0.8,
+        "20": 0.8
+      },
+      "latency_ms": {
+        "mean": 1371.8503288000647,
+        "max": 1611.247333999927
+      },
+      "documents": {
+        "Corso Base Robot.docx": {
+          "question_count": 5,
+          "search_error_count": 0,
+          "mrr_at_20": 1.0,
+          "recall_at_k": {
+            "1": 1.0,
+            "5": 1.0,
+            "20": 1.0
+          },
+          "latency_ms": {
+            "mean": 1432.858473599481,
+            "max": 1611.247333999927
+          }
+        },
+        "apprendimento_automatico_wikipedia.html": {
+          "question_count": 5,
+          "search_error_count": 0,
+          "mrr_at_20": 0.6,
+          "recall_at_k": {
+            "1": 0.6,
+            "5": 0.6,
+            "20": 0.6
+          },
+          "latency_ms": {
+            "mean": 1301.2517729999672,
+            "max": 1562.8422849986237
+          }
+        },
+        "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf": {
+          "question_count": 5,
+          "search_error_count": 0,
+          "mrr_at_20": 0.7,
+          "recall_at_k": {
+            "1": 0.6,
+            "5": 0.8,
+            "20": 0.8
+          },
+          "latency_ms": {
+            "mean": 1381.440739800746,
+            "max": 1458.6645150011464
+          }
+        }
+      }
+    },
+    "fused_graph": {
+      "question_count": 15,
+      "search_error_count": 0,
+      "mrr_at_20": 0.7666666666666667,
+      "recall_at_k": {
+        "1": 0.7333333333333333,
+        "5": 0.8,
+        "20": 0.8
+      },
+      "latency_ms": {
+        "mean": 1516.5346788002353,
+        "max": 2088.343690000329
+      },
+      "documents": {
+        "Corso Base Robot.docx": {
+          "question_count": 5,
+          "search_error_count": 0,
+          "mrr_at_20": 1.0,
+          "recall_at_k": {
+            "1": 1.0,
+            "5": 1.0,
+            "20": 1.0
+          },
+          "latency_ms": {
+            "mean": 1593.861570799345,
+            "max": 1928.7617989975843
+          }
+        },
+        "apprendimento_automatico_wikipedia.html": {
+          "question_count": 5,
+          "search_error_count": 0,
+          "mrr_at_20": 0.6,
+          "recall_at_k": {
+            "1": 0.6,
+            "5": 0.6,
+            "20": 0.6
+          },
+          "latency_ms": {
+            "mean": 1544.4658276013797,
+            "max": 2088.343690000329
+          }
+        },
+        "normattiva_DECRETO DEL PRESIDENTE DELLA REPUBBLICA_19730329_156_1973-05-03_073U0156_VIGENZA_2026-02-10_V0.pdf": {
+          "question_count": 5,
+          "search_error_count": 0,
+          "mrr_at_20": 0.7,
+          "recall_at_k": {
+            "1": 0.6,
+            "5": 0.8,
+            "20": 0.8
+          },
+          "latency_ms": {
+            "mean": 1411.2766379999812,
+            "max": 1768.563900001027
+          }
+        }
+      }
+    }
+  },
+  "graph_lift": {
+    "fused_base_mrr20": 0.7666666666666667,
+    "fused_graph_mrr20": 0.7666666666666667,
+    "delta_mrr20": 0.0,
+    "questions_improved": 0,
+    "questions_regressed": 0
+  }
+}
