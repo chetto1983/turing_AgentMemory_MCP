@@ -24,15 +24,6 @@ def main() -> int:
     score = sub.add_parser("e2e-score", help="Run deterministic 10/10 E2E score")
     score.add_argument("--out", default="e2e-results.json")
 
-    quality = sub.add_parser(
-        "agent-quality-eval", help="Run real-agent memory/document retrieval eval"
-    )
-    quality.add_argument("--aura-root", default=r"D:\Aura")
-    quality.add_argument("--out", default=None)
-    quality.add_argument("--keep-home", action="store_true")
-    quality.add_argument("--use-external-embed", action="store_true")
-    quality.add_argument("--use-external-rerank", action="store_true")
-
     manual = sub.add_parser("utcp-manual", help="Print a UTCP manual for this MCP server")
     manual.add_argument("--server-name", default=None)
     manual.add_argument("--command-json", default=None)
@@ -41,14 +32,6 @@ def main() -> int:
     lab.add_argument("--host", default="127.0.0.1")
     lab.add_argument("--port", type=int, default=8096)
     lab.add_argument("--benchmark-dir", default=None)
-
-    repair = sub.add_parser(
-        "repair-vector-index",
-        help="Quarantine a corrupt TuringDB vector directory and recreate an empty one",
-    )
-    repair.add_argument("--turing-home", default="/turing")
-    repair.add_argument("--timestamp", default=None)
-    repair.add_argument("--apply", action="store_true")
 
     args = parser.parse_args()
     if args.command == "serve":
@@ -71,21 +54,6 @@ def main() -> int:
         result = run_e2e(Path(args.out))
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0 if result.get("score") == 10.0 else 1
-    if args.command == "agent-quality-eval":
-        from turing_agentmemory_mcp.agent_quality_eval import (
-            default_agent_quality_out,
-            run_agent_quality_eval,
-        )
-
-        result = run_agent_quality_eval(
-            aura_root=Path(args.aura_root),
-            out=Path(args.out) if args.out else default_agent_quality_out(),
-            keep_home=args.keep_home,
-            use_external_embed=args.use_external_embed,
-            use_external_rerank=args.use_external_rerank,
-        )
-        print(json.dumps(result, indent=2, sort_keys=True))
-        return 0 if result["summary"]["verdict"] == "VALIDATED_AGENT_QUALITY" else 1
     if args.command == "utcp-manual":
         if args.server_name is None and args.command_json is None:
             manual_json = utcp_manual_from_env()
@@ -104,16 +72,6 @@ def main() -> int:
         from turing_agentmemory_mcp.lab import run_lab
 
         run_lab(host=args.host, port=args.port, benchmark_dir=args.benchmark_dir)
-        return 0
-    if args.command == "repair-vector-index":
-        from turing_agentmemory_mcp.admin_repair import repair_vector_index
-
-        result = repair_vector_index(
-            Path(args.turing_home),
-            timestamp=args.timestamp,
-            apply=args.apply,
-        )
-        print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     return 2
 
