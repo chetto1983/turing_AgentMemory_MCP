@@ -28,7 +28,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [x] **ARC-07**: One ArcadeDB database per tenant for physical isolation, with app-layer `user_identifier` scoping still mandatory on every query (invariant #1)
 - [x] **ARC-08**: Stable/deterministic IDs preserved across the port (invariant #3); no vector-ID drift
 - [x] **ARC-09**: Migration-correctness gate — the ported ArcadeDB code meets-or-exceeds the ARC-01 baseline (HARD exit criterion; nothing downstream proceeds until it passes)
-- [x] **ARC-10**: TuringDB removed from the codebase and Compose stack; CLAUDE.md invariants updated (ArcadeDB canonical, invariant #2 superseded)
+- [ ] **ARC-10**: TuringDB removed from the codebase and Compose stack; CLAUDE.md invariants updated (ArcadeDB canonical, invariant #2 superseded)
 
 ### Tech-Debt & Bug Fixes (FIX) — Thrust 2 concerns
 
@@ -139,7 +139,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | ARC-07 | Phase 5 | Complete |
 | ARC-08 | Phase 4 | Complete |
 | ARC-09 | Phase 6 | Complete |
-| ARC-10 | Phase 7 | Complete |
+| ARC-10 | Phase 7 | Pending |
 | FIX-01 | Phase 8 | Pending |
 | FIX-02 | Phase 8 | Pending |
 | FIX-03 | Phase 8 | Pending |
