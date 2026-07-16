@@ -88,6 +88,12 @@ The default Compose stack runs the revision-pinned GLiNER2 ONNX sidecar on CPU.
 Entity, fact, temporal, and Leiden community records are derived but remain in
 the same tenant database and carry the same tenant predicate.
 
+`_StoreCore._span` and `_StoreCore._audit` are the central sanitizing choke
+points for store telemetry: every attribute dict and audit event passes
+through `tenant_binding.sanitize_tenant_attributes` before reaching the
+shared observer or audit sink, so tenant identity cannot reach either one
+regardless of what an individual mixin call site passes.
+
 ## Asynchronous Document Pipeline
 
 File ingestion separates request latency from conversion and indexing:
@@ -145,10 +151,14 @@ bind a token to one tenant. A production gateway must derive or validate the
 identifier; model output must never select it. Retrieved text is untrusted
 evidence and cannot gain instruction priority when it re-enters an agent prompt.
 
-Logs, status, registry records, and provisioning errors expose opaque database
-names and key fingerprints for operator correlation, not raw tenant identifiers.
-An operator who already knows an exact identifier can compute its expected
-database name locally with the deployment key.
+Logs, status, registry records, provisioning errors, observability spans, and
+audit events expose opaque database names and key fingerprints for operator
+correlation, not raw tenant identifiers. Store telemetry carries the opaque
+`tenant_database` correlation (the bound tenant's database name) in place of
+the raw `user_identifier`; an unbound store omits tenant identity entirely
+rather than falling back to it. An operator who already knows an exact
+identifier can compute its expected database name locally with the
+deployment key.
 
 ## Deployment Boundaries
 

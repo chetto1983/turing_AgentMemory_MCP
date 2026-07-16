@@ -47,6 +47,16 @@ after the first stable release; pre-1.0 releases may change interfaces.
   span, so a rejected foreign identifier emits zero telemetry. A static
   catalog test (`test_every_public_store_method_requires_user`) fails if a
   future public method omits the guard.
+- ARC-07 gap closure: `_StoreCore._span` and `_audit` now sanitize every
+  attribute dict and audit event through `tenant_binding.sanitize_tenant_attributes`
+  before it reaches the shared observer or audit sink -- store spans and
+  audit events now carry the opaque `tenant_database` correlation instead of
+  the raw `user_identifier`, and an unbound store omits tenant identity
+  entirely. **Consumer-visible contract change:** audit events no longer
+  include a `user_identifier` field; a caller that previously read it should
+  read the opaque `tenant_database` correlation instead (present only for a
+  bound store). `operation`, `resource_type`, `resource_id`, `success`, and
+  `details` are unchanged.
 
 ### Fixed
 
