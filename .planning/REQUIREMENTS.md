@@ -73,8 +73,8 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 
 ### Dependencies (DEP) — Thrust 2 concerns
 
-- [ ] **DEP-01**: Version-gate `graspologic-native` with automated compatibility testing before upgrades
-- [ ] **DEP-02**: Version-gate `fastmcp` (compatibility shim / version-gated tool features)
+- [x] **DEP-01**: Version-gate `graspologic-native` with automated compatibility testing before upgrades
+- [x] **DEP-02**: Version-gate `fastmcp` (compatibility shim / version-gated tool features)
 
 ### CI & Git Hooks (CI) — Thrust 3
 
@@ -166,8 +166,8 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | TEST-06 | Phase 8 | Pending |
 | TEST-07 | Phase 9 | Pending |
 | TEST-08 | Phase 9 | Pending |
-| DEP-01 | Phase 7 | Pending |
-| DEP-02 | Phase 7 | Pending |
+| DEP-01 | Phase 7 | Complete |
+| DEP-02 | Phase 7 | Complete |
 | CI-01 | Phase 1 | Complete |
 | CI-02 | Phase 1 | Complete |
 | CI-03 | Phase 1 | Complete |
