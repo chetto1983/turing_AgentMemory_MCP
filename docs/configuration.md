@@ -37,7 +37,7 @@ on the `arcadedb-data` named volume.
 | Variable | Compose default | Purpose |
 |---|---|---|
 | `AGENTMEMORY_TENANT_NAMING_KEY` | required, no fallback | Strict-base64 HMAC key containing at least 32 decoded bytes. |
-| `AGENTMEMORY_TENANT_REGISTRY_PATH` | `/turing/data/agent-memory-tenant-registry.sqlite3` | Durable pseudonymous lifecycle registry. |
+| `AGENTMEMORY_TENANT_REGISTRY_PATH` | `/bertoni/data/agent-memory-tenant-registry.sqlite3` | Durable pseudonymous lifecycle registry. |
 | `AGENTMEMORY_TENANT_CACHE_CAPACITY` | `128` | Maximum immutable tenant views retained by the local LRU. |
 | `AGENTMEMORY_TENANT_CACHE_IDLE_TTL_SECONDS` | `900` | Idle seconds before a cached view is evicted. |
 | `AGENTMEMORY_TENANT_PROVISION_ATTEMPTS` | `3` | Bounded first-use provisioning attempts. |
@@ -61,10 +61,9 @@ Cache capacity and TTL bound only local view reuse. Eviction never drops or
 closes a tenant database. Retry counts and backoffs must remain finite; raising
 them increases first-request latency during an outage.
 
-The legacy names `TURINGDB_HOME` and `TURINGDB_GRAPH` currently supply the
-application-state root (`/turing`) and default ArcadeDB index-name prefix.
-`TURINGDB_URL` and `TURINGDB_*_INDEX` remain in Compose for transitional
-coexistence but are not the canonical tenant-store connection or index settings.
+`BERTONI_HOME` (default `/bertoni`) supplies the application-state root, and
+`AGENTMEMORY_GRAPH` (default `agent_memory`) supplies the graph telemetry label
+and default ArcadeDB index-name prefix.
 
 ## Registry Backup and Recovery
 
@@ -154,8 +153,8 @@ Leiden controls are `AGENTMEMORY_LEIDEN_SEED`,
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AGENTMEMORY_DOCUMENT_JOB_PATH` | `/turing/data/agent-memory-document-jobs.sqlite3` | Durable tenant-scoped queue. |
-| `AGENTMEMORY_DOCUMENT_STAGING_ROOT` | `/turing/data/document-ingest` | Durable staged files. |
+| `AGENTMEMORY_DOCUMENT_JOB_PATH` | `/bertoni/data/agent-memory-document-jobs.sqlite3` | Durable tenant-scoped queue. |
+| `AGENTMEMORY_DOCUMENT_STAGING_ROOT` | `/bertoni/data/document-ingest` | Durable staged files. |
 | `AGENTMEMORY_DOCUMENT_JOB_LEASE_SECONDS` | `900` | Claim lifetime without heartbeat. |
 | `AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS` | `15` | Lease renewal cadence. |
 | `AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS` | `1` | Idle worker cadence. |

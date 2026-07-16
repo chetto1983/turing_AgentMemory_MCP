@@ -14,7 +14,7 @@ On 2026-07-11, a fresh MCP client called the actual remote MCP tools:
 5. Poll `document_ingest_status` every 10 seconds.
 6. After `succeeded`, call `document_search` immediately without restarting MCP.
 
-The stack used TuringDB locally, PDFium page extraction, 768-dimensional
+The stack used ArcadeDB locally, PDFium page extraction, 768-dimensional
 embeddings, and the provider identities reported by runtime health:
 `qwen/qwen3-embedding-4b` for embedding and `cohere/rerank-4-pro` for reranking.
 Network and provider conditions are part of these observations. Host CPU and RAM

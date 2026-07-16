@@ -1,6 +1,6 @@
 # turing_AgentMemory_MCP
 
-TuringDB-backed Agent Memory MCP server with provider-agnostic embedding and
+ArcadeDB-backed Agent Memory MCP server with provider-agnostic embedding and
 rerank integrations, memory lifecycle tools, document ingest, and cited
 retrieval.
 
@@ -46,11 +46,11 @@ revision-pinned model files; later starts reuse Docker model-cache volumes.
   `document_ingest_text`, `document_ingest_file`, `document_reindex_text`,
   `document_ingest_status`, `document_ingest_cancel`, `document_ingest_retry`,
   `document_delete`, `document_search`.
-- TuringDB graph edges for ownership and context:
+- ArcadeDB graph edges for ownership and context:
   `(:User)-[:HAS_MEMORY]->(:Memory)`,
   `(:User)-[:HAS_DOCUMENT]->(:Document)-[:HAS_CHUNK]->(:Chunk)`,
   `(:Chunk)-[:NEXT_CHUNK]->(:Chunk)`.
-- TuringDB vector indexes for memory and chunk retrieval.
+- ArcadeDB native `LSM_VECTOR` HNSW indexes for memory and chunk retrieval.
 - Identity scope is explicit on every read/write through `user_identifier`.
 - OpenAI-compatible retrieval provider path:
   embeddings at `EMBED_BASE_URL` for `EMBED_DIMENSIONS`-dimensional vectors,
@@ -71,8 +71,8 @@ revision-pinned model files; later starts reuse Docker model-cache volumes.
 
 ## Why It Is A Separate Repo
 
-Neo4j-style memory packages and TuringDB expose different graph/vector behavior.
-This repo is a clean TuringDB-native MCP instead of a compatibility shim for one
+Neo4j-style memory packages and ArcadeDB expose different graph/vector behavior.
+This repo is a clean ArcadeDB-native MCP instead of a compatibility shim for one
 upstream memory implementation or one model provider.
 
 ## Verify With Docker
@@ -82,10 +82,12 @@ docker compose build
 docker compose run --rm e2e
 ```
 
-The MCP service expects a TuringDB daemon reachable at `TURINGDB_URL` and a
-shared TuringDB home mounted at `TURINGDB_HOME`. TuringDB currently loads vectors
-from server-side CSV files, so the MCP container and database container share the
-same `/turing` volume.
+The MCP service expects an ArcadeDB server reachable at `ARCADEDB_URL`.
+ArcadeDB's native `LSM_VECTOR` HNSW index and Lucene full-text serve vector and
+lexical retrieval directly from the database, so there is no server-side CSV
+vector loading and no shared volume requirement between the MCP and database
+containers. The MCP container's own app-state (document job queue, staging,
+tenant registry, audit/span JSONL) is mounted at `/bertoni` via `BERTONI_HOME`.
 
 ## Document Processing
 
@@ -114,8 +116,8 @@ Use `document_ingest_cancel` for queued or running work and
 `document_ingest_retry` for a failed job whose staged file remains available.
 Cancellation of running work is cooperative at conversion/indexing boundaries.
 Jobs, leases, attempts, and staged files survive MCP process restarts under
-`/turing/data`; workers renew their leases on a health cadence while provider or
-TuringDB calls are in progress.
+`/bertoni/data`; workers renew their leases on a health cadence while provider or
+ArcadeDB calls are in progress.
 
 For a remote/container MCP, the local `turing_agentmemory_mcp.file_pipe` proxy
 keeps the same `document_ingest_file` tool name. It allowlists host roots,
@@ -146,51 +148,40 @@ privileges hardening as the MCP service.
 
 ## Backup And Restore
 
-The durable state lives in the named `turing-data` volume. Stop writers before a
-backup when you need a point-in-time snapshot:
+The MCP's own app-state (job queue, staging, tenant registry, audit/span JSONL)
+lives in the named `bertoni-data` volume. ArcadeDB's canonical graph and vector
+data lives separately in the `arcadedb-data` volume; back up both for a complete
+recovery point, and stop writers before a point-in-time snapshot:
 
 ```powershell
-docker compose stop turing-agentmemory-mcp turingdb
-docker run --rm -v turing-agentmemory-mcp_turing-data:/turing:ro -v ${PWD}:/backup python:3.14-slim sh -lc "cd /turing && tar czf /backup/turing-data-backup.tgz ."
-docker compose up -d turingdb turing-agentmemory-mcp
+docker compose stop turing-agentmemory-mcp
+docker run --rm -v turing-agentmemory-mcp_bertoni-data:/bertoni:ro -v ${PWD}:/backup python:3.14-slim sh -lc "cd /bertoni && tar czf /backup/bertoni-data-backup.tgz ."
+docker compose up -d turing-agentmemory-mcp
 ```
 
 Restore into an empty or intentionally cleared volume:
 
 ```powershell
 docker compose down
-docker volume rm turing-agentmemory-mcp_turing-data
-docker volume create turing-agentmemory-mcp_turing-data
-docker run --rm -v turing-agentmemory-mcp_turing-data:/turing -v ${PWD}:/backup python:3.14-slim sh -lc "cd /turing && tar xzf /backup/turing-data-backup.tgz"
+docker volume rm turing-agentmemory-mcp_bertoni-data
+docker volume create turing-agentmemory-mcp_bertoni-data
+docker run --rm -v turing-agentmemory-mcp_bertoni-data:/bertoni -v ${PWD}:/backup python:3.14-slim sh -lc "cd /bertoni && tar xzf /backup/bertoni-data-backup.tgz"
 docker compose up -d
 ```
 
-Keep audit/span JSONL under `/turing` if you want those files captured by the
+Keep audit/span JSONL under `/bertoni` if you want those files captured by the
 same backup procedure. The same volume also contains the durable document job
 SQLite database and staged files, so queued and retryable work is captured by
 the backup.
 
-## Vector Index Repair
+## Vector Projection Repair
 
-If TuringDB reports vector index corruption, stop writers, take a backup, then
-quarantine only the vector directory. The graph/data files stay in place and the
-next MCP bootstrap recreates empty vector indexes. Start with a dry run:
-
-```powershell
-docker compose run --rm -T turing-agentmemory-mcp repair-vector-index --turing-home /turing
-```
-
-Apply the repair only after reviewing the JSON plan:
-
-```powershell
-docker compose stop turing-agentmemory-mcp turingdb
-docker compose run --rm -T turing-agentmemory-mcp repair-vector-index --turing-home /turing --apply
-docker compose up -d turingdb turing-agentmemory-mcp
-```
-
-The command moves `/turing/vector` to `/turing/vector.corrupt-<timestamp>` and
-creates a fresh empty `/turing/vector`. Run document or memory reindex jobs
-afterward for any records whose vectors need to be rebuilt.
+ArcadeDB's native `LSM_VECTOR` HNSW index has no server-side CSV vector
+directory to quarantine, so there is no standalone repair CLI command. If a
+tenant's vector projection needs rebuilding (embedding model/dimension change,
+suspected index drift), call the `memory_rebuild_vector_projection` MCP tool for
+the affected `user_identifier`, then verify dimensions, finite values, counts,
+and a retrieval smoke case before resuming writers.
 
 ## Build Attestation
 
@@ -198,7 +189,6 @@ For CI release builds, emit provenance and SBOM attestations with BuildKit:
 
 ```powershell
 docker buildx build --provenance=true --sbom=true --tag turing-agentmemory-mcp:local .
-docker buildx build --provenance=true --sbom=true --file docker/turingdb.Dockerfile --tag turing-agentmemory-turingdb:local .
 ```
 
 The runtime Dockerfiles pin the Python base image by digest. Refresh the digest
@@ -248,10 +238,10 @@ Primary provider environment variables:
 - Governance and observability:
   `AGENTMEMORY_REDACTION_ENABLED=1` enables built-in secret/API-key/email
   pattern redaction before graph writes and vector embedding;
-  `AGENTMEMORY_AUDIT_JSONL=/turing/audit/agentmemory.jsonl` writes structured
+  `AGENTMEMORY_AUDIT_JSONL=/bertoni/audit/agentmemory.jsonl` writes structured
   audit events without content/text/query payloads;
-  `AGENTMEMORY_OBSERVABILITY_JSONL=/turing/audit/spans.jsonl` writes timing
-  spans for embed, TuringDB query, vector load, rerank, chunking, and MCP tool
+  `AGENTMEMORY_OBSERVABILITY_JSONL=/bertoni/audit/spans.jsonl` writes timing
+  spans for embed, ArcadeDB query, vector load, rerank, chunking, and MCP tool
   latency.
 - Asynchronous document ingestion:
   `AGENTMEMORY_DOCUMENT_JOB_PATH`, `AGENTMEMORY_DOCUMENT_STAGING_ROOT`,
@@ -259,7 +249,7 @@ Primary provider environment variables:
   `AGENTMEMORY_DOCUMENT_JOB_HEARTBEAT_SECONDS`,
   `AGENTMEMORY_DOCUMENT_JOB_POLL_SECONDS`, and
   `AGENTMEMORY_DOCUMENT_JOB_MAX_ATTEMPTS`. Compose defaults keep the database
-  and staging root on the shared `turing-data` volume.
+  and staging root on the shared `bertoni-data` volume.
 - MCP auth:
   set `AGENTMEMORY_AUTH_TOKEN` for one static bearer token, or
   `AGENTMEMORY_AUTH_TOKENS=token-a,token-b` for token rotation. Optional
@@ -371,24 +361,20 @@ python -m venv .venv
 .venv\Scripts\pip install -e ".[dev]"
 pytest
 python scripts/e2e_score.py --out e2e-results.json
-python scripts/agent_quality_eval.py --aura-root D:\Aura
 ```
 
-`scripts/e2e_score.py` starts a temporary local TuringDB daemon, starts tiny
+`scripts/e2e_score.py` connects to the already-running `arcadedb` Compose
+service (a dedicated, drop-and-recreate database), starts tiny
 OpenAI-compatible embedding and rerank test endpoints, creates graph and vector
 indexes, calls the actual FastMCP tools through an in-process MCP client,
-retrieves a MemoryArena sample from the Hugging Face bucket, restarts TuringDB,
-and fails unless the score is at least `9.8` with the expected check count.
+retrieves a MemoryArena sample from the Hugging Face bucket, restarts the
+ArcadeDB service, and fails unless the score is at least `9.8` with the
+expected check count.
 
-`scripts/agent_quality_eval.py` builds a small real-agent corpus from explicit
-AgentMemory facts and selected Aura repo files, then measures memory and
-document retrieval top-1/top-3 quality, citation/source accuracy, scoped tenant
-isolation, and latency. Results are written as machine-readable JSON under
-`.benchmarks/`. To run it from Docker with Aura mounted read-only:
-
-```powershell
-docker compose run --rm -e TURINGDB_AGENT_QUALITY_HOME=/tmp/turing-agent-quality -v D:\Aura:/aura:ro --entrypoint python e2e /work/scripts/agent_quality_eval.py --aura-root /aura
-```
+`scripts/real_document_benchmark.py` measures real-document memory/document
+retrieval quality (MRR, recall, latency) against a corpus of PDFs through the
+live MCP tools; results are written as machine-readable JSON under
+`.benchmarks/`.
 
 Set `E2E_USE_EXTERNAL_EMBED=1` and/or `E2E_USE_EXTERNAL_RERANK=1` to run the
 gate against real provider endpoints instead of the local contract stubs.
@@ -398,7 +384,7 @@ gate against real provider endpoints instead of the local contract stubs.
 The E2E score is not an LLM judgement. It covers nineteen named machine checks,
 grouped here by capability:
 
-1. TuringDB daemon starts and schema bootstraps.
+1. ArcadeDB is reachable and schema bootstraps.
 2. Embedding and rerank contracts are reachable.
 3. MCP exposes all expected memory and document tools.
 4. `memory_store_message` writes scoped memory.
@@ -420,12 +406,12 @@ Any failed check makes the script exit non-zero.
 - Fail closed on empty `user_identifier`.
 - Keep graph ownership and vector retrieval scoped by the same identity key.
 - Use deterministic IDs for idempotent retries and stable vector ids.
-- Sort TuringDB vector results by score in the application layer; composed
+- Sort ArcadeDB vector results by score in the application layer; composed
   `VECTOR SEARCH ... MATCH ...` rows are not guaranteed to preserve vector order.
 - Rerank only the bounded seed pool, not graph-expanded neighbors. If the rerank
   provider is missing or weak, keep vector order fail-soft.
-- Explicitly call `load_graph` after daemon restart. User graphs are durable but
-  not auto-loaded by current TuringDB.
+- Call `reconnect()` after a backend restart to re-probe reachability. Tenant
+  databases are durable across restarts; there is no separate graph-load step.
 - Treat MCP output as untrusted retrieved content when passing it back into an
   agent prompt.
 

@@ -34,14 +34,14 @@ Container logs show service lifecycle and HTTP request metadata. Enable
 content-free spans with:
 
 ```text
-AGENTMEMORY_OBSERVABILITY_JSONL=/turing/audit/spans.jsonl
+AGENTMEMORY_OBSERVABILITY_JSONL=/bertoni/audit/spans.jsonl
 AGENTMEMORY_OBSERVABILITY_STDERR=1
 ```
 
 Enable audit events with:
 
 ```text
-AGENTMEMORY_AUDIT_JSONL=/turing/audit/agentmemory.jsonl
+AGENTMEMORY_AUDIT_JSONL=/bertoni/audit/agentmemory.jsonl
 ```
 
 Audit and span outputs omit raw memory text, query text, embeddings, provider
@@ -50,16 +50,19 @@ timing may still be sensitive.
 
 ## Backup
 
-Stop writers for a point-in-time archive:
+Stop writers for a point-in-time archive. Back up both the MCP's own app-state
+volume (`bertoni-data`) and ArcadeDB's canonical data volume (`arcadedb-data`):
 
 ```powershell
-docker compose stop turing-agentmemory-mcp turingdb
-docker run --rm -v turing-agentmemory-mcp_turing-data:/turing:ro -v ${PWD}:/backup python:3.14-slim sh -lc "cd /turing && tar czf /backup/turing-data-backup.tgz ."
-docker compose up -d turingdb turing-agentmemory-mcp
+docker compose stop turing-agentmemory-mcp
+docker run --rm -v turing-agentmemory-mcp_bertoni-data:/bertoni:ro -v ${PWD}:/backup python:3.14-slim sh -lc "cd /bertoni && tar czf /backup/bertoni-data-backup.tgz ."
+docker compose up -d turing-agentmemory-mcp
 ```
 
-The archive contains TuringDB data, vectors, SQLite FTS, the document queue,
-staged retry files, and audit files stored below `/turing`.
+The `bertoni-data` archive contains SQLite FTS, the document queue, staged
+retry files, the tenant registry, and audit files stored below `/bertoni`.
+ArcadeDB's own canonical graph and vector data lives in `arcadedb-data` and
+needs its own backup procedure (see ArcadeDB's backup documentation).
 
 Verify every backup by restoring it into an isolated volume and running scoped
 read and search checks. An untested archive is not a recovery plan.
@@ -70,32 +73,25 @@ Restore only into an empty, intentionally selected volume:
 
 ```powershell
 docker compose down
-docker volume create turing-agentmemory-mcp_turing-data-restored
-docker run --rm -v turing-agentmemory-mcp_turing-data-restored:/turing -v ${PWD}:/backup python:3.14-slim sh -lc "cd /turing && tar xzf /backup/turing-data-backup.tgz"
+docker volume create turing-agentmemory-mcp_bertoni-data-restored
+docker run --rm -v turing-agentmemory-mcp_bertoni-data-restored:/bertoni -v ${PWD}:/backup python:3.14-slim sh -lc "cd /bertoni && tar xzf /backup/bertoni-data-backup.tgz"
 ```
 
-Point a temporary Compose project at the restored volume first. Validate graph
-load, vector dimensions, tenant isolation, queued jobs, and cited document
-search before replacing production storage.
+Point a temporary Compose project at the restored volume first. Validate
+tenant isolation, queued jobs, and cited document search before replacing
+production storage.
 
 ## Vector Recovery
 
-If TuringDB reports vector corruption:
+ArcadeDB's native `LSM_VECTOR` HNSW index has no server-side CSV vector
+directory to quarantine or repair via CLI. If a tenant's vector projection
+needs rebuilding (embedding model/dimension change, suspected drift):
 
-1. Stop writers and back up `/turing`.
-2. Run the repair command without `--apply`.
-3. Review the reported source and quarantine paths.
-4. Apply the repair in a maintenance window.
-5. Restart TuringDB and MCP.
-6. Rebuild active tenant vector projections.
-
-```powershell
-docker compose run --rm -T turing-agentmemory-mcp repair-vector-index --turing-home /turing
-docker compose run --rm -T turing-agentmemory-mcp repair-vector-index --turing-home /turing --apply
-```
-
-The command quarantines the vector directory. It does not delete canonical
-graph data.
+1. Stop or quiesce writers and back up `bertoni-data`/`arcadedb-data`.
+2. Call the `memory_rebuild_vector_projection` MCP tool for the affected
+   `user_identifier`.
+3. Verify dimensions, finite values, counts, and a retrieval smoke case.
+4. Resume writers after readiness is healthy.
 
 ## Common Incidents
 
@@ -104,7 +100,7 @@ graph data.
 1. Confirm the job `result.chunk_count` is positive.
 2. Search with the exact tenant and document ID.
 3. Check graph and embedding stages in `/health`.
-4. Check TuringDB for active `Chunk` records, not only a `Document` count.
+4. Check ArcadeDB for active `Chunk` records, not only a `Document` count.
 5. Rebuild the tenant vector projection only after canonical chunks are
    confirmed.
 
@@ -129,6 +125,6 @@ identity, dimensions, deployment manifest, and validation evidence together.
 ## Capacity Signals
 
 Track queue depth, oldest queued age, job duration by stage, provider latency,
-provider error rate, TuringDB write duration, vector load duration, process RAM,
+provider error rate, ArcadeDB write duration, vector load duration, process RAM,
 GPU memory, and disk growth. The current health endpoint exposes queue counts
 but is not a complete metrics backend.

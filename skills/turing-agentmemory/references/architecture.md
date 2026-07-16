@@ -2,7 +2,7 @@
 
 ## Core Model
 
-TuringDB stores the canonical tenant-scoped graph. Dense indexes, sparse indexes, extracted
+ArcadeDB stores the canonical tenant-scoped graph. Dense indexes, sparse indexes, extracted
 facts/entities, temporal relations, Leiden communities, and rerank order are derived or
 retrieval-time structures. Canonical graph records remain the authority for lifecycle and
 repair.

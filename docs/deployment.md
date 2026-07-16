@@ -2,15 +2,15 @@
 
 The supplied Compose stack is the reference deployment for evaluation and a
 single-node installation. It uses local CUDA embedding and rerank sidecars,
-CPU GLiNER2, TuringDB, and a persistent named volume.
+CPU GLiNER2, ArcadeDB, and persistent named volumes.
 
 ## Prerequisites
 
 - Docker Engine or Docker Desktop with Compose.
 - An NVIDIA GPU visible to Docker for the default embedding and rerank services.
-- Enough host RAM for TuringDB, GLiNER2, model sidecars, and MCP. Compose limits
+- Enough host RAM for ArcadeDB, GLiNER2, model sidecars, and MCP. Compose limits
   are capacity ceilings, not guaranteed consumption.
-- Free disk for pinned model files and the `turing-data` volume.
+- Free disk for pinned model files and the `arcadedb-data`/`bertoni-data` volumes.
 
 The default stack has been exercised on a 4 GiB NVIDIA GPU. Treat that as one
 tested configuration, not a universal minimum. Context size, provider
@@ -56,8 +56,9 @@ Before exposing the service beyond loopback:
 2. Set MCP bearer tokens or integrate an authenticated gateway.
 3. Derive `user_identifier` from authenticated identity and reject unauthorized
    tenant values.
-4. Keep TuringDB and model providers on a private network.
-5. Store `/turing` on monitored, backed-up persistent storage.
+4. Keep ArcadeDB and model providers on a private network.
+5. Store `/bertoni` and the ArcadeDB data volume on monitored, backed-up
+   persistent storage.
 6. Send audit and span JSONL to protected durable storage or a collector.
 7. Set provider timeouts and job lease cadence for measured worst-case latency.
 8. Pin and scan all images and model revisions before promotion.
@@ -76,10 +77,10 @@ and vector dimensions. Validate the exact provider contract before production.
 
 ## Upgrade
 
-1. Read `CHANGELOG.md` and back up `turing-data`.
-2. Preserve the current application and TuringDB image tags for rollback.
+1. Read `CHANGELOG.md` and back up `bertoni-data` and `arcadedb-data`.
+2. Preserve the current application and ArcadeDB image tags for rollback.
 3. Pull source and rebuild with Docker cache.
-4. Recreate MCP first when the release does not change TuringDB format.
+4. Recreate MCP first when the release does not change the ArcadeDB schema.
 5. Wait for `/health` to report `status=ok` and `worker_running=true`.
 6. Run a tenant-isolated store/search smoke test.
 7. Submit one small asynchronous document and verify a cited search result.

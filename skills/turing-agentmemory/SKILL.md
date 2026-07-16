@@ -21,7 +21,7 @@ provenance, retention policy, and an auditable distinction between evidence and 
 
 All memory and document operations are direct MCP tool calls. The server fuses dense,
 BM25, entity, temporal graph, community, and rerank signals while retaining canonical
-records in TuringDB.
+records in ArcadeDB.
 
 **In-repo dogfooding:** when this project's own server is a live, connected MCP
 (`turing-agentmemory`), bind every call to the host's configured caller identity for this

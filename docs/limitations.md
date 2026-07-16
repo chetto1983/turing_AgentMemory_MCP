@@ -6,7 +6,7 @@ This project is pre-1.0. Review these constraints before production use.
   gateway must bind identity to `user_identifier`.
 - The reference Compose stack is single-node and starts one document worker.
 - Job progress is stage-level, not per chunk or provider batch.
-- Cancellation is cooperative. A blocking provider or TuringDB call may finish
+- Cancellation is cooperative. A blocking provider or ArcadeDB call may finish
   before the worker observes cancellation.
 - PDFium extracts selectable PDF text. The default path does not provide a full
   OCR, chart, infographic, or table-understanding pipeline.

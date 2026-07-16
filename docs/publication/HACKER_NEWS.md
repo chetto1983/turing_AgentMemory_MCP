@@ -43,7 +43,7 @@ and launch language.
 
 - The project exposes persistent memory and cited document retrieval through
   MCP.
-- TuringDB holds canonical graph records and tenant-specific vector indexes.
+- ArcadeDB holds canonical graph records and tenant-specific vector indexes.
 - Retrieval combines dense, lexical, entity, fact, graph, community, and rerank
   signals.
 - File ingestion returns a durable asynchronous job instead of blocking on PDF
@@ -74,7 +74,7 @@ The maintainer should write a short comment from personal experience. Answer
 these prompts in their own words:
 
 1. What problem kept recurring while building agents with long-lived state?
-2. Why use TuringDB and MCP instead of embedding memory inside one agent
+2. Why use ArcadeDB and MCP instead of embedding memory inside one agent
    framework?
 3. What failed during the real 830-page ingest, and what did that reveal about
    truthful success states?
@@ -91,7 +91,7 @@ support. Ask technical questions and answer criticism with concrete evidence.
 - How does this differ from Mem0, Zep, or a conventional RAG service?
 - Is `user_identifier` authorization or only a scope key?
 - What happens when MCP restarts during an ingest?
-- Why SQLite for jobs and FTS if TuringDB is canonical?
+- Why SQLite for jobs and FTS if ArcadeDB is canonical?
 - Can it run without an NVIDIA GPU?
 - Does it OCR scanned PDFs or understand tables and charts?
 - How are embedding model changes migrated?

@@ -5,7 +5,7 @@
 Monitor readiness by condition, not by killing long work at an arbitrary elapsed timeout.
 At a healthy cadence, record:
 
-- MCP and TuringDB container state, health, and restart count;
+- MCP and ArcadeDB container state, health, and restart count;
 - `memory_runtime_status` stages and projection degradation counts;
 - embedding, graph query, fusion, and rerank latency;
 - GPU utilization and memory for enabled model sidecars;

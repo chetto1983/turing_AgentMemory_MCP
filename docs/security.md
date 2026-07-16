@@ -25,7 +25,7 @@ The reference server does not provide complete authorization by itself.
 2. Authenticate each client.
 3. Bind the authenticated principal to allowed `user_identifier` values.
 4. Reject tenant identifiers supplied only by model output.
-5. Apply network policy so only MCP reaches TuringDB and model providers.
+5. Apply network policy so only MCP reaches ArcadeDB and model providers.
 6. Keep provider keys in a secret manager, not `.env` in production.
 7. Set upload and request body limits at both proxy and MCP layers.
 8. Encrypt persistent volumes and backups when the threat model requires it.

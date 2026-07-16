@@ -82,6 +82,23 @@ after the first stable release; pre-1.0 releases may change interfaces.
 
 ### Removed
 
+- Removed the `turingdb==1.35` dependency and all TuringDB-only code and
+  tooling: the `turingdb`/`turingdb-volume-init` Compose services and
+  `docker/turingdb.Dockerfile`; the legacy `benchmark.py`/`benchmark_stages.py`/
+  `benchmark_memoryarena.py`/`benchmark_schema.py`/`agent_quality_eval.py`
+  harness cluster (superseded by `scripts/e2e_score.py` and
+  `scripts/real_document_benchmark.py`) and their CLI wiring/tests; the
+  `repair-vector-index` command and `admin_repair.py` (TuringDB CSV-vector
+  quarantine has no ArcadeDB equivalent -- use `memory_rebuild_vector_projection`
+  instead); the `sys.modules["turingdb"]` Windows test-import stub. Renamed the
+  live application-state paths for forward-consistency with the coming product
+  rebrand: `TURINGDB_HOME` to `BERTONI_HOME` (default `/turing` to `/bertoni`,
+  Compose volume `turing-data` to `bertoni-data`), `TURINGDB_GRAPH` to
+  `AGENTMEMORY_GRAPH`, and `TURINGDB_EMBED_DIMENSIONS` to `EMBED_DIMENSIONS`.
+  Deleted the dead `TURINGDB_URL` and `TURINGDB_{MEMORY,DOCUMENT,ENTITY,FACT,
+  COMMUNITY}_INDEX` connection variables (superseded by `ARCADEDB_*`). ArcadeDB
+  is now the sole canonical backend; CLAUDE.md's invariants are updated
+  accordingly.
 - Retired the legacy SQLite-FTS5 outbox's write path (`prepare`/`commit_batch`/
   `replay`/`discard_prepared`) from memory writes, memory updates/deletes, and
   community rebuild -- lexical retrieval was already fully served by the
