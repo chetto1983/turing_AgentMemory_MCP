@@ -1,0 +1,564 @@
+{
+  "baseline_bar": {
+    "mrr_at_20": 0.5979488765203052,
+    "recall_at_1": 0.5142857142857142,
+    "recall_at_20": 0.7714285714285715
+  },
+  "corpus_verification": {
+    "mismatches": [],
+    "ok": true
+  },
+  "e2e_diff": {
+    "baseline_corrected_checks": [
+      {
+        "detail": {
+          "embedding_base_url": "http://agentmemory-embed:8080",
+          "embedding_dimensions": 768,
+          "graph": "e2e_agent_memory",
+          "port": 39495,
+          "rerank_base_url": "http://agentmemory-rerank:8080",
+          "rerank_top_index": 1
+        },
+        "elapsed_ms": 2510.76,
+        "name": "turingdb_starts_schema_embed_and_rerank_contracts",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.003,
+        "name": "mcp_exposes_expected_tool_surface",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.004,
+        "name": "memory_store_message_writes_scoped_memory",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.009,
+        "name": "memory_store_messages_batches_idempotent_searchable_writes",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.004,
+        "name": "memory_search_retrieves_alice_exact_top1",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.006,
+        "name": "memory_search_does_not_leak_bob",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.004,
+        "name": "memory_search_hybrid_exact_code_match_explains_lexical_score",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.007,
+        "name": "memory_get_context_returns_prompt_ready_context",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.005,
+        "name": "memory_store_message_is_idempotent_and_memory_list_filters_metadata",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.008,
+        "name": "memory_get_and_update_return_structured_metadata",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.01,
+        "name": "memory_delete_hides_memory_from_get_and_search",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": false,
+        "elapsed_ms": 0.003,
+        "name": "document_ingest_text_writes_chunks",
+        "ok": false,
+        "points": 1.0
+      },
+      {
+        "elapsed_ms": 0.008,
+        "error": {
+          "message": "list index out of range",
+          "type": "IndexError"
+        },
+        "name": "document_search_retrieves_exact_top1_with_citation_and_neighbor_context",
+        "ok": false,
+        "points": 1.0
+      },
+      {
+        "detail": false,
+        "elapsed_ms": 0.003,
+        "name": "document_search_hybrid_exact_code_match_explains_lexical_score",
+        "ok": false,
+        "points": 1.0
+      },
+      {
+        "detail": false,
+        "elapsed_ms": 0.003,
+        "name": "document_ingest_text_is_idempotent_for_same_payload",
+        "ok": false,
+        "points": 1.0
+      },
+      {
+        "detail": false,
+        "elapsed_ms": 0.003,
+        "name": "document_reindex_text_replaces_old_chunks_and_metadata",
+        "ok": false,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.004,
+        "name": "document_delete_hides_document_from_search",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.01,
+        "name": "memoryarena_bucket_sample_retrieves_answer_context",
+        "ok": true,
+        "points": 1.0
+      },
+      {
+        "detail": true,
+        "elapsed_ms": 0.004,
+        "name": "restart_preserves_memory_and_document_retrieval",
+        "ok": true,
+        "points": 1.0
+      }
+    ],
+    "baseline_corrected_pass_count": 14,
+    "per_check": [
+      {
+        "baseline_ok": true,
+        "name": "turingdb_starts_schema_embed_and_rerank_contracts",
+        "port_ok": null
+      },
+      {
+        "baseline_ok": true,
+        "name": "mcp_exposes_expected_tool_surface",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memory_store_message_writes_scoped_memory",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memory_store_messages_batches_idempotent_searchable_writes",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memory_search_retrieves_alice_exact_top1",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memory_search_does_not_leak_bob",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memory_search_hybrid_exact_code_match_explains_lexical_score",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memory_get_context_returns_prompt_ready_context",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memory_store_message_is_idempotent_and_memory_list_filters_metadata",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memory_get_and_update_return_structured_metadata",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memory_delete_hides_memory_from_get_and_search",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": false,
+        "name": "document_ingest_text_writes_chunks",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": false,
+        "name": "document_search_retrieves_exact_top1_with_citation_and_neighbor_context",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": false,
+        "name": "document_search_hybrid_exact_code_match_explains_lexical_score",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": false,
+        "name": "document_ingest_text_is_idempotent_for_same_payload",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": false,
+        "name": "document_reindex_text_replaces_old_chunks_and_metadata",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "document_delete_hides_document_from_search",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "memoryarena_bucket_sample_retrieves_answer_context",
+        "port_ok": true
+      },
+      {
+        "baseline_ok": true,
+        "name": "restart_preserves_memory_and_document_retrieval",
+        "port_ok": false
+      }
+    ],
+    "port_pass_count": 18
+  },
+  "frozen_questions_count": 60,
+  "latency": {
+    "mean": 3344.7899516666234,
+    "stddev": 37.470490115813085
+  },
+  "metrics_diff": {
+    "aggregate": {
+      "mrr_at_20": {
+        "band_floor": 0.580010410224696,
+        "baseline": 0.5979488765203052,
+        "delta": 0.08634565610756073,
+        "port_mean": 0.6842945326278659,
+        "port_stddev": 0.007944039146663702,
+        "within_band": true
+      },
+      "recall_at_1": {
+        "band_floor": 0.4988571428571428,
+        "baseline": 0.5142857142857142,
+        "delta": 0.07460317460317467,
+        "port_mean": 0.5888888888888889,
+        "port_stddev": 0.007856742013183834,
+        "within_band": true
+      },
+      "recall_at_20": {
+        "band_floor": 0.7482857142857143,
+        "baseline": 0.7714285714285715,
+        "delta": 0.08412698412698405,
+        "port_mean": 0.8555555555555555,
+        "port_stddev": 0.007856742013183886,
+        "within_band": true
+      }
+    },
+    "per_document": {
+      "apprendimento_automatico_wikipedia-bd63980ed35b": {
+        "mrr_at_20": {
+          "band_floor": 0.4056363636363636,
+          "baseline": 0.41818181818181815,
+          "delta": 0.0025589225589226494,
+          "port_mean": 0.4207407407407408,
+          "port_stddev": 0.0010475656017578288,
+          "within_band": true
+        },
+        "recall_at_1": {
+          "band_floor": 0.388,
+          "baseline": 0.4,
+          "delta": 5.551115123125783e-17,
+          "port_mean": 0.4000000000000001,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_20": {
+          "band_floor": 0.582,
+          "baseline": 0.6,
+          "delta": 0.0,
+          "port_mean": 0.6,
+          "port_stddev": 0.0,
+          "within_band": true
+        }
+      },
+      "clienti-dc087d884caf": {
+        "mrr_at_20": {
+          "band_floor": 0.33949999999999997,
+          "baseline": 0.35,
+          "delta": -5.551115123125783e-17,
+          "port_mean": 0.3499999999999999,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_1": {
+          "band_floor": 0.194,
+          "baseline": 0.2,
+          "delta": 2.7755575615628914e-17,
+          "port_mean": 0.20000000000000004,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_20": {
+          "band_floor": 0.582,
+          "baseline": 0.6,
+          "delta": 0.0,
+          "port_mean": 0.6,
+          "port_stddev": 0.0,
+          "within_band": true
+        }
+      },
+      "corso-base-robot-0ec1b02e112f": {
+        "mrr_at_20": {
+          "band_floor": 0.7436666666666667,
+          "baseline": 0.7666666666666667,
+          "delta": 0.0,
+          "port_mean": 0.7666666666666667,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_1": {
+          "band_floor": 0.582,
+          "baseline": 0.6,
+          "delta": 0.0,
+          "port_mean": 0.6,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_20": {
+          "band_floor": 0.97,
+          "baseline": 1.0,
+          "delta": 0.0,
+          "port_mean": 1.0,
+          "port_stddev": 0.0,
+          "within_band": true
+        }
+      },
+      "costituzione-cf62b430cc08": {
+        "mrr_at_20": {
+          "band_floor": 0.97,
+          "baseline": 1.0,
+          "delta": 0.0,
+          "port_mean": 1.0,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_1": {
+          "band_floor": 0.97,
+          "baseline": 1.0,
+          "delta": 0.0,
+          "port_mean": 1.0,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_20": {
+          "band_floor": 0.97,
+          "baseline": 1.0,
+          "delta": 0.0,
+          "port_mean": 1.0,
+          "port_stddev": 0.0,
+          "within_band": true
+        }
+      },
+      "diario-ultimo-aec36c49f8ba": {
+        "mrr_at_20": {
+          "band_floor": 0.40955555555555556,
+          "baseline": 0.4222222222222222,
+          "delta": 0.0,
+          "port_mean": 0.4222222222222222,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_1": {
+          "band_floor": 0.388,
+          "baseline": 0.4,
+          "delta": 5.551115123125783e-17,
+          "port_mean": 0.4000000000000001,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_20": {
+          "band_floor": 0.582,
+          "baseline": 0.6,
+          "delta": 0.0,
+          "port_mean": 0.6,
+          "port_stddev": 0.0,
+          "within_band": true
+        }
+      },
+      "g220_op_instr_0824_en-us-91e62612a7b1": {
+        "mrr_at_20": {
+          "band_floor": 0.5127142857142857,
+          "baseline": 0.5285714285714286,
+          "delta": 0.0,
+          "port_mean": 0.5285714285714286,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_1": {
+          "band_floor": 0.388,
+          "baseline": 0.4,
+          "delta": 5.551115123125783e-17,
+          "port_mean": 0.4000000000000001,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_20": {
+          "band_floor": 0.776,
+          "baseline": 0.8,
+          "delta": 1.1102230246251565e-16,
+          "port_mean": 0.8000000000000002,
+          "port_stddev": 0.0,
+          "within_band": true
+        }
+      },
+      "robot-1d924fb88dc4": {
+        "mrr_at_20": {
+          "band_floor": 0.6789999999999999,
+          "baseline": 0.7,
+          "delta": -1.1102230246251565e-16,
+          "port_mean": 0.6999999999999998,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_1": {
+          "band_floor": 0.582,
+          "baseline": 0.6,
+          "delta": 0.0,
+          "port_mean": 0.6,
+          "port_stddev": 0.0,
+          "within_band": true
+        },
+        "recall_at_20": {
+          "band_floor": 0.776,
+          "baseline": 0.8,
+          "delta": 1.1102230246251565e-16,
+          "port_mean": 0.8000000000000002,
+          "port_stddev": 0.0,
+          "within_band": true
+        }
+      }
+    }
+  },
+  "normattiva_evidence": {
+    "check_13_corrected_ok": true,
+    "documents": {
+      "normattiva_decreto-del-presidente-della-repubblica_19730329_156_1973-05-03_073u0156_vigenza_2026-02-10_v0-99f7c5432e00": {
+        "mrr_at_20": {
+          "mean": 0.7666666666666666,
+          "stddev": 0.09428090415820636
+        },
+        "recall_at_1": {
+          "mean": 0.6666666666666666,
+          "stddev": 0.09428090415820636
+        },
+        "recall_at_20": {
+          "mean": 0.8666666666666667,
+          "stddev": 0.09428090415820632
+        }
+      },
+      "normattiva_decreto-legislativo_20030801_259_2003-09-15_003g0280_vigenza_2026-05-27_v0-bcef1e4121f3": {
+        "mrr_at_20": {
+          "mean": 0.8666666666666666,
+          "stddev": 0.0
+        },
+        "recall_at_1": {
+          "mean": 0.8000000000000002,
+          "stddev": 0.0
+        },
+        "recall_at_20": {
+          "mean": 1.0,
+          "stddev": 0.0
+        }
+      },
+      "normattiva_decreto-legislativo_20050210_30_2005-03-04_005g0055_vigenza_2026-06-17_v0-832f7b914381": {
+        "mrr_at_20": {
+          "mean": 0.75,
+          "stddev": 0.0
+        },
+        "recall_at_1": {
+          "mean": 0.6,
+          "stddev": 0.0
+        },
+        "recall_at_20": {
+          "mean": 1.0,
+          "stddev": 0.0
+        }
+      },
+      "normattiva_decreto-legislativo_20050307_82_2005-05-16_005g0104_vigenza_2026-05-09_v0-43d8b92119de": {
+        "mrr_at_20": {
+          "mean": 0.64,
+          "stddev": 0.0
+        },
+        "recall_at_1": {
+          "mean": 0.4000000000000001,
+          "stddev": 0.0
+        },
+        "recall_at_20": {
+          "mean": 1.0,
+          "stddev": 0.0
+        }
+      },
+      "normattiva_regio-decreto_19411218_1368_1941-12-24_041u1368_vigenza_2026-02-10_v0-d89f3940dcde": {
+        "mrr_at_20": {
+          "mean": 1.0,
+          "stddev": 0.0
+        },
+        "recall_at_1": {
+          "mean": 1.0,
+          "stddev": 0.0
+        },
+        "recall_at_20": {
+          "mean": 1.0,
+          "stddev": 0.0
+        }
+      }
+    }
+  },
+  "provider_config": {
+    "arcadedb_url": "http://arcadedb:2480",
+    "embedding_base_url": "http://agentmemory-embed:8080",
+    "embedding_dimensions": 768,
+    "graph": "e2e_agent_memory",
+    "rerank_base_url": "http://agentmemory-rerank:8080",
+    "rerank_top_index": 1
+  },
+  "runs": 3,
+  "tolerance": {
+    "band_type": "relative_floor",
+    "epsilon": 0.03,
+    "run_count": 3
+  },
+  "verdict": "GO"
+}

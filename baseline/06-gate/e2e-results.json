@@ -1,0 +1,158 @@
+{
+  "arcadedb_image": "arcadedata/arcadedb:26.7.1",
+  "backend": "arcadedb",
+  "check_count": 19,
+  "checks": [
+    {
+      "detail": {
+        "arcadedb_url": "http://arcadedb:2480",
+        "embedding_base_url": "http://agentmemory-embed:8080",
+        "embedding_dimensions": 768,
+        "graph": "e2e_agent_memory",
+        "rerank_base_url": "http://agentmemory-rerank:8080",
+        "rerank_top_index": 1
+      },
+      "elapsed_ms": 473.975,
+      "name": "arcadedb_starts_schema_embed_and_rerank_contracts",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.004,
+      "name": "mcp_exposes_expected_tool_surface",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.003,
+      "name": "memory_store_message_writes_scoped_memory",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.005,
+      "name": "memory_store_messages_batches_idempotent_searchable_writes",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.003,
+      "name": "memory_search_retrieves_alice_exact_top1",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.003,
+      "name": "memory_search_does_not_leak_bob",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.002,
+      "name": "memory_search_hybrid_exact_code_match_explains_lexical_score",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.003,
+      "name": "memory_get_context_returns_prompt_ready_context",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.007,
+      "name": "memory_store_message_is_idempotent_and_memory_list_filters_metadata",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.004,
+      "name": "memory_get_and_update_return_structured_metadata",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.007,
+      "name": "memory_delete_hides_memory_from_get_and_search",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.002,
+      "name": "document_ingest_text_writes_chunks",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.031,
+      "name": "document_search_retrieves_exact_top1_with_citation_and_neighbor_context",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.016,
+      "name": "document_search_hybrid_exact_code_match_explains_lexical_score",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.003,
+      "name": "document_ingest_text_is_idempotent_for_same_payload",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.02,
+      "name": "document_reindex_text_replaces_old_chunks_and_metadata",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.003,
+      "name": "document_delete_hides_document_from_search",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "detail": true,
+      "elapsed_ms": 0.003,
+      "name": "memoryarena_bucket_sample_retrieves_answer_context",
+      "ok": true,
+      "points": 1.0
+    },
+    {
+      "elapsed_ms": 0.253,
+      "error": {
+        "message": "docker is not on PATH -- cannot restart the arcadedb service",
+        "type": "RuntimeError"
+      },
+      "name": "restart_preserves_memory_and_document_retrieval",
+      "ok": false,
+      "points": 1.0
+    }
+  ],
+  "cleanup": {
+    "owns_container_lifecycle": false,
+    "stopped": true
+  },
+  "score": 9.474,
+  "score_gate": "10/10",
+  "turingdb_version": "1.35",
+  "verdict": "FAILED_SCORE_GATE"
+}

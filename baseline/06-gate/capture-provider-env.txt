@@ -1,0 +1,112 @@
+Phase 6 Plan 3 — GPU-backed real-provider ArcadeDB capture (ARC-09)
+Captured: 2026-07-16 (host: Windows 11, RTX A2000 Laptop GPU, 4096 MiB VRAM)
+
+## Task 1 — e2e_score.py real-provider capture (baseline/06-gate/e2e-results.json)
+
+Method: `docker compose run --rm e2e` (inside the compose network, so provider
+hostnames resolve to the sidecar services — matches the D-07 requirement that
+check #1 detail shows sidecar hostnames, not 127.0.0.1).
+
+Command (Windows Git Bash requires MSYS_NO_PATHCONV=1 to stop /work/... paths
+from being mangled into a Windows path by MSYS path conversion):
+
+  MSYS_NO_PATHCONV=1 docker compose run --rm \
+    -e E2E_USE_EXTERNAL_EMBED=1 -e E2E_USE_EXTERNAL_RERANK=1 \
+    -e EMBED_BASE_URL=http://agentmemory-embed:8080 -e EMBED_DIMENSIONS=768 \
+    -e EMBED_MODEL=mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M \
+    -e RERANK_BASE_URL=http://agentmemory-rerank:8080 -e RERANK_MODEL=bge-reranker-v2-m3-Q8_0.gguf \
+    e2e --out /work/baseline/06-gate/e2e-results.json
+
+Provider config (verbatim, matches baseline/03-turingdb/BASELINE.md exactly —
+same reranker swap, same embedder):
+
+| Role      | Model                                                              | Dimensions | Endpoint (in-network)          |
+|-----------|---------------------------------------------------------------------|------------|---------------------------------|
+| Embedder  | mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M            | 768        | http://agentmemory-embed:8080  |
+| Reranker  | bge-reranker-v2-m3-Q8_0.gguf                                        | —          | http://agentmemory-rerank:8080 |
+
+Env flags: E2E_USE_EXTERNAL_EMBED=1, E2E_USE_EXTERNAL_RERANK=1 (in-process
+stub embed/rerank HTTP servers never start; run_e2e drives the real granite +
+BGE sidecars end to end).
+
+Captured check #1 (`arcadedb_starts_schema_embed_and_rerank_contracts`) detail:
+  embedding_base_url=http://agentmemory-embed:8080 (NOT 127.0.0.1 — non-stub confirmed)
+  rerank_base_url=http://agentmemory-rerank:8080 (NOT 127.0.0.1 — non-stub confirmed)
+  embedding_dimensions=768
+  rerank_top_index=1
+  arcadedb_url=http://arcadedb:2480
+
+Result: check_count=19, score=9.474, verdict=FAILED_SCORE_GATE (expected per
+D-07 — real providers do not clear the 10/10 stub-tuned threshold).
+
+Check #13 (document_search_retrieves_exact_top1_with_citation_and_neighbor_context):
+ok=true, detail=true — the TuringDB-baseline IndexError (document_id-length
+bug) is CONFIRMED FIXED on the ArcadeDB port (D-03 direct evidence).
+
+Check #19 (restart_preserves_memory_and_document_retrieval): ok=false,
+error="docker is not on PATH -- cannot restart the arcadedb service". This is
+the documented, expected limitation of running e2e_score.py inside the `e2e`
+compose container (no docker socket/CLI available there) — see compose.yaml's
+own comment on the `e2e` service. Running the real-provider leg from inside
+the container is required to get non-stub sidecar hostnames in check #1
+(agentmemory-embed/agentmemory-rerank are not published to the host, only
+`expose: 8080` internally), so this is an accepted, unavoidable trade-off, not
+a new defect and not required by this plan's success criteria (which requires
+check #13 to pass, not check #19).
+
+IMPORTANT — image staleness caught and fixed during this capture: the first
+attempt ran against a stale `turing-agentmemory-mcp:local` image (built
+2026-07-11, predating the 04-09 ArcadeDB e2e rewire committed 2026-07-14 and
+~15 further commits through 2026-07-16). That stale-image run showed the old
+TuringDB-era check names (`turingdb_starts_schema_embed_and_rerank_contracts`,
+no `backend`/`arcadedb_image` fields) and check #13 failing exactly like the
+Phase-3 baseline. `docker compose build turing-agentmemory-mcp e2e` was run to
+rebuild from current HEAD before the capture above (the one written to
+e2e-results.json) was taken. The 06-gate/e2e-results.json committed here IS
+the fresh-image, current-HEAD capture.
+
+## Task 2 — real_document_benchmark.py N=3 frozen-question replay
+(baseline/06-gate/real-document-benchmark-run{1,2,3}.json)
+
+Method: run directly on the host against the published MCP endpoint
+(http://127.0.0.1:8095/mcp/). The running `turing-agentmemory-mcp` compose
+service already talks to the real granite/BGE sidecars by default (compose.yaml
+env defaults EMBED_BASE_URL=http://agentmemory-embed:8080,
+RERANK_BASE_URL=http://agentmemory-rerank:8080) — no override needed for this
+leg; the script only drives MCP tool calls over HTTP, all embed/rerank work
+happens server-side.
+
+Command (run 3 times, N=1,2,3; PROVIDER_API_KEY set to a dummy value because
+QuestionGenerator's constructor requires a non-empty key even though
+`--frozen-questions` bypasses `generate()` entirely — no real LLM call is made):
+
+  PROVIDER_API_KEY=unused-frozen-questions-bypass PYTHONPATH=src \
+    .venv/Scripts/python.exe scripts/real_document_benchmark.py \
+    --frozen-questions baseline/03-turingdb/frozen-questions.json \
+    --root D:/tmp/baseline-corpus --mcp-url http://127.0.0.1:8095/mcp/ \
+    --top-k 20 --search-concurrency 3 --chunk-bytes 524288 --poll-seconds 10 \
+    --output baseline/06-gate/real-document-benchmark-run<N>.json
+
+Each run uses a FRESH default `--scope` (the script derives
+`scope = benchmark_id` when `--scope` is not passed, and `benchmark_id`
+embeds a UTC timestamp), so each of the 3 runs ingests into its own new
+ArcadeDB tenant database — no cross-run contamination, no reuse of any
+document/tenant state pre-existing in the shared `turing-data`/ArcadeDB
+volumes from earlier, unrelated container testing.
+
+## GLiNER-scope decision (D-06)
+
+Decision: ACCEPT the compose default (GLINER_ENABLED=1) rather than adding a
+compose override to disable it for this capture. Rationale (matches the
+plan's own documented low-risk-deviation option): `document_search` consumes
+no entity channel in its ranking (RESEARCH.md Area 4 / Pitfall 4 — GLiNER
+entity extraction only affects INGESTION-time processing and the separate
+entity/fact retrieval channels used by memory_search, not document_search's
+score), so the locked comparison metrics (mrr_at_20, recall_at_1, recall_at_20)
+and the per-query SEARCH latency captured here are unaffected by GLiNER being
+on. Only document ingestion wall-clock is heavier with GLiNER on (irrelevant
+to the D-06 per-query retrieval-latency comparison against the baseline's
+5.4s mean, which measures search latency, not ingest latency). Modifying
+compose.yaml to add a GLINER_ENABLED=0 override was judged unnecessary
+extra surface for a manual measurement plan whose declared file scope is the
+baseline/06-gate/* artifacts only.
