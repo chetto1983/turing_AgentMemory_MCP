@@ -213,3 +213,14 @@ None - no external service configuration required. This plan has no GPU/corpus/l
 ---
 *Phase: 06-migration-correctness-gate*
 *Completed: 2026-07-16*
+
+## Self-Check: PASSED
+
+- FOUND: scripts/gate_diff.py
+- FOUND: tests/test_gate_diff.py
+- FOUND: .planning/phases/06-migration-correctness-gate/06-01-SUMMARY.md
+- FOUND: ca79916 (test, Task 1 RED)
+- FOUND: ff03210 (feat, Task 1 GREEN)
+- FOUND: 20701e6 (test, Task 2 RED)
+- FOUND: 1df94a4 (feat, Task 2 GREEN)
+- FOUND: cc5f49a (docs, this summary)
