@@ -28,14 +28,14 @@ correctness or tenant isolation is a failure, not progress.
 <!-- Inferred from the existing codebase map (.planning/codebase/). Shipped and relied upon. -->
 
 - ✓ FastMCP server exposing 25+ memory/document/entity/fact/community tools over stdio/HTTP/SSE — existing
-- ✓ TuringDB-canonical store with graph writes + multi-index vector ops (`store.py`) — existing
+- ✓ ArcadeDB-canonical store with graph writes + native vector/full-text ops (`store.py`) — TuringDB→ArcadeDB port completed Phase 7 (ARC-10)
 - ✓ Multi-signal fused retrieval (dense, BM25, entity, graph, community) with weighted RRF + guarded rerank — existing
 - ✓ SQLite FTS5 sparse index as a rebuildable projection — existing
 - ✓ Async, durable, resumable document ingestion (SQLite job queue, lease/heartbeat worker, PDFium + MarkItDown) — existing
 - ✓ Derived projections: entity/memory extraction, temporal graph, native Leiden community detection — existing
 - ✓ Governance: pattern redaction, content-free audit JSONL, `expires_at` retention filtering — existing
 - ✓ Per-operation `user_identifier` tenant scoping enforced at the store layer — existing
-- ✓ Docker Compose reference stack (TuringDB, embed, rerank, GLiNER, MCP, lab) with healthchecks — existing
+- ✓ Docker Compose reference stack (ArcadeDB, embed, rerank, GLiNER, MCP, lab) with healthchecks — TuringDB service removed Phase 7
 - ✓ Deterministic E2E score gate + real-document benchmark harness (`scripts/`) — existing
 
 ### Active
@@ -131,4 +131,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-12 after Phase 1 (CI + Git-Hook Discipline) completion*
+*Last updated: 2026-07-16 after Phase 7 (Remove TuringDB + Dependency Hardening) completion — ArcadeDB is now the sole canonical backend*
