@@ -39,7 +39,9 @@ def test_corrected_checks_yields_14_pass_5_non_pass_over_committed_baseline() ->
     assert {row["name"] for row in non_passing} == EXPECTED_NON_PASSING_NAMES
 
 
-def test_corrected_checks_forces_ok_false_when_error_key_present_regardless_of_other_fields() -> None:
+def test_corrected_checks_forces_ok_false_when_error_key_present_regardless_of_other_fields() -> (
+    None
+):
     raw_checks = [
         {"name": "x", "ok": True, "detail": True, "error": {"type": "Boom", "message": "m"}},
     ]
