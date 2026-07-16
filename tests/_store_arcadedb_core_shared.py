@@ -106,6 +106,21 @@ class FakeArcadeDBClient:
             self._session_rows.setdefault(bucket, []).append(dict(params))
         return []
 
+    def sqlscript(
+        self,
+        body: str,
+        *,
+        params: dict[str, object] | None = None,
+        session_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        # Self-contained (own BEGIN/COMMIT, spike-confirmed) -- unlike
+        # `command()` above, no session bookkeeping is needed; callers (only
+        # `store_rebuild.py::_replace_community_graph`) never re-query the
+        # replaced Community rows within the same test, so recording the
+        # call is sufficient to prove the write-batch span/audit path.
+        self.commands.append((body, params, session_id))
+        return []
+
     def _select(
         self, params: dict[str, object] | None, session_id: str | None
     ) -> list[dict[str, object]]:
