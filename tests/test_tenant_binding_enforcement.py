@@ -152,9 +152,7 @@ def _bound_store(
 
 
 @pytest.mark.parametrize("case", _METHOD_CASES, ids=lambda case: case.name)
-def test_foreign_identifier_rejected_on_every_public_path(
-    tmp_path: Path, case: MethodCase
-) -> None:
+def test_foreign_identifier_rejected_on_every_public_path(tmp_path: Path, case: MethodCase) -> None:
     store, client = _bound_store(tmp_path)
     method = getattr(store, case.name)
 
@@ -168,9 +166,7 @@ def test_foreign_identifier_rejected_on_every_public_path(
 @pytest.mark.parametrize(
     "case", [case for case in _METHOD_CASES if case.spans], ids=lambda case: case.name
 )
-def test_foreign_identifier_rejected_before_span_or_audit(
-    tmp_path: Path, case: MethodCase
-) -> None:
+def test_foreign_identifier_rejected_before_span_or_audit(tmp_path: Path, case: MethodCase) -> None:
     observer = InMemorySpanRecorder()
     audit = RecordingAuditSink()
     store, client = _bound_store(tmp_path, observer=observer, audit_sink=audit)

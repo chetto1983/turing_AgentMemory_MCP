@@ -60,9 +60,7 @@ def test_physical_three_tenant_database_and_predicate_isolation(
         assert raw_identifier not in proof.telemetry_text, (
             f"exact tenant identifier {raw_identifier!r} leaked into telemetry_text"
         )
-    assert any(
-        database_name in proof.telemetry_text for database_name in proof.expected_databases
-    )
+    assert any(database_name in proof.telemetry_text for database_name in proof.expected_databases)
 
 
 @pytest.mark.integration
