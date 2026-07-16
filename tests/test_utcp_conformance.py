@@ -8,9 +8,8 @@ import pytest
 pytest.importorskip("utcp")
 pytest.importorskip("utcp_text")
 
-# turingdb has no Windows wheel; utcp.py transitively imports store.py -> turingdb.
-# This shim mirrors tests/test_utcp_manual.py so the module runs Docker-free on
-# Windows. It is unmarked (not integration/gpu) so CI's no-skip-as-green guard
+# utcp/utcp_text are optional spike dependencies, not always installed. This
+# module is unmarked (not integration/gpu) so CI's no-skip-as-green guard
 # (which only enforces integration/gpu markers) never trips when spike deps are
 # absent -- importorskip above is the only skip path, and it is not CI-enforced.
 

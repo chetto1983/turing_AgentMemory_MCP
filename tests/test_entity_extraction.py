@@ -98,7 +98,7 @@ def test_gliner_processor_keeps_text_when_redaction_disabled(monkeypatch) -> Non
             threshold: float = 0.5,
         ) -> list[dict[str, object]]:
             calls.append({"text": text, "labels": labels, "threshold": threshold})
-            return [{"text": "TuringDB", "label": "product", "start": 0, "end": 8, "score": 0.77}]
+            return [{"text": "ArcadeDB", "label": "product", "start": 0, "end": 8, "score": 0.77}]
 
     class FakeGLiNER:
         @classmethod
@@ -114,15 +114,15 @@ def test_gliner_processor_keeps_text_when_redaction_disabled(monkeypatch) -> Non
     monkeypatch.setenv("GLINER_REDACT", "0")
 
     processor = entity_processor_from_env()
-    result = processor.process("TuringDB stores memory")
+    result = processor.process("ArcadeDB stores memory")
 
-    assert result.text == "TuringDB stores memory"
+    assert result.text == "ArcadeDB stores memory"
     assert calls == [
         {"model_name": "gliner-community/gliner_small-v2.5"},
-        {"text": "TuringDB stores memory", "labels": ["product"], "threshold": 0.5},
+        {"text": "ArcadeDB stores memory", "labels": ["product"], "threshold": 0.5},
     ]
     assert result.metadata["entity_extraction"]["entities"] == [
-        {"text": "TuringDB", "label": "product", "start": 0, "end": 8, "score": 0.77}
+        {"text": "ArcadeDB", "label": "product", "start": 0, "end": 8, "score": 0.77}
     ]
 
 
@@ -359,12 +359,12 @@ def test_entity_metadata_search_text_includes_labels_and_extracted_text() -> Non
         "entity_extraction": {
             "labels": ["project", "library"],
             "entities": [
-                {"text": "TuringDB", "label": "project"},
+                {"text": "ArcadeDB", "label": "project"},
                 {"text": "FastMCP", "label": "library"},
             ],
         }
     }
 
     assert (
-        entity_metadata_search_text(metadata) == "project library project TuringDB library FastMCP"
+        entity_metadata_search_text(metadata) == "project library project ArcadeDB library FastMCP"
     )

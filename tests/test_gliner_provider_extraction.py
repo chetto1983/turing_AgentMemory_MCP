@@ -26,7 +26,7 @@ def test_fast_gliner2_adapter_serializes_batch_and_applies_threshold() -> None:
     adapter = gliner_provider.FastGLiNER2Adapter(model)
 
     assert adapter.batch_extract_entities(
-        ["Aurora", "TuringDB"],
+        ["Aurora", "ArcadeDB"],
         ["project"],
         batch_size=16,
         threshold=0.5,
@@ -34,9 +34,9 @@ def test_fast_gliner2_adapter_serializes_batch_and_applies_threshold() -> None:
         include_spans=True,
     ) == [
         [{"text": "Aurora", "label": "project", "score": 0.91, "start": 0, "end": 6}],
-        [{"text": "TuringDB", "label": "project", "score": 0.91, "start": 0, "end": 8}],
+        [{"text": "ArcadeDB", "label": "project", "score": 0.91, "start": 0, "end": 8}],
     ]
-    assert model.calls == [("Aurora", ["project"]), ("TuringDB", ["project"])]
+    assert model.calls == [("Aurora", ["project"]), ("ArcadeDB", ["project"])]
 
 
 def test_fast_gliner2_adapter_extracts_constrained_memory_with_complete_endpoints() -> None:

@@ -31,7 +31,7 @@ def test_gliner2_http_processor_batches_ordered_nested_results(monkeypatch) -> N
                                     {"text": "Alice", "start": 0, "end": 5, "confidence": 0.91}
                                 ],
                                 "project": [
-                                    {"text": "TuringDB", "start": 13, "end": 21, "confidence": 0.88}
+                                    {"text": "ArcadeDB", "start": 13, "end": 21, "confidence": 0.88}
                                 ],
                             }
                         },
@@ -70,14 +70,14 @@ def test_gliner2_http_processor_batches_ordered_nested_results(monkeypatch) -> N
     monkeypatch.setenv("GLINER_TIMEOUT_SECONDS", "7.5")
 
     processor = entity_processor_from_env()
-    results = processor.process_many(["Alice builds TuringDB", "Bob tests FastMCP"])
+    results = processor.process_many(["Alice builds ArcadeDB", "Bob tests FastMCP"])
 
     assert requests == [
         {
             "url": "http://agentmemory-gliner:8080/extract",
             "method": "POST",
             "payload": {
-                "texts": ["Alice builds TuringDB", "Bob tests FastMCP"],
+                "texts": ["Alice builds ArcadeDB", "Bob tests FastMCP"],
                 "labels": ["person", "project"],
                 "threshold": 0.42,
                 "include_confidence": True,
@@ -92,7 +92,7 @@ def test_gliner2_http_processor_batches_ordered_nested_results(monkeypatch) -> N
     ]
     assert results[0].metadata["entity_extraction"]["entities"] == [
         {"text": "Alice", "label": "person", "start": 0, "end": 5, "score": 0.91},
-        {"text": "TuringDB", "label": "project", "start": 13, "end": 21, "score": 0.88},
+        {"text": "ArcadeDB", "label": "project", "start": 13, "end": 21, "score": 0.88},
     ]
     assert results[1].metadata["entity_extraction"]["entities"] == [
         {"text": "Bob", "label": "person", "start": 0, "end": 3, "score": 0.93},
