@@ -7,7 +7,6 @@ def _benchmark_row(operation: str) -> dict[str, object]:
     return {
         "timestamp": "2026-07-09T20:45:57Z",
         "git_commit": "fdd2450",
-        "turingdb_version": "test",
         "embedding_model": "aura-llama-embed",
         "rerank_model": "aura-rerank",
         "dataset": "unit",

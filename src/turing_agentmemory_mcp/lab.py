@@ -16,7 +16,6 @@ FRONTEND_PACKAGE = "turing_agentmemory_mcp.frontend"
 REQUIRED_BENCHMARK_FIELDS = (
     "timestamp",
     "git_commit",
-    "turingdb_version",
     "embedding_model",
     "rerank_model",
     "dataset",
@@ -112,7 +111,7 @@ def build_lab_payload(benchmark_dir: str | Path | None = None) -> dict[str, Any]
 
     nodes: list[dict[str, Any]] = [
         {"id": "mcp", "label": "AgentMemory MCP", "type": "service", "x": 500, "y": 92},
-        {"id": "turingdb", "label": "TuringDB", "type": "store", "x": 326, "y": 238},
+        {"id": "arcadedb", "label": "ArcadeDB", "type": "store", "x": 326, "y": 238},
         {"id": "aura_embed", "label": "Aura Embed", "type": "provider", "x": 684, "y": 230},
         {"id": "aura_rerank", "label": "Aura Rerank", "type": "provider", "x": 804, "y": 380},
         {"id": "memories", "label": "Memory Tools", "type": "memory", "x": 205, "y": 390},
@@ -126,7 +125,7 @@ def build_lab_payload(benchmark_dir: str | Path | None = None) -> dict[str, Any]
         },
     ]
     edges: list[dict[str, str]] = [
-        {"source": "mcp", "target": "turingdb", "label": "persists"},
+        {"source": "mcp", "target": "arcadedb", "label": "persists"},
         {"source": "mcp", "target": "aura_embed", "label": "embeds"},
         {"source": "mcp", "target": "aura_rerank", "label": "reranks"},
         {"source": "mcp", "target": "memories", "label": "serves"},
