@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 6 context gathered
+status: planned
+stopped_at: Phase 6 planned (4 plans, 3 waves)
 last_updated: "2026-07-16T08:08:12.717Z"
-last_activity: 2026-07-16 — Phase 05 complete (verified 10/10); next Phase 06
+last_activity: 2026-07-16 — Phase 06 planned (4 plans, 3 waves); ready to execute
 progress:
   total_phases: 13
   completed_phases: 5
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 06 — Migration-Correctness Gate
-Plan: Not started
-Status: Ready to plan (needs /gsd-discuss-phase 6)
-Last activity: 2026-07-16 — Phase 05 complete (verified 10/10); next Phase 06
+Plan: 4 plans across 3 waves
+Status: Ready to execute (/gsd-execute-phase 6)
+Last activity: 2026-07-16 — Phase 06 planned (4 plans, 3 waves); ready to execute
 
 Progress: [████░░░░░░] 38%
 

@@ -238,9 +238,17 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 06-01-PLAN.md — Gate engine: corpus sha256 verify + corrected-baseline derivation + diff/tolerance/GO|NO_GO verdict (TDD)
 - [ ] 06-02-PLAN.md — Phase-7 fail-closed guard: D-09 schema validator + assert_gate_go (TDD)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 06-03-PLAN.md — GPU-backed matched capture: real-provider e2e + N=3 frozen-question benchmark + latency
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 06-04-PLAN.md — Compute + commit gate artifact (gate-result.json + GATE.md) + committed-artifact verification tests
 
 ### Phase 7: Remove TuringDB + Dependency Hardening
