@@ -29,11 +29,19 @@ Design decisions that emerge from spiking (non-negotiable for a real build).
   Note: the *existing memory* graph (`temporal_graph.py:137`) has this latent bug too.
 - **Use ArcadeDB object-notation `MATCH`** on 26.7.1 (`{type:...,as:...}.out(){...}`);
   the ArcadeDB GraphRAG doc's Cypher-arrow syntax fails live (001).
+- **The graph channel must be MULTI-HOP** (002): single-hop co-mention ≈ the
+  existing Lucene channel; the lift comes from N-hop entity bridges reaching
+  lexically-invisible answers. Expansion needs hop decay / per-hop caps / tuned
+  RRF weight or it injects noise.
+- **Native `vector.fuse` (RRF) is available on 26.7.1** (002) for dense+sparse
+  server-side fusion; the graph channel stays a MATCH feeding the Python RRF.
+- Every channel fused via `fuse_rankings` must agree on candidate identity
+  `(candidate_id, kind, content, source_memory_id, ...)` (002).
 
 ## Spikes
 
 | # | Name | Type | Validates | Verdict | Tags |
 |---|------|------|-----------|---------|------|
 | 001 | doc-entity-graph-substrate | standard | Chunk→Entity `MENTIONS` extraction + cross-doc SQL traversal on live ArcadeDB | ✓ VALIDATED | graph, arcadedb, gliner |
-| 002 | doc-graph-channel-fusion | standard | Entity-anchored graph channel fused into document_search (Python RRF vs native `vector.fuse`) | PENDING | fusion, retrieval, arcadedb |
+| 002 | doc-graph-channel-fusion | standard | Entity-anchored graph channel fused into document_search (Python RRF vs native `vector.fuse`) | ✓ VALIDATED | fusion, retrieval, arcadedb |
 | 003 | doc-graphrag-quality-signal | standard | Lift vs the dense+lexical+rerank baseline on the frozen 60-question yardstick | PENDING | benchmark, quality |

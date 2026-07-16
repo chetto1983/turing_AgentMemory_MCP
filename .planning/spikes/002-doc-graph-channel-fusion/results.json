@@ -1,0 +1,121 @@
+{
+  "spike": "002-doc-graph-channel-fusion",
+  "query": "Which nearest neighbor library does GraphRAG rely on?",
+  "answer_doc": "jvector-detail",
+  "channels": {
+    "dense_docs": [
+      "graphrag-intro",
+      "arcadedb-engine",
+      "rrf-note",
+      "jvector-detail",
+      "lucene-note"
+    ],
+    "lexical_docs": [
+      "arcadedb-engine",
+      "graphrag-intro"
+    ],
+    "graph_1hop_docs": [
+      "graphrag-intro"
+    ],
+    "graph_3hop_docs": [
+      "graphrag-intro",
+      "arcadedb-engine",
+      "jvector-detail"
+    ],
+    "graph_1hop_trace": {
+      "query_entities": [
+        "graphrag",
+        "nearest neighbor library"
+      ],
+      "hops": [
+        {
+          "hop": 1,
+          "new_chunk_docs": [
+            "graphrag-intro"
+          ]
+        }
+      ]
+    },
+    "graph_3hop_trace": {
+      "query_entities": [
+        "graphrag",
+        "nearest neighbor library"
+      ],
+      "hops": [
+        {
+          "hop": 1,
+          "new_chunk_docs": [
+            "graphrag-intro"
+          ]
+        },
+        {
+          "hop": 2,
+          "new_chunk_docs": [
+            "arcadedb-engine"
+          ]
+        },
+        {
+          "hop": 3,
+          "new_chunk_docs": [
+            "jvector-detail"
+          ]
+        }
+      ]
+    }
+  },
+  "answer_rank": {
+    "dense_only": 4,
+    "lexical_only": -1,
+    "graph_3hop_only": 3,
+    "fused_dense_lexical": 4,
+    "fused_with_graph": 3
+  },
+  "fused_with_graph_top": [
+    {
+      "doc": "graphrag-intro",
+      "channels": [
+        "dense",
+        "graph",
+        "lexical"
+      ]
+    },
+    {
+      "doc": "arcadedb-engine",
+      "channels": [
+        "dense",
+        "graph",
+        "lexical"
+      ]
+    },
+    {
+      "doc": "jvector-detail",
+      "channels": [
+        "dense",
+        "graph"
+      ]
+    },
+    {
+      "doc": "rrf-note",
+      "channels": [
+        "dense"
+      ]
+    },
+    {
+      "doc": "lucene-note",
+      "channels": [
+        "dense"
+      ]
+    }
+  ],
+  "native_vector_fuse": {
+    "available": true,
+    "rows": 5
+  },
+  "verdict": {
+    "fusion_mechanics_ok": true,
+    "multihop_graph_adds_value": true,
+    "single_hop_overlaps_lexical": [
+      "graphrag-intro"
+    ]
+  }
+}
