@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 Phase: 7 — Remove TuringDB + Dependency Hardening
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-07-16 — Phase 6 complete, transitioned to Phase 7
+Last activity: 2026-07-16 — Completed quick task 260716-lel: strip HTML/Wikipedia navigation boilerplate in document conversion
 
 Progress: [██████████] 100%
 
@@ -221,6 +221,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260713-i13 | Fix flaky CI test test_server_drops_connections_above_worker_cap: broaden except to OSError to catch the ENOTCONN race from a server-dropped over-cap connection | 2026-07-13 | 432132a | [260713-i13-fix-flaky-test-test-server-drops-connect](./quick/260713-i13-fix-flaky-test-test-server-drops-connect/) |
+| 260716-lel | Strip HTML/Wikipedia navigation boilerplate in document conversion via MarkItDown main-content extraction (found in doc-GraphRAG spike 003) | 2026-07-16 | 764302a | [260716-lel-strip-html-wikipedia-navigation-boilerpl](./quick/260716-lel-strip-html-wikipedia-navigation-boilerpl/) |
 
 ### Roadmap Evolution
 
