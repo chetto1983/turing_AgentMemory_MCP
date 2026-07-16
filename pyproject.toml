@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "turing-agentmemory-mcp"
 version = "0.1.0"
-description = "TuringDB-backed Agent Memory MCP with document ingest and cited retrieval"
+description = "ArcadeDB-backed Agent Memory MCP with document ingest and cited retrieval"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Turing AgentMemory MCP Contributors" }]
-keywords = ["agent-memory", "mcp", "rag", "turingdb", "vector-search"]
+keywords = ["agent-memory", "mcp", "rag", "vector-search"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "License :: OSI Approved :: MIT License",
@@ -27,7 +27,6 @@ dependencies = [
   "graspologic-native==1.3.1",
   "markitdown[pdf,docx,pptx,xlsx]>=0.1.6,<0.2",
   "pypdfium2>=4.30,<6",
-  "turingdb==1.35",
 ]
 
 [project.optional-dependencies]
