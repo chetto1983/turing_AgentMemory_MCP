@@ -235,7 +235,7 @@ Plans:
   2. Retrieval quality meets or exceeds the baseline (not merely "runs without crashing"); a shortfall blocks removal of TuringDB and everything downstream.
   3. The comparison result is recorded as the gate artifact that authorizes (or blocks) cutover.
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 **Wave 1**
@@ -249,7 +249,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 06-04-PLAN.md — Compute + commit gate artifact (gate-result.json + GATE.md) + committed-artifact verification tests
+- [x] 06-04-PLAN.md — Compute + commit gate artifact (gate-result.json + GATE.md) + committed-artifact verification tests
 
 ### Phase 7: Remove TuringDB + Dependency Hardening
 
@@ -349,7 +349,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 3. TuringDB Retrieval Baseline | 4/4 | Complete    | 2026-07-13 |
 | 4. ArcadeDB Direct Port | 10/10 | Complete    | 2026-07-14 |
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
-| 6. Migration-Correctness Gate | 3/4 | In Progress|  |
+| 6. Migration-Correctness Gate | 4/4 | In Progress|  |
 | 7. Remove TuringDB + Dependency Hardening | 0/TBD | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
