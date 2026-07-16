@@ -53,9 +53,6 @@ def store_embedding_dimensions(default: str = "768") -> str:
     value = os.environ.get("EMBED_DIMENSIONS")
     if value is not None:
         return value
-    value = os.environ.get("TURINGDB_EMBED_DIMENSIONS")
-    if value is not None:
-        return value
     return default
 
 

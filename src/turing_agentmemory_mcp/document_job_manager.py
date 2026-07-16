@@ -367,7 +367,7 @@ def _positive_int(value: object, *, default: int) -> int:
 
 
 def document_ingest_manager_from_env(*, store_factory: StoreFactory) -> DocumentIngestManager:
-    home = Path(os.environ.get("TURINGDB_HOME", "/turing"))
+    home = Path(os.environ.get("BERTONI_HOME", "/bertoni"))
     return DocumentIngestManager(
         DocumentJobStore(
             os.environ.get(

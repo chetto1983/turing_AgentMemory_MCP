@@ -126,8 +126,8 @@ def _fusion_weights_from_env() -> dict[str, float] | None:
 
 
 def _unbootstrapped_store_from_env(client: ArcadeDBClient) -> TuringAgentMemory:
-    graph = os.environ.get("TURINGDB_GRAPH", "agent_memory")
-    home = Path(os.environ.get("TURINGDB_HOME", "/turing"))
+    graph = os.environ.get("AGENTMEMORY_GRAPH", "agent_memory")
+    home = Path(os.environ.get("BERTONI_HOME", "/bertoni"))
     dimensions = int(store_embedding_dimensions())
     index_prefix = graph.replace("-", "_")
     fusion_enabled = _env_bool("AGENTMEMORY_FUSION_ENABLED", default=False)
@@ -157,10 +157,9 @@ def _unbootstrapped_store_from_env(client: ArcadeDBClient) -> TuringAgentMemory:
         iterations=_env_int("AGENTMEMORY_LEIDEN_ITERATIONS", default=2, minimum=1),
         max_cluster_size=_env_int("AGENTMEMORY_LEIDEN_MAX_CLUSTER_SIZE", default=100, minimum=1),
     )
-    # ARCADEDB_*_INDEX supersedes TURINGDB_*_INDEX for the ArcadeDB-backed store
-    # (ARC-02); the TURINGDB_* connection vars above stay unread here -- the
-    # turingdb service/dependency is retained for coexistence (Phase 7/ARC-10)
-    # but the store no longer connects through it.
+    # ArcadeDB is the sole backend (ARC-02/ARC-10); ARCADEDB_*_INDEX names the
+    # vector indexes and the app-state home/graph env vars above root the
+    # durable app-state paths -- there is no TuringDB connection to coexist with.
     return TuringAgentMemory(
         client,
         turing_home=home,
@@ -220,11 +219,11 @@ def tenant_router_from_env() -> TenantRouter:
         "AGENTMEMORY_TENANT_PROVISION_BACKOFF_MAX_SECONDS",
         default=2.0,
     )
-    turing_home = Path(os.environ.get("TURINGDB_HOME", "/turing"))
+    bertoni_home = Path(os.environ.get("BERTONI_HOME", "/bertoni"))
     registry_path = Path(
         os.environ.get(
             "AGENTMEMORY_TENANT_REGISTRY_PATH",
-            str(turing_home / "data" / "agent-memory-tenant-registry.sqlite3"),
+            str(bertoni_home / "data" / "agent-memory-tenant-registry.sqlite3"),
         )
     )
     base_client = ArcadeDBClient.from_env()
