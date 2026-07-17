@@ -2,17 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-current_phase: 08
-current_phase_name: Document Ingestion & Storage Reliability
-status: ready_to_plan
-stopped_at: Phase 07 complete (8/8) — next: Phase 8 (Phases 8–11 parallelize off Phase 7; Phase 14 rebrand is deliberately last)
-last_updated: 2026-07-16T20:49:18.211Z
+status: completed
+stopped_at: Phase 07.1 context gathered
+last_updated: "2026-07-17T08:04:42.781Z"
 last_activity: 2026-07-16
 progress:
-  total_phases: 8
+  total_phases: 15
   completed_phases: 7
   total_plans: 50
   completed_plans: 50
+  percent: 47
 ---
 
 # Project State
@@ -22,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 07 complete — next: Phase 8 (Document Ingestion & Storage Reliability); Phases 8–11 parallelize off Phase 7
+**Current focus:** Phase 07.1 (INSERTED) — Document Graph RAG and GLiNER GPU; then Phase 8 (Document Ingestion & Storage Reliability)
 
 ## Current Position
 
-Phase: 8 — Document Ingestion & Storage Reliability (next)
+Phase: 07.1 — Document Graph RAG and GLiNER GPU (next, INSERTED)
 Plan: Not started
-Status: Phase 07 complete — ready to discuss/plan Phase 8
+Status: Phase 07 complete — Phase 07.1 inserted as urgent work; ready to discuss/plan 07.1
 Last activity: 2026-07-16
 
 Progress: [██████████] 100%
@@ -253,6 +252,7 @@ None yet.
 - Phase 1 edited: SC#1 dropped file-size allowlist (no exemptions); added SC#5 store.py decomposition; REQUIREMENTS CI-01 updated to match
 - Phase 13 added: Harden UTCP support (follow-up to Phase 2 stay-manual verdict; scope open, to be set in plan-phase)
 - Phase 14 added: Full turing-to-bertoni package/product rebrand (after Phase 7; kept separate from the irreversible TuringDB removal)
+- Phase 07.1 inserted after Phase 7: Document Graph RAG and GLiNER GPU (URGENT)
 
 ## Deferred Items
 
@@ -266,6 +266,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-16T20:38:15.177Z
-Stopped at: Completed 07-08-PLAN.md (cut-proof approved; phase completion pending orchestrator)
-Resume file: None
+Last session: 2026-07-17T08:04:42.758Z
+Stopped at: Phase 07.1 context gathered
+Resume file: .planning/phases/07.1-document-graph-rag-and-gliner-gpu/07.1-CONTEXT.md
