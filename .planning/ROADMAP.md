@@ -286,13 +286,40 @@ Plans:
 
 ### Phase 07.1: Document Graph RAG and GLiNER GPU (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal**: Deliver correct entity resolution across memory and document paths, GPU-backed GLiNER and the whole-document HTTP 400 ingest fix, plus a MuSiQue-style multi-hop evaluation with a pre-committed GO/NO-GO threshold that decides whether a default-OFF document graph channel ships.
 **Depends on:** Phase 7
-**Plans:** 0 plans
+**Requirements**: GRAPH-01, GRAPH-02, GRAPH-03, GRAPH-04, PERF-04, FIX-08
+**Success Criteria** (what must be TRUE):
+
+  1. Entity identity is keyed on `stable_id("ent", user_identifier, canonical_name)` with `entity_type` demoted to a non-identity attribute plus a `type_observations` map, on both the memory and document paths; mem0's quadratic hub damping `1/(1 + 0.001*(n-1)^2)` ships in the same change as its required counterweight (D-02, D-03).
+  2. A tenant-scoped re-key rebuild re-derives entity identity from canonical in-database text (`Memory.content`, `Chunk.text`), fails closed on an empty `user_identifier`, is idempotent, and never deletes canonical rows; after it runs the E2E score gate still reads 19/19 at 10.0 (D-19, D-17).
+  3. Per-chunk entity extraction runs after chunking in `MAX_TEXTS=256` sub-batches, so a document whose extracted text exceeds `MAX_TEXT_CHARS` (16,384) no longer returns HTTP 400, and every chunk carries its own `entity_extraction` metadata (D-10).
+  4. `(:Chunk)-[:MENTIONS]->(:Entity)` edges ship as production substrate, tenant-scoped at every hop (D-12).
+  5. The GLiNER sidecar runs on GPU, proven by a BLACK-BOX binding check combining an `nvidia-smi` GPU-utilization delta with a throughput floor—never either alone and never a silent skip on a GPU-less runner; GPU contention against embed/rerank is measured before anything is tuned (D-09, D-11).
+  6. A multi-hop evaluation of 30–50 mechanically verified two-hop questions measures `fused_base`, `entity_boost`, and `fused_graph` on recall@k of the bridging passage set, and a GO requires all four conditions: `fused_graph` beats the best cheap arm by at least +0.10 mean recall@10; improves at least one-third of questions with zero regressions; causes no regression greater than 0.03 on spike 003's 15-question frozen yardstick; and adds no more than 20% latency versus the best cheap arm (D-15).
+  7. The verdict artifact states that demand is unmeasured because the evaluation proves efficacy only and cites spike 003's 0/15 as the only real-traffic signal (D-06); on NO-GO, the flag-gated channel and fusion port are deleted while the substrate and evaluation are kept (D-16).
+
+**Plans:** 17 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 07.1 to break down)
+
+- [ ] 07.1-01-PLAN.md — Replace the Phase 07.1 roadmap stub and register the six new requirement IDs while preserving no-orphans coverage.
+- [ ] 07.1-02-PLAN.md — Extract the document ingest write path into a new mixin to create 600-LOC headroom with zero behavior change.
+- [ ] 07.1-03-PLAN.md — Re-key entity identity on canonical name and accumulate non-identity type observations.
+- [ ] 07.1-04-PLAN.md — Add mandatory hub damping and characterize document-source diversification.
+- [ ] 07.1-05-PLAN.md — Build a CUDA-capable GLiNER image and wire its Compose GPU reservations.
+- [ ] 07.1-06-PLAN.md — Implement concurrent single-text GLiNER inference while preserving result order and count.
+- [ ] 07.1-07-PLAN.md — Add deterministic multi-hop scoring, rejection, and question-schema primitives.
+- [ ] 07.1-08-PLAN.md — Fix whole-document HTTP 400 failures with post-chunk extraction and bounded sub-batching.
+- [ ] 07.1-09-PLAN.md — Prove GLiNER GPU binding with two black-box signals and measure contention.
+- [ ] 07.1-10-PLAN.md — Write production Chunk-to-Entity MENTIONS edges and tenant-scoped traversal builders.
+- [ ] 07.1-11-PLAN.md — Re-key derived entity projections from canonical tenant-scoped in-database text.
+- [ ] 07.1-12-PLAN.md — Port document search to a default-OFF fusion shape with exact flag-OFF parity.
+- [ ] 07.1-13-PLAN.md — Add the flag-gated, hub-damped multi-hop document graph channel to fusion.
+- [ ] 07.1-14-PLAN.md — Run the entity-resolution mini-gate and decide SAME_AS from measured residual fragmentation.
+- [ ] 07.1-15-PLAN.md — Compose, verify, and measure a 30–50-question MuSiQue-style three-arm evaluation.
+- [ ] 07.1-16-PLAN.md — Apply the pre-committed gate, record the verdict, and execute its disposition.
+- [ ] 07.1-17-PLAN.md — Wire hub damping and name-only entity seeding into the existing memory graph channel.
 
 ### Phase 8: Document Ingestion & Storage Reliability
 
@@ -381,7 +408,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 4/4 | Complete    | 2026-07-16 |
 | 7. Remove TuringDB + Dependency Hardening | 8/8 | Complete    | 2026-07-16 |
-| 7.1. Document Graph RAG and GLiNER GPU (INSERTED) | 0/TBD | Not started | - |
+| 7.1. Document Graph RAG and GLiNER GPU (INSERTED) | 0/17 | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
 | 10. Security & Governance Hardening | 0/TBD | Not started | - |
@@ -437,4 +464,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-07-11*
-*Coverage: 55/55 v1 requirements mapped to phases (no orphans, no duplicates)*
+*Coverage: 61/61 v1 requirements mapped to phases (no orphans, no duplicates)*
