@@ -2,15 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
+current_phase: 07.1
+current_phase_name: document-graph-rag-and-gliner-gpu
 status: executing
-stopped_at: Phase 07.1 planned -- 17 plans across 7 waves, ready to execute
-last_updated: "2026-07-17T09:32:12.220Z"
-last_activity: 2026-07-17 -- Phase 07.1 planning complete
+stopped_at: Completed 07.1-01-PLAN.md
+last_updated: "2026-07-17T12:44:06.611Z"
+last_activity: 2026-07-17
+last_activity_desc: Phase 07.1 execution resumed (wave continue)
 progress:
   total_phases: 15
   completed_phases: 7
   total_plans: 67
-  completed_plans: 50
+  completed_plans: 51
   percent: 47
 ---
 
@@ -21,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-11)
 
 **Core value:** Stay correct and tenant-isolated under stabilization — after every change a real document flows end-to-end through the dockerized MCP and the deterministic E2E score gate stays green.
-**Current focus:** Phase 07.1 (INSERTED) — Document Graph RAG and GLiNER GPU; then Phase 8 (Document Ingestion & Storage Reliability)
+**Current focus:** Phase 07.1 — document-graph-rag-and-gliner-gpu
 
 ## Current Position
 
-Phase: 07.1 — Document Graph RAG and GLiNER GPU (next, INSERTED)
-Plan: Not started
-Status: Ready to execute — 17 plans across 7 waves
-Last activity: 2026-07-17 -- Phase 07.1 planning complete
+Phase: 07.1 (document-graph-rag-and-gliner-gpu) — EXECUTING
+Plan: 2 of 17
+Status: Ready to execute
+Last activity: 2026-07-17 — Phase 07.1 execution resumed (wave continue)
 
 ### ⚠ Gate override recorded at plan time (re-surface at /gsd-verify-work)
 
@@ -40,16 +43,20 @@ decision *body text* rather than the `D-NN` identifier, so a decision that is ci
 fully implemented — but paraphrased rather than quoted — is scored uncovered.
 
 Evidence the gap is not real:
+
 - D-02 scores covered only because the phrase "Name-only entity key" appears verbatim in a
   plan; D-13 scores uncovered with 0 verbatim hits — despite both being cited by id in plan
   bodies in materially identical ways.
+
 - The gate's own extracted text for D-04, D-09, and D-18 is visibly corrupted (fragments
   spliced mid-sentence, `>` blockquote markers inlined, nested bullets collapsed) — its parser
   does not survive CONTEXT.md's nested-bullet/blockquote structure.
+
 - The flagged decisions are demonstrably planned: plan 13 implements D-13 (feeds
   `fuse_rankings` as `doc_graph`; records the PPR upgrade path), and plan 12 implements D-14
   (flag-OFF byte-identical ranking, `source_memory_id = document_id`, `max_per_source=3`,
   `doc_`-prefixed fusion-weight keys).
+
 - Four independent checks agree all D-01..D-19 are covered: the gsd-planner's own audit, the
   gsd-plan-checker's adversarial re-verification (0 issues), an id-level grep, and direct
   inspection of the flagged plans.
@@ -144,6 +151,7 @@ Progress: [██████████] 100%
 | Phase 07 P06 | 25min | 3 tasks | 17 files |
 | Phase 07 P07 | 15min | 2 tasks | 2 files |
 | Phase 07 P08 | 20min | 2 tasks | 0 files |
+| Phase 07.1 P01 | 11min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -259,6 +267,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-07: Fixed a pre-existing wrong invariant cross-reference in .claude/CLAUDE.md (stable IDs mislabeled invariant #3, corrected to #4) as fix-on-touch within the same edited paragraph
 - [Phase ?]: 07-08: Task 1 cut-proof gate (files_modified: []) treated as the deliverable itself — full CI-equivalent green run (ruff, file-size cap, unit suite at 87.22% coverage, compose validation, grep-gate + DEP-01/DEP-02 oracles, gate_guard GO, live E2E score 10.0/19-of-19) is the evidence, not a code artifact.
 - [Phase ?]: 07-08: Human approved the rewritten CLAUDE.md / .claude/CLAUDE.md invariants and the irreversible TuringDB removal ('approved') after reviewing the automated cut-proof evidence.
+- [Phase 07.1]: Keep Phase 8 depending on Phase 7 — Numeric roadmap order already sequences 07.1 before Phase 8, while an added hard edge would falsely reduce Phase 8 parallelism.
+- [Phase 07.1]: Keep the six Phase 07.1 feature requirements Pending after Plan 01 — Plan 01 registers the requirement contracts; later plans deliver and verify their runtime behavior.
 
 ### Pending Todos
 
@@ -300,6 +310,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-17T08:04:42.758Z
-Stopped at: Phase 07.1 context gathered
-Resume file: .planning/phases/07.1-document-graph-rag-and-gliner-gpu/07.1-CONTEXT.md
+Last session: 2026-07-17T12:44:06.591Z
+Stopped at: Completed 07.1-01-PLAN.md
+Resume file: None
