@@ -22,6 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Per-Tenant ArcadeDB Isolation** - One database per tenant with mandatory `user_identifier` scoping still enforced (completed 2026-07-15)
 - [x] **Phase 6: Migration-Correctness Gate** - Ported stack provably meets-or-exceeds the baseline (hard exit criterion) (completed 2026-07-16)
 - [x] **Phase 7: Remove TuringDB + Dependency Hardening** - TuringDB cut, invariants rewritten, at-risk deps version-gated (completed 2026-07-16)
+- [ ] **Phase 7.1: Document Graph RAG and GLiNER GPU** (INSERTED) - Urgent insertion; goal to be planned
 - [ ] **Phase 8: Document Ingestion & Storage Reliability** - Durable upload sessions, Garage S3 staging, multi-worker + cancellation
 - [ ] **Phase 9: Retrieval Performance & Vector Lifecycle** - Batched embedding/extraction, fetch tuning, versioned vector indexes
 - [ ] **Phase 10: Security & Governance Hardening** - OIDC identity, hard-delete + purge, redaction/audit durability, metrics hooks
@@ -283,6 +284,16 @@ Plans:
 
 - [x] 07-08-PLAN.md — Full-suite + compose + E2E cut-proof gate + human review of the invariant rewrite
 
+### Phase 07.1: Document Graph RAG and GLiNER GPU (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 07.1 to break down)
+
 ### Phase 8: Document Ingestion & Storage Reliability
 
 **Goal**: Document upload and ingestion survive restarts, concurrency, and cancellation, with staged bytes on durable S3-compatible storage.
@@ -358,7 +369,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12.
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 7.1 → 8 → 9 → 10 → 11 → 12.
 Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordered among themselves.
 
 | Phase | Plans Complete | Status | Completed |
@@ -370,6 +381,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 4/4 | Complete    | 2026-07-16 |
 | 7. Remove TuringDB + Dependency Hardening | 8/8 | Complete    | 2026-07-16 |
+| 7.1. Document Graph RAG and GLiNER GPU (INSERTED) | 0/TBD | Not started | - |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
 | 10. Security & Governance Hardening | 0/TBD | Not started | - |

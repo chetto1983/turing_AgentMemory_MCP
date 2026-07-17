@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.2.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 07.1 context gathered
-last_updated: "2026-07-17T08:04:42.781Z"
-last_activity: 2026-07-16
+status: executing
+stopped_at: Phase 07.1 planned -- 17 plans across 7 waves, ready to execute
+last_updated: "2026-07-17T09:32:12.220Z"
+last_activity: 2026-07-17 -- Phase 07.1 planning complete
 progress:
   total_phases: 15
   completed_phases: 7
-  total_plans: 50
+  total_plans: 67
   completed_plans: 50
   percent: 47
 ---
@@ -27,8 +27,42 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 
 Phase: 07.1 — Document Graph RAG and GLiNER GPU (next, INSERTED)
 Plan: Not started
-Status: Phase 07 complete — Phase 07.1 inserted as urgent work; ready to discuss/plan 07.1
-Last activity: 2026-07-16
+Status: Ready to execute — 17 plans across 7 waves
+Last activity: 2026-07-17 -- Phase 07.1 planning complete
+
+### ⚠ Gate override recorded at plan time (re-surface at /gsd-verify-work)
+
+**Decision-coverage gate: overridden — false negative, user-confirmed 2026-07-17.**
+
+`check.decision-coverage-plan` reported `passed: false` (10/19 covered), naming D-01, D-04,
+D-06, D-09, D-10, D-12, D-13, D-14, D-18 as uncovered. **The gate misfired.** It matches
+decision *body text* rather than the `D-NN` identifier, so a decision that is cited by id and
+fully implemented — but paraphrased rather than quoted — is scored uncovered.
+
+Evidence the gap is not real:
+- D-02 scores covered only because the phrase "Name-only entity key" appears verbatim in a
+  plan; D-13 scores uncovered with 0 verbatim hits — despite both being cited by id in plan
+  bodies in materially identical ways.
+- The gate's own extracted text for D-04, D-09, and D-18 is visibly corrupted (fragments
+  spliced mid-sentence, `>` blockquote markers inlined, nested bullets collapsed) — its parser
+  does not survive CONTEXT.md's nested-bullet/blockquote structure.
+- The flagged decisions are demonstrably planned: plan 13 implements D-13 (feeds
+  `fuse_rankings` as `doc_graph`; records the PPR upgrade path), and plan 12 implements D-14
+  (flag-OFF byte-identical ranking, `source_memory_id = document_id`, `max_per_source=3`,
+  `doc_`-prefixed fusion-weight keys).
+- Four independent checks agree all D-01..D-19 are covered: the gsd-planner's own audit, the
+  gsd-plan-checker's adversarial re-verification (0 issues), an id-level grep, and direct
+  inspection of the flagged plans.
+
+The rejected alternatives are recorded deliberately: re-planning would chase phantom gaps and
+risk a plan set that just passed adversarial verification with zero issues, and would likely
+"fix" them by pasting verbatim decision text to satisfy a lexical matcher — gaming the gate,
+not improving the plans. Marking the nine `[informational]` would falsely demote D-01 (the
+entire eval-first, build-gated strategy) and D-18 (the requirements creation) to untracked.
+
+**At verify time:** re-check decision coverage by reading the plans, not by re-running this
+gate. Consistent with the recorded project note that GSD's success booleans are unreliable on
+this repo.
 
 Progress: [██████████] 100%
 
