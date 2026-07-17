@@ -30,6 +30,13 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [x] **ARC-09**: Migration-correctness gate — the ported ArcadeDB code meets-or-exceeds the ARC-01 baseline (HARD exit criterion; nothing downstream proceeds until it passes)
 - [x] **ARC-10**: TuringDB removed from the codebase and Compose stack; CLAUDE.md invariants updated (ArcadeDB canonical, invariant #2 superseded)
 
+### Document Graph RAG (GRAPH)
+
+- [ ] **GRAPH-01**: Entity resolution uses a name-only entity key (`stable_id("ent", user_identifier, canonical_name)`) plus a `type_observations` map on both the memory and document paths, with mandatory hub damping and derived projections re-keyed from canonical in-database text via a tenant-scoped re-key rebuild
+- [ ] **GRAPH-02**: Per-chunk entity extraction writes tenant-scoped `(:Chunk)-[:MENTIONS]->(:Entity)` edges
+- [ ] **GRAPH-03**: A MuSiQue-style multi-hop evaluation records a pre-committed GO/NO-GO decision artifact
+- [ ] **GRAPH-04**: A default-OFF, flag-gated document graph channel integrates through the `document_search` fusion port
+
 ### Tech-Debt & Bug Fixes (FIX) — Thrust 2 concerns
 
 - [ ] **FIX-01**: Upload sessions get TTL expiry + durable persistence, closing the memory leak and the lost-on-restart bug
@@ -39,6 +46,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [ ] **FIX-05**: Cooperative-cancellation timeouts wrap provider/DB calls so canceled jobs actually stop
 - [ ] **FIX-06**: Vector rebuild removes stale vectors (no unbounded accumulation / duplicates)
 - [ ] **FIX-07**: Audit sink flushes durably (no lost events on crash)
+- [ ] **FIX-08**: Whole-document GLiNER extraction no longer returns HTTP 400 because extraction runs per chunk after chunking with `MAX_TEXTS=256` sub-batching
 
 ### Security (SEC) — Thrust 2 concerns
 
@@ -52,6 +60,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [x] **PERF-01**: Batch embedding API for memories and document chunks (single round-trip per batch)
 - [x] **PERF-02**: Batched memory extraction (no per-item HTTP calls)
 - [ ] **PERF-03**: Vector-search fetch tuning (predicate pushdown / adaptive fetch instead of fixed 4× over-fetch)
+- [ ] **PERF-04**: GLiNER GPU runs in a CUDA-capable sidecar with a black-box CUDA execution-provider binding proof and a concurrency fan-out extraction path
 
 ### Storage & Infra (INFRA) — Thrust 2 concerns
 
@@ -140,6 +149,10 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | ARC-08 | Phase 4 | Complete |
 | ARC-09 | Phase 6 | Complete |
 | ARC-10 | Phase 7 | Complete |
+| GRAPH-01 | Phase 07.1 | Pending |
+| GRAPH-02 | Phase 07.1 | Pending |
+| GRAPH-03 | Phase 07.1 | Pending |
+| GRAPH-04 | Phase 07.1 | Pending |
 | FIX-01 | Phase 8 | Pending |
 | FIX-02 | Phase 8 | Pending |
 | FIX-03 | Phase 8 | Pending |
@@ -147,6 +160,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | FIX-05 | Phase 8 | Pending |
 | FIX-06 | Phase 9 | Pending |
 | FIX-07 | Phase 10 | Pending |
+| FIX-08 | Phase 07.1 | Pending |
 | SEC-01 | Phase 10 | Pending |
 | SEC-02 | Phase 10 | Pending |
 | SEC-03 | Phase 10 | Pending |
@@ -154,6 +168,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | PERF-01 | Phase 9 | Complete |
 | PERF-02 | Phase 9 | Complete |
 | PERF-03 | Phase 9 | Pending |
+| PERF-04 | Phase 07.1 | Pending |
 | INFRA-01 | Phase 8 | Pending |
 | INFRA-02 | Phase 10 | Pending |
 | INFRA-03 | Phase 9 | Complete |
@@ -181,8 +196,8 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 
 **Coverage:**
 
-- v1 requirements: 55 total (DOCK 7, ARC 10, FIX 7, SEC 4, PERF 3, INFRA 4, TEST 8, DEP 2, CI 9, UTCP 1)
-- Mapped to phases: 55 ✓ (all v1 requirements mapped to exactly one phase)
+- v1 requirements: 61 total (DOCK 7, ARC 10, GRAPH 4, FIX 8, SEC 4, PERF 4, INFRA 4, TEST 8, DEP 2, CI 9, UTCP 1)
+- Mapped to phases: 61 ✓ (all v1 requirements mapped to exactly one phase)
 - Unmapped: 0 ✓ (no orphans, no duplicates)
 
 **By phase:**
@@ -194,6 +209,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 - Phase 5 (Per-Tenant ArcadeDB Isolation): ARC-07, TEST-05 — 2
 - Phase 6 (Migration-Correctness Gate): ARC-09 — 1
 - Phase 7 (Remove TuringDB + Dependency Hardening): ARC-10, DEP-01, DEP-02 — 3
+- Phase 07.1 (Document Graph RAG and GLiNER GPU): GRAPH-01, GRAPH-02, GRAPH-03, GRAPH-04, PERF-04, FIX-08 — 6
 - Phase 8 (Document Ingestion & Storage Reliability): FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, INFRA-01, TEST-01, TEST-06 — 8
 - Phase 9 (Retrieval Performance & Vector Lifecycle): PERF-01, PERF-02, PERF-03, FIX-06, INFRA-03, TEST-07, TEST-08 — 7
 - Phase 10 (Security & Governance Hardening): SEC-01, SEC-02, SEC-03, SEC-04, FIX-07, INFRA-02, INFRA-04 — 7
