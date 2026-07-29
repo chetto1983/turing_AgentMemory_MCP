@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from scripts import multihop_eval_scoring as scoring
+from scripts.real_document_benchmark_scoring import load_frozen_questions
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_bridging_set_recall_returns_one_when_all_required_passages_are_found() -> None:
@@ -152,3 +158,129 @@ def test_rejection_filter_does_not_delegate_to_set_recall(monkeypatch) -> None:
         answer="Rome",
         evidence_quote="",
     )
+
+
+def test_multihop_required_keys_define_a_new_bridging_passage_schema() -> None:
+    assert scoring.MULTIHOP_REQUIRED_KEYS == {
+        "source_id",
+        "question",
+        "answer",
+        "bridging_passages",
+    }
+
+
+def test_load_multihop_questions_accepts_valid_rows(tmp_path) -> None:
+    rows = [
+        {
+            "source_id": "Q1",
+            "question": "Which destination follows from both bridges?",
+            "answer": "Rome",
+            "bridging_passages": [
+                "Alpha identifies the relevant route.",
+                "The relevant route terminates in Rome.",
+            ],
+        }
+    ]
+    path = tmp_path / "multihop-questions.json"
+    path.write_text(json.dumps(rows), encoding="utf-8")
+
+    assert scoring.load_multihop_questions(path) == rows
+
+
+def test_load_multihop_questions_names_row_missing_bridging_passages(tmp_path) -> None:
+    rows = [
+        {
+            "source_id": "Q1",
+            "question": "Which destination follows from both bridges?",
+            "answer": "Rome",
+            "evidence_quote": "The old single-passage field is not the new schema.",
+        }
+    ]
+    path = tmp_path / "missing-bridges.json"
+    path.write_text(json.dumps(rows), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"row 0.*bridging_passages"):
+        scoring.load_multihop_questions(path)
+
+
+def test_load_multihop_questions_rejects_one_passage_row_by_index(tmp_path) -> None:
+    rows = [
+        {
+            "source_id": "Q1",
+            "question": "Which destination follows from both bridges?",
+            "answer": "Rome",
+            "bridging_passages": ["Only one passage exists."],
+        }
+    ]
+    path = tmp_path / "one-bridge.json"
+    path.write_text(json.dumps(rows), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"row 0.*at least 2"):
+        scoring.load_multihop_questions(path)
+
+
+def test_load_multihop_questions_requires_a_list_of_strings(tmp_path) -> None:
+    rows = [
+        {
+            "source_id": "Q1",
+            "question": "Which destination follows from both bridges?",
+            "answer": "Rome",
+            "bridging_passages": ["First passage.", 2],
+        }
+    ]
+    path = tmp_path / "invalid-bridge-type.json"
+    path.write_text(json.dumps(rows), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"row 0.*list\[str\]"):
+        scoring.load_multihop_questions(path)
+
+
+def test_existing_phase6_frozen_questions_contract_still_loads() -> None:
+    path = ROOT / "baseline" / "03-turingdb" / "frozen-questions.json"
+
+    loaded = load_frozen_questions(path)
+
+    assert loaded
+    assert all("evidence_quote" in row for rows in loaded.values() for row in rows)
+
+
+def test_summarize_multihop_results_reports_means_improvements_and_regressions() -> None:
+    per_question_by_arm = {
+        "fused_base": [0.0, 1.0, 0.0],
+        "entity_boost": [0.5, 1.0, 0.0],
+        "fused_graph": [1.0, 0.5, 1.0],
+    }
+
+    summary = scoring.summarize_multihop_results(
+        per_question_by_arm,
+        baseline_arm="fused_base",
+    )
+
+    assert summary == {
+        "fused_base": {
+            "mean_set_recall_at_k": 1 / 3,
+            "improved": 0,
+            "regressed": 0,
+        },
+        "entity_boost": {
+            "mean_set_recall_at_k": 0.5,
+            "improved": 1,
+            "regressed": 0,
+        },
+        "fused_graph": {
+            "mean_set_recall_at_k": 2.5 / 3,
+            "improved": 2,
+            "regressed": 1,
+        },
+    }
+
+
+def test_summarize_multihop_results_rejects_misaligned_question_counts() -> None:
+    with pytest.raises(ValueError, match="same questions"):
+        scoring.summarize_multihop_results(
+            {
+                "fused_base": [0.0, 1.0],
+                "fused_graph": [1.0],
+            },
+            baseline_arm="fused_base",
+        )
