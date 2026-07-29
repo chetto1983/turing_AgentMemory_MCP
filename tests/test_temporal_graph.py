@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 
 from turing_agentmemory_mcp.ids import stable_id
@@ -9,6 +10,7 @@ from turing_agentmemory_mcp.memory_extraction import (
     MemoryExtraction,
     RelationMention,
 )
+from turing_agentmemory_mcp.store_memory_queries import entity_create_statement
 from turing_agentmemory_mcp.temporal_graph import (
     EpisodeContext,
     canonicalize_entity_name,
@@ -204,6 +206,53 @@ def test_type_observations_merge_later_mentions_without_overwrite() -> None:
         "product": 2,
         "library": 1,
     }
+
+
+def test_type_observations_json_is_bound_on_entity_create_statement() -> None:
+    extraction = extraction_with_entities(
+        EntityMention("ArcadeDB", "product", 0.91, 0, 8),
+        EntityMention("arcadedb", "library", 0.82, 13, 21),
+    )
+    entity = plan_temporal_projection(
+        episode(content="ArcadeDB and arcadedb."),
+        extraction,
+    ).entities[0]
+    observations_json = json.dumps(
+        entity.type_observations,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    statement, params = entity_create_statement(
+        entity,
+        type_observations_json=observations_json,
+        embedding=[],
+        lexical_tokens=[],
+        lexical_weights=[],
+    )
+
+    assert "type_observations_json = :type_observations_json" in statement
+    assert params["type_observations_json"] == '{"library":1,"product":1}'
+
+
+def test_type_observations_json_defaults_to_parseable_empty_object() -> None:
+    entity = replace(
+        plan_temporal_projection(
+            episode(content="ArcadeDB."),
+            extraction_with_entities(EntityMention("ArcadeDB", "product", 0.91, 0, 8)),
+        ).entities[0],
+        type_observations={},
+    )
+
+    _, params = entity_create_statement(
+        entity,
+        type_observations_json=json.dumps(entity.type_observations),
+        embedding=[],
+        lexical_tokens=[],
+        lexical_weights=[],
+    )
+
+    assert params["type_observations_json"] == "{}"
 
 
 def test_entity_and_fact_ids_are_tenant_and_source_scoped() -> None:
