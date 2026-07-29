@@ -213,6 +213,8 @@ def bootstrap(client: SchemaClient, *, dimensions: int, version: int = 1) -> Sch
     for type_name in STABLE_ID_TYPES:
         _bootstrap_stable_id(client, type_name)
 
+    _bootstrap_entity_properties(client)
+
     for type_name in VECTOR_TYPES:
         _bootstrap_vector_channel(client, type_name, config)
         _bootstrap_lexical_channel(client, type_name)
@@ -246,6 +248,10 @@ def _bootstrap_user_identity(client: SchemaClient) -> None:
 def _bootstrap_stable_id(client: SchemaClient, type_name: str) -> None:
     _create_property_if_missing(client, type_name, "id", "STRING")
     _create_index_idempotent(client, f"CREATE INDEX ON {type_name} (id) UNIQUE")
+
+
+def _bootstrap_entity_properties(client: SchemaClient) -> None:
+    client.command("CREATE PROPERTY Entity.type_observations_json IF NOT EXISTS STRING")
 
 
 def _bootstrap_vector_channel(

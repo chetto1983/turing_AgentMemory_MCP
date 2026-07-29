@@ -501,6 +501,7 @@ class _MemoryWriteMixin:
             statements.append(
                 entity_create_statement(
                     entity,
+                    type_observations_json=self._json_dumps(entity.type_observations or {}),
                     embedding=vector,
                     lexical_tokens=lexical_tokens,
                     lexical_weights=lexical_weights,

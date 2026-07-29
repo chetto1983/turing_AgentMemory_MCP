@@ -303,7 +303,7 @@ def test_expand_entity_evidence_runs_two_hop_traversal_on_match_surface(tmp_path
     mem_bob = store.store_message(
         user_identifier="alice", session_id="s1", role="user", content="Bob mentions hiking"
     )
-    bob_id = stable_id("ent", "alice", "person", "bob")
+    bob_id = stable_id("ent", "alice", "bob")
 
     evidence = store._expand_entity_evidence("alice", {bob_id: 1.0}, limit=10)
 

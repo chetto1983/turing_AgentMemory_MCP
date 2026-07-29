@@ -113,13 +113,15 @@ def memory_edge_statement(*, user_identifier: str, memory_id: str) -> Statement:
 def entity_create_statement(
     entity: EntityProjection,
     *,
+    type_observations_json: str = "{}",
     embedding: list[float],
     lexical_tokens: list[int],
     lexical_weights: list[float],
 ) -> Statement:
     return (
         "CREATE VERTEX Entity SET id = :id, user_identifier = :user_identifier, "
-        "entity_type = :entity_type, canonical_name = :canonical_name, "
+        "entity_type = :entity_type, type_observations_json = :type_observations_json, "
+        "canonical_name = :canonical_name, "
         "display_name = :display_name, content = :content, confidence = :confidence, "
         "first_observed_at = :first_observed_at, last_observed_at = :last_observed_at, "
         "source_memory_id = :source_memory_id, schema_version = :schema_version, "
@@ -130,6 +132,7 @@ def entity_create_statement(
             "id": entity.id,
             "user_identifier": entity.user_identifier,
             "entity_type": entity.entity_type,
+            "type_observations_json": type_observations_json,
             "canonical_name": entity.canonical_name,
             "display_name": entity.display_name,
             "content": entity.content,
