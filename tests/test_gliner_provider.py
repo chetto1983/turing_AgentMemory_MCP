@@ -137,6 +137,17 @@ def test_concurrent_batch_bounds_calls_in_flight() -> None:
     assert model.max_active == 2
 
 
+def test_batch_size_semantics_are_concurrency_width_not_model_batch_size() -> None:
+    texts = [f"text-{index}" for index in range(12)]
+    model = ConcurrentEntityModel(delays=dict.fromkeys(texts, 0.04))
+
+    results = run_concurrent_batch(model, texts, batch_size=4)
+
+    assert len(results) == 12
+    assert len(model.calls) == 12
+    assert model.max_active == 4
+
+
 def test_concurrent_batch_size_one_stays_sequential_and_ordered() -> None:
     texts = ["first", "second", "third"]
     model = ConcurrentEntityModel(delays=dict.fromkeys(texts, 0.01))

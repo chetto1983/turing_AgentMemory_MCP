@@ -1,4 +1,8 @@
-"""GLiNER2 extraction logic, wire-payload validation, and label-schema handling."""
+"""GLiNER2 extraction, including bounded fan-out over single-text inference calls.
+
+FastGLiNER2Adapter uses concurrency because fast_gliner==0.2.1 has no model-level batched entry
+point; wire-payload validation and label-schema handling remain independent of that mechanism.
+"""
 
 from __future__ import annotations
 
@@ -46,7 +50,10 @@ class ExtractProvider(Protocol):
 
 @dataclass
 class FastGLiNER2Adapter:
-    """Adapt FastGLiNER2's one-text API to the provider batch contract."""
+    """Fan FastGLiNER2's one-text calls out concurrently to the provider batch contract.
+
+    ``batch_size`` bounds concurrency because fast_gliner==0.2.1 cannot batch model inference.
+    """
 
     model: Any
 
