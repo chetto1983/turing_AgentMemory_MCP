@@ -15,6 +15,15 @@ from .search_controls import validate_fusion_weights
 
 DEFAULT_RRF_K = 60
 DEFAULT_CHANNEL_CAP = 200
+HUB_DAMPING_COEFFICIENT = 0.001
+
+
+def hub_damping_factor(linked_count: int) -> float:
+    if linked_count <= 1:
+        return 1.0
+    # mem0 main.py:1754 supplies this coefficient and quadratic shape; D-03 requires
+    # them to counter D-02's deliberate hub creation.
+    return 1.0 / (1.0 + HUB_DAMPING_COEFFICIENT * (linked_count - 1) ** 2)
 
 
 @dataclass(slots=True)
