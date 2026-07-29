@@ -289,7 +289,7 @@ Plans:
 **Goal**: Deliver correct entity resolution across memory and document paths, a measured GLiNER device path starting from the validated CPU baseline, and the whole-document HTTP 400 ingest fix, plus a MuSiQue-style multi-hop evaluation with a pre-committed GO/NO-GO threshold that decides whether a default-OFF document graph channel ships.
 **Depends on:** Phase 7
 **Requirements**: GRAPH-01, GRAPH-02, GRAPH-03, GRAPH-04, PERF-04, FIX-08
-**CPU-first override (2026-07-29):** The CUDA image attempt did not complete. Plan 05 retains and validates the pinned CPU sidecar; plan 06 lands concurrency fan-out; plan 09 must measure the same-code CPU path before the user decides whether to resume CUDA work. CPU-vs-GPU is not decided, GLiREL is not installed or wired, and the full PERF-04 CUDA/binding contract remains pending.
+**CPU-first override (2026-07-29):** The CUDA image attempt did not complete. Plan 05 retains and validates the pinned CPU sidecar; plan 06 lands concurrency fan-out; plan 09 must measure the same-code CPU path before the user decides whether to resume CUDA work. CPU-vs-GPU is not decided, GLiREL is not installed or wired, and the full PERF-04 CUDA/binding contract remains pending. `onnx-community/GLiNER_ITA_BASE` and `onnx-community/gliner_multi-v2.1` are later CPU adapter/model benchmark candidates, not production FastGLiNER2 drop-ins.
 **Success Criteria** (what must be TRUE):
 
   1. Entity identity is keyed on `stable_id("ent", user_identifier, canonical_name)` with `entity_type` demoted to a non-identity attribute plus a `type_observations` map, on both the memory and document paths; mem0's quadratic hub damping `1/(1 + 0.001*(n-1)^2)` ships in the same change as its required counterweight (D-02, D-03).
