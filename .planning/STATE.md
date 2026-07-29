@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 07.1
 current_phase_name: document-graph-rag-and-gliner-gpu
 status: executing
-stopped_at: Completed 07.1-02-PLAN.md
-last_updated: "2026-07-29T08:48:29.736Z"
+stopped_at: Completed 07.1-03-PLAN.md
+last_updated: "2026-07-29T09:09:26.249Z"
 last_activity: 2026-07-29
 last_activity_desc: Phase 07.1 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 67
-  completed_plans: 52
+  completed_plans: 53
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 07.1 (document-graph-rag-and-gliner-gpu) — EXECUTING
-Plan: 2 of 17
+Plan: 3 of 17
 Status: Ready to execute
 Last activity: 2026-07-29 — Phase 07.1 execution started
 
@@ -70,7 +70,7 @@ entire eval-first, build-gated strategy) and D-18 (the requirements creation) to
 gate. Consistent with the recorded project note that GSD's success booleans are unreliable on
 this repo.
 
-Progress: [████████░░] 78%
+Progress: [████████░░] 79%
 
 ## Performance Metrics
 
@@ -152,6 +152,7 @@ Progress: [████████░░] 78%
 | Phase 07 P08 | 20min | 2 tasks | 0 files |
 | Phase 07.1 P01 | 11min | 2 tasks | 2 files |
 | Phase 07.1 P02 | 17min | 2 tasks | 3 files |
+| Phase 07.1 P03 | 15min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -269,6 +270,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 07-08: Human approved the rewritten CLAUDE.md / .claude/CLAUDE.md invariants and the irreversible TuringDB removal ('approved') after reviewing the automated cut-proof evidence.
 - [Phase 07.1]: Keep Phase 8 depending on Phase 7 — Numeric roadmap order already sequences 07.1 before Phase 8, while an added hard edge would falsely reduce Phase 8 parallelism.
 - [Phase 07.1]: Keep the six Phase 07.1 feature requirements Pending after Plan 01 — Plan 01 registers the requirement contracts; later plans deliver and verify their runtime behavior.
+- [Phase 07.1]: Keep internal-whitespace handling in canonicalize_entity_name unchanged — D-02 removes entity type from identity without introducing a second migration-sensitive canonicalization rule.
+- [Phase 07.1]: Persist type_observations as canonical JSON in an ArcadeDB STRING property — The existing bound-parameter JSON convention avoids an unproven embedded-map schema and preserves parseable empty values.
 
 ### Pending Todos
 
@@ -310,6 +313,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-29T08:48:29.712Z
-Stopped at: Completed 07.1-02-PLAN.md
+Last session: 2026-07-29T09:09:26.217Z
+Stopped at: Completed 07.1-03-PLAN.md
 Resume file: None

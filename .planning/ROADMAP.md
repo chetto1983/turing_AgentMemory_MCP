@@ -299,13 +299,13 @@ Plans:
   6. A multi-hop evaluation of 30–50 mechanically verified two-hop questions measures `fused_base`, `entity_boost`, and `fused_graph` on recall@k of the bridging passage set, and a GO requires all four conditions: `fused_graph` beats the best cheap arm by at least +0.10 mean recall@10; improves at least one-third of questions with zero regressions; causes no regression greater than 0.03 on spike 003's 15-question frozen yardstick; and adds no more than 20% latency versus the best cheap arm (D-15).
   7. The verdict artifact states that demand is unmeasured because the evaluation proves efficacy only and cites spike 003's 0/15 as the only real-traffic signal (D-06); on NO-GO, the flag-gated channel and fusion port are deleted while the substrate and evaluation are kept (D-16).
 
-**Plans:** 2/17 plans executed
+**Plans:** 3/17 plans executed
 
 Plans:
 
 - [x] 07.1-01-PLAN.md — Replace the Phase 07.1 roadmap stub and register the six new requirement IDs while preserving no-orphans coverage.
 - [x] 07.1-02-PLAN.md — Extract the document ingest write path into a new mixin to create 600-LOC headroom with zero behavior change.
-- [ ] 07.1-03-PLAN.md — Re-key entity identity on canonical name and accumulate non-identity type observations.
+- [x] 07.1-03-PLAN.md — Re-key entity identity on canonical name and accumulate non-identity type observations.
 - [ ] 07.1-04-PLAN.md — Add mandatory hub damping and characterize document-source diversification.
 - [ ] 07.1-05-PLAN.md — Build a CUDA-capable GLiNER image and wire its Compose GPU reservations.
 - [ ] 07.1-06-PLAN.md — Implement concurrent single-text GLiNER inference while preserving result order and count.
@@ -408,7 +408,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 4/4 | Complete    | 2026-07-16 |
 | 7. Remove TuringDB + Dependency Hardening | 8/8 | Complete    | 2026-07-16 |
-| 7.1. Document Graph RAG and GLiNER GPU (INSERTED) | 2/17 | In Progress|  |
+| 7.1. Document Graph RAG and GLiNER GPU (INSERTED) | 3/17 | In Progress|  |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
 | 10. Security & Governance Hardening | 0/TBD | Not started | - |
