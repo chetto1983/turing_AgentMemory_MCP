@@ -17,22 +17,20 @@ PINNED_GLINER_PYTHON_RE = re.compile(
     r"^FROM python:3\.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf$",
     re.MULTILINE,
 )
-GRANITE_FILENAME = "granite-embedding-311M-multilingual-r2-Q4_K_M.gguf"
-GRANITE_REVISION = "4413a1d4c63ed0aeda030202ad982a613a91f9ea"
-GRANITE_SHA256 = "58d27f63e69ccf7abce27bf6b35bb0edebc3a1c05ad4a3165acaba1cdca107c0"
-GRANITE_URL = (
-    "https://huggingface.co/mykor/granite-embedding-311m-multilingual-r2-GGUF/"
-    f"resolve/{GRANITE_REVISION}/{GRANITE_FILENAME}?download=true"
+QWEN_EMBED_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
+QWEN_EMBED_REVISION = "370f27d7550e0def9b39c1f16d3fbaa13aa67728"
+QWEN_EMBED_SHA256 = "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439"
+QWEN_EMBED_URL = (
+    "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF/"
+    f"resolve/{QWEN_EMBED_REVISION}/{QWEN_EMBED_FILENAME}?download=true"
 )
-QWEN_FILENAME = "Qwen3-Reranker-0.6B-q8_0.gguf"
-QWEN_REVISION = "041387f8ed7ead711b9496b153b682c5b2f5d158"
-QWEN_SHA256 = "8b5337e5baadf83fdd6f7a865dde4b3627fc53a1c8e56cc2f83260dfdd089c49"
-QWEN_URL = (
-    "https://huggingface.co/Mungert/Qwen3-Reranker-0.6B-GGUF/"
-    f"resolve/{QWEN_REVISION}/{QWEN_FILENAME}?download=true"
+QWEN_RERANK_FILENAME = "Qwen3-Reranker-0.6B.Q8_0.gguf"
+QWEN_RERANK_REVISION = "eb9ad47d4e53c2a6abd6158b505f1539d1c5650c"
+QWEN_RERANK_SHA256 = "6ddab39a36c6c87fdb76f0e5f05657012d5dbc97034c0983c157f17ef9f34d55"
+QWEN_RERANK_URL = (
+    "https://huggingface.co/Voodisss/Qwen3-Reranker-0.6B-GGUF-llama_cpp/"
+    f"resolve/{QWEN_RERANK_REVISION}/{QWEN_RERANK_FILENAME}?download=true"
 )
-# Active reranker sidecar as of Phase 3 plan 02 (Qwen3 -> BGE swap; Qwen3 kept provisioned for revert).
-BGE_FILENAME = "bge-reranker-v2-m3-Q8_0.gguf"
 GEMMA_FILENAME = "embeddinggemma-300M-Q8_0.gguf"
 GEMMA_REVISION = "6661a6504c30d8304af13455cb4a5d4f5bc6011f"
 GEMMA_SHA256 = "a0f7b4e13c397a6e1b32c2de75b1f65a14c92ec524d5f674d94a4290a1c4969b"
@@ -113,12 +111,14 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
         assert "--gpu-layers" in service["command"]
         assert "all" in service["command"]
 
-    assert embed["command"][:2] == ["--model", f"/models/pinned/{GRANITE_FILENAME}"]
+    assert embed["command"][:2] == ["--model", f"/models/pinned/{QWEN_EMBED_FILENAME}"]
     assert "--hf-repo" not in embed["command"]
     assert "--hf-file" not in embed["command"]
     assert "--ubatch-size" in embed["command"]
     assert "4096" in embed["command"]
-    assert rerank["command"][:2] == ["--model", f"/models/pinned/{BGE_FILENAME}"]
+    pooling_index = embed["command"].index("--pooling")
+    assert embed["command"][pooling_index + 1] == "last"
+    assert rerank["command"][:2] == ["--model", f"/models/pinned/{QWEN_RERANK_FILENAME}"]
     assert "--hf-repo" not in rerank["command"]
     assert "--hf-file" not in rerank["command"]
     assert "--embedding" in rerank["command"]
@@ -132,15 +132,12 @@ def test_compose_routes_mcp_to_gpu_gguf_sidecars() -> None:
     assert app["depends_on"]["agentmemory-embed"]["condition"] == "service_healthy"
     assert app["depends_on"]["agentmemory-rerank"]["condition"] == "service_healthy"
     assert "EMBED_BASE_URL=${EMBED_BASE_URL:-http://agentmemory-embed:8080}" in app_env
-    assert (
-        "EMBED_MODEL=${EMBED_MODEL:-mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M}"
-        in app_env
-    )
-    assert "EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-768}" in app_env
+    assert "EMBED_MODEL=${EMBED_MODEL:-Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0}" in app_env
+    assert "EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-1024}" in app_env
     assert "EMBED_BATCH_SIZE=${EMBED_BATCH_SIZE:-128}" in app_env
     assert "EMBED_REQUEST_DIMENSIONS" in app_env
     assert "RERANK_BASE_URL=${RERANK_BASE_URL:-http://agentmemory-rerank:8080}" in app_env
-    assert "RERANK_MODEL=${RERANK_MODEL:-bge-reranker-v2-m3-Q8_0.gguf}" in app_env
+    assert "RERANK_MODEL=${RERANK_MODEL:-Qwen3-Reranker-0.6B.Q8_0.gguf}" in app_env
     assert "RERANK_PROVIDER_MIN_SCORE=${RERANK_PROVIDER_MIN_SCORE:-0}" in app_env
     assert "RERANK_CANDIDATE_LIMIT=${RERANK_CANDIDATE_LIMIT:-50}" in app_env
     assert "RERANK_BLEND=${RERANK_BLEND:-1}" in app_env
@@ -216,8 +213,18 @@ def test_compose_provisions_commit_pinned_models_with_exact_checksums() -> None:
     assert "agentmemory-model-init" in services
     script = services["agentmemory-model-init"]["command"][0]
     for url, revision, filename, sha256 in (
-        (GRANITE_URL, GRANITE_REVISION, GRANITE_FILENAME, GRANITE_SHA256),
-        (QWEN_URL, QWEN_REVISION, QWEN_FILENAME, QWEN_SHA256),
+        (
+            QWEN_EMBED_URL,
+            QWEN_EMBED_REVISION,
+            QWEN_EMBED_FILENAME,
+            QWEN_EMBED_SHA256,
+        ),
+        (
+            QWEN_RERANK_URL,
+            QWEN_RERANK_REVISION,
+            QWEN_RERANK_FILENAME,
+            QWEN_RERANK_SHA256,
+        ),
     ):
         assert url in script
         assert f"resolve/{revision}/{filename}" in script

@@ -199,11 +199,12 @@ The Compose stack includes two CUDA llama.cpp GGUF sidecars inside the Compose
 network:
 
 - `agentmemory-embed` serves
-  `mykor/granite-embedding-311m-multilingual-r2-GGUF:Q4_K_M` at
+  `Qwen/Qwen3-Embedding-0.6B-GGUF` with
+  `Qwen3-Embedding-0.6B-Q8_0.gguf` at
   `http://agentmemory-embed:8080/v1/embeddings`.
 - `agentmemory-rerank` serves
-  `Mungert/Qwen3-Reranker-0.6B-GGUF` with
-  `Qwen3-Reranker-0.6B-q8_0.gguf` at
+  `Voodisss/Qwen3-Reranker-0.6B-GGUF-llama_cpp` with
+  `Qwen3-Reranker-0.6B.Q8_0.gguf` at
   `http://agentmemory-rerank:8080/v1/rerank`.
 
 Both sidecars use `ghcr.io/ggml-org/llama.cpp:server-cuda`, run with `gpus: all`,
