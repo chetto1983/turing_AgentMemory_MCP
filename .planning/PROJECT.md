@@ -80,7 +80,9 @@ correctness or tenant isolation is a failure, not progress.
 
 - New product features unrelated to the audited concerns — [this is a stabilization milestone, not a feature milestone]
 - Rewriting the retrieval-fusion algorithm or ranking weights — [current fusion is Validated; stabilize, don't redesign scoring]
-- Changing the embedding model — [would require rebuilding all vectors; orthogonal to stabilization, gate separately]
+- Changing the embedding model outside Phase 07.1's explicitly bounded Qwen3 DEV cutover —
+  [the 2026-07-29 amendment permits one full 1024D rebuild before the phase's retrieval
+  benchmarks; production migration and other model swaps remain out of scope]
 - Frontend/Lab redesign beyond what a concern requires — [not an audited concern this milestone]
 
 ## Context
@@ -97,7 +99,10 @@ correctness or tenant isolation is a failure, not progress.
 - **Architecture — replaced this milestone**: CLAUDE.md invariant #2 (TuringDB canonical) is superseded — **ArcadeDB becomes the sole canonical backend**; TuringDB is removed. ArcadeDB's native vector + full-text are ACID-consistent with graph writes, retiring the SQLite-FTS5 outbox as a separate rebuildable projection. CLAUDE.md invariants must be updated as part of this milestone. The port must preserve tenant isolation (invariant #1) and stable/deterministic IDs (invariant #3).
 - **Tenant isolation**: every read/write explicitly scoped by `user_identifier`, fail-closed on empty — non-negotiable through the port; reinforced by one ArcadeDB database per tenant — [CLAUDE.md invariant #1]
 - **Durability**: ArcadeDB data, the SQLite job DB, staged files (moving to Garage/S3), and audit/span JSONL are the durable state; ArcadeDB persists to its own data volume — [server-side CSV vector loading was a TuringDB constraint and no longer applies]
-- **GPU dependency**: embed/rerank sidecars are GPU-mandatory for the full stack — [CI must degrade gracefully on GPU-less runners]
+- **Provider device baseline — amended 2026-07-29**: GLiNER, embedding, and reranking retain a
+  CPU-capable DEV reference path; GPU acceleration is optional and requires matched measurement
+  before adoption — [CI must still degrade visible heavy tiers to a compile/stub floor on
+  GPU-less runners]
 
 ## Key Decisions
 
