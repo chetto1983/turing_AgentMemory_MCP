@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 07.1
 current_phase_name: document-graph-rag-and-gliner-gpu
 status: executing
-stopped_at: Completed 07.1-07-PLAN.md
-last_updated: "2026-07-29T11:00:41.715Z"
+stopped_at: Completed 07.1-08-PLAN.md
+last_updated: "2026-07-29T13:25:04.547Z"
 last_activity: 2026-07-29
 last_activity_desc: Phase 07.1 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 67
-  completed_plans: 57
+  completed_plans: 58
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 07.1 (document-graph-rag-and-gliner-gpu) — EXECUTING
-Plan: 7 of 17
+Plan: 9 of 17
 Status: Ready to execute
 Last activity: 2026-07-29 — Phase 07.1 execution started
 
@@ -70,7 +70,7 @@ entire eval-first, build-gated strategy) and D-18 (the requirements creation) to
 gate. Consistent with the recorded project note that GSD's success booleans are unreliable on
 this repo.
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
@@ -157,6 +157,7 @@ Progress: [█████████░] 85%
 | Phase 07.1 P05 | 45min | 2 tasks | 4 files |
 | Phase 07.1 P06 | 9min | 2 tasks | 2 files |
 | Phase 07.1 P07 | 10min | 2 tasks | 2 files |
+| Phase 07.1 P08 | 14min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -288,6 +289,10 @@ Recent decisions affecting current work:
 - [Phase ?]: Group ordered per-question values by arm and report mean_set_recall_at_k, improved, and regressed against a named baseline.
 - [Phase ?]: Keep single_passage_answerable independent from bridging_set_recall_at_k so D-07 rejection cannot be conflated with D-08 measurement.
 - [Phase ?]: Keep plan 07 measurement-only: plan 15 captures real three-arm measurements and plan 16 applies the D-15 verdict and D-16 disposition.
+- [Phase ?]: 07.1-08: Import gliner_provider_extraction.MAX_TEXTS as the single client batching authority; do not duplicate or weaken the sidecar limit.
+- [Phase ?]: 07.1-08: Persist entity_extraction only on its owning Chunk; Document metadata contains caller and governance-redaction metadata only.
+- [Phase ?]: 07.1-08: Run whole-text PatternRedactor before chunking; the later per-chunk redaction pass is text-idempotent and preserves prior metadata.
+- [Phase ?]: 07.1-08: Embed processed chunk texts after extraction so vectors describe exactly the committed Chunk text.
 
 ### Pending Todos
 
@@ -330,6 +335,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-29T11:00:41.687Z
-Stopped at: Completed 07.1-07-PLAN.md
+Last session: 2026-07-29T13:24:42.176Z
+Stopped at: Completed 07.1-08-PLAN.md
 Resume file: None

@@ -46,7 +46,7 @@ Requirements for this stabilization milestone. Each maps to roadmap phases. Scop
 - [ ] **FIX-05**: Cooperative-cancellation timeouts wrap provider/DB calls so canceled jobs actually stop
 - [ ] **FIX-06**: Vector rebuild removes stale vectors (no unbounded accumulation / duplicates)
 - [ ] **FIX-07**: Audit sink flushes durably (no lost events on crash)
-- [ ] **FIX-08**: Whole-document GLiNER extraction no longer returns HTTP 400 because extraction runs per chunk after chunking with `MAX_TEXTS=256` sub-batching
+- [x] **FIX-08**: Whole-document GLiNER extraction no longer returns HTTP 400 because extraction runs per chunk after chunking with `MAX_TEXTS=256` sub-batching
 
 ### Security (SEC) — Thrust 2 concerns
 
@@ -160,7 +160,7 @@ Each v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`).
 | FIX-05 | Phase 8 | Pending |
 | FIX-06 | Phase 9 | Pending |
 | FIX-07 | Phase 10 | Pending |
-| FIX-08 | Phase 07.1 | Pending |
+| FIX-08 | Phase 07.1 | Complete |
 | SEC-01 | Phase 10 | Pending |
 | SEC-02 | Phase 10 | Pending |
 | SEC-03 | Phase 10 | Pending |
