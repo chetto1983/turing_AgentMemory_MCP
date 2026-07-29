@@ -64,6 +64,7 @@ class EntityProjection:
     schema_version: str
     model: str
     expires_at: str
+    type_observations: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,7 +123,7 @@ def plan_temporal_projection(
     extraction: MemoryExtraction,
 ) -> TemporalProjection:
     """Build a deterministic, side-effect-free projection for one evidence episode."""
-    canonical_by_key: dict[tuple[str, str], EntityProjection] = {}
+    canonical_by_key: dict[str, EntityProjection] = {}
     entity_id_by_mention: dict[tuple[str, str, int, int], str] = {}
     mentions: list[MentionProjection] = []
     mention_edges: list[EdgeProjection] = []
@@ -131,10 +132,10 @@ def plan_temporal_projection(
         _validate_mention_against_episode(mention, episode.content)
         entity_type = _normalize_identifier(mention.label)
         canonical_name = canonicalize_entity_name(mention.text)
-        key = entity_type, canonical_name
+        key = canonical_name
         entity = canonical_by_key.get(key)
         if entity is None:
-            entity_id = stable_id("ent", episode.user_identifier, entity_type, canonical_name)
+            entity_id = stable_id("ent", episode.user_identifier, canonical_name)
             entity = EntityProjection(
                 id=entity_id,
                 user_identifier=episode.user_identifier,
@@ -148,15 +149,22 @@ def plan_temporal_projection(
                 schema_version=extraction.schema_version,
                 model=extraction.model,
                 expires_at=episode.expires_at,
+                type_observations={entity_type: 1},
             )
             canonical_by_key[key] = entity
-        elif mention.score > entity.confidence:
-            entity = replace(
-                entity,
-                display_name=mention.text,
-                content=f"{mention.text} ({entity_type})",
-                confidence=mention.score,
-            )
+        else:
+            type_observations = dict(entity.type_observations)
+            type_observations[entity_type] = type_observations.get(entity_type, 0) + 1
+            if mention.score > entity.confidence:
+                entity = replace(
+                    entity,
+                    display_name=mention.text,
+                    content=f"{mention.text} ({entity_type})",
+                    confidence=mention.score,
+                    type_observations=type_observations,
+                )
+            else:
+                entity = replace(entity, type_observations=type_observations)
             canonical_by_key[key] = entity
         identity = _mention_identity(mention)
         entity_id_by_mention[identity] = entity.id
