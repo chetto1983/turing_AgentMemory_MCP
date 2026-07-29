@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 07.1
 current_phase_name: document-graph-rag-and-gliner-gpu
 status: executing
-stopped_at: Completed 07.1-06-PLAN.md
-last_updated: "2026-07-29T10:43:03.506Z"
+stopped_at: Completed 07.1-07-PLAN.md
+last_updated: "2026-07-29T11:00:41.715Z"
 last_activity: 2026-07-29
 last_activity_desc: Phase 07.1 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 67
-  completed_plans: 56
+  completed_plans: 57
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 07.1 (document-graph-rag-and-gliner-gpu) — EXECUTING
-Plan: 6 of 17
+Plan: 7 of 17
 Status: Ready to execute
 Last activity: 2026-07-29 — Phase 07.1 execution started
 
@@ -70,7 +70,7 @@ entire eval-first, build-gated strategy) and D-18 (the requirements creation) to
 gate. Consistent with the recorded project note that GSD's success booleans are unreliable on
 this repo.
 
-Progress: [████████░░] 84%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -156,6 +156,7 @@ Progress: [████████░░] 84%
 | Phase 07.1 P04 | 9min | 2 tasks | 2 files |
 | Phase 07.1 P05 | 45min | 2 tasks | 4 files |
 | Phase 07.1 P06 | 9min | 2 tasks | 2 files |
+| Phase 07.1 P07 | 10min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -283,6 +284,10 @@ Recent decisions affecting current work:
 - [Phase ?]: Use ThreadPoolExecutor.map so concurrent GLiNER completion cannot misalign results from their input texts and worker errors propagate.
 - [Phase ?]: Leave batch_extract_memory concurrency unchanged because its relation and classification APIs require separate analysis.
 - [Phase ?]: Make no throughput or device claim in 07.1-06; PERF-04 remains pending until the same-code CPU measurement and explicit device decision.
+- [Phase ?]: Use an additive multi-hop row schema with source_id, question, answer, and bridging_passages; leave the Phase-6 single-evidence loader unchanged.
+- [Phase ?]: Group ordered per-question values by arm and report mean_set_recall_at_k, improved, and regressed against a named baseline.
+- [Phase ?]: Keep single_passage_answerable independent from bridging_set_recall_at_k so D-07 rejection cannot be conflated with D-08 measurement.
+- [Phase ?]: Keep plan 07 measurement-only: plan 15 captures real three-arm measurements and plan 16 applies the D-15 verdict and D-16 disposition.
 
 ### Pending Todos
 
@@ -325,6 +330,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-29T10:43:03.478Z
-Stopped at: Completed 07.1-06-PLAN.md
+Last session: 2026-07-29T11:00:41.687Z
+Stopped at: Completed 07.1-07-PLAN.md
 Resume file: None

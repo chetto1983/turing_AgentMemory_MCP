@@ -300,7 +300,7 @@ Plans:
   6. A multi-hop evaluation of 30–50 mechanically verified two-hop questions measures `fused_base`, `entity_boost`, and `fused_graph` on recall@k of the bridging passage set, and a GO requires all four conditions: `fused_graph` beats the best cheap arm by at least +0.10 mean recall@10; improves at least one-third of questions with zero regressions; causes no regression greater than 0.03 on spike 003's 15-question frozen yardstick; and adds no more than 20% latency versus the best cheap arm (D-15).
   7. The verdict artifact states that demand is unmeasured because the evaluation proves efficacy only and cites spike 003's 0/15 as the only real-traffic signal (D-06); on NO-GO, the flag-gated channel and fusion port are deleted while the substrate and evaluation are kept (D-16).
 
-**Plans:** 6/17 plans executed
+**Plans:** 7/17 plans executed
 
 Plans:
 
@@ -310,7 +310,7 @@ Plans:
 - [x] 07.1-04-PLAN.md — Add mandatory hub damping and characterize document-source diversification.
 - [x] 07.1-05-PLAN.md — Retain and validate the pinned CPU GLiNER sidecar after the incomplete CUDA build attempt; defer the device verdict.
 - [x] 07.1-06-PLAN.md — Implement concurrent single-text GLiNER inference while preserving result order and count.
-- [ ] 07.1-07-PLAN.md — Add deterministic multi-hop scoring, rejection, and question-schema primitives.
+- [x] 07.1-07-PLAN.md — Add deterministic multi-hop scoring, rejection, and question-schema primitives.
 - [ ] 07.1-08-PLAN.md — Fix whole-document HTTP 400 failures with post-chunk extraction and bounded sub-batching.
 - [ ] 07.1-09-PLAN.md — Measure same-code CPU throughput after plan 06, then gate any renewed CUDA binding and contention work on an explicit device decision.
 - [ ] 07.1-10-PLAN.md — Write production Chunk-to-Entity MENTIONS edges and tenant-scoped traversal builders.
@@ -409,7 +409,7 @@ Phases 8–11 depend only on Phase 7 and may be executed in parallel or reordere
 | 5. Per-Tenant ArcadeDB Isolation | 12/12 | In Progress|  |
 | 6. Migration-Correctness Gate | 4/4 | Complete    | 2026-07-16 |
 | 7. Remove TuringDB + Dependency Hardening | 8/8 | Complete    | 2026-07-16 |
-| 7.1. Document Graph RAG and GLiNER GPU (INSERTED) | 6/17 | In Progress|  |
+| 7.1. Document Graph RAG and GLiNER GPU (INSERTED) | 7/17 | In Progress|  |
 | 8. Document Ingestion & Storage Reliability | 0/TBD | Not started | - |
 | 9. Retrieval Performance & Vector Lifecycle | 0/TBD | Not started | - |
 | 10. Security & Governance Hardening | 0/TBD | Not started | - |
