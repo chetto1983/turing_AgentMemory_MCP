@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import math
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from functools import partial
 from http import HTTPStatus
 from typing import Any, Protocol
 
@@ -48,6 +50,39 @@ class FastGLiNER2Adapter:
 
     model: Any
 
+    def _extract_one(
+        self,
+        text: str,
+        *,
+        labels: list[str],
+        threshold: float,
+        include_confidence: bool,
+        include_spans: bool,
+    ) -> list[dict[str, Any]]:
+        raw_entities = self.model.predict_entities(text, labels)
+        if not isinstance(raw_entities, list):
+            raise ValueError("FastGLiNER2 returned a non-list result")
+        entities: list[dict[str, Any]] = []
+        for raw in raw_entities:
+            if not isinstance(raw, dict):
+                continue
+            score = raw.get("score")
+            if (
+                isinstance(score, bool)
+                or not isinstance(score, (int, float))
+                or not math.isfinite(float(score))
+                or float(score) < threshold
+            ):
+                continue
+            entity = _normalize_entity_offsets(text, raw)
+            if not include_confidence:
+                entity.pop("score", None)
+            if not include_spans:
+                entity.pop("start", None)
+                entity.pop("end", None)
+            entities.append(entity)
+        return entities
+
     def batch_extract_entities(
         self,
         texts: list[str],
@@ -58,33 +93,19 @@ class FastGLiNER2Adapter:
         include_confidence: bool,
         include_spans: bool,
     ) -> list[list[dict[str, Any]]]:
-        del batch_size  # FastGLiNER2 currently accepts one text per inference.
-        results: list[list[dict[str, Any]]] = []
-        for text in texts:
-            raw_entities = self.model.predict_entities(text, labels)
-            if not isinstance(raw_entities, list):
-                raise ValueError("FastGLiNER2 returned a non-list result")
-            entities: list[dict[str, Any]] = []
-            for raw in raw_entities:
-                if not isinstance(raw, dict):
-                    continue
-                score = raw.get("score")
-                if (
-                    isinstance(score, bool)
-                    or not isinstance(score, (int, float))
-                    or not math.isfinite(float(score))
-                    or float(score) < threshold
-                ):
-                    continue
-                entity = _normalize_entity_offsets(text, raw)
-                if not include_confidence:
-                    entity.pop("score", None)
-                if not include_spans:
-                    entity.pop("start", None)
-                    entity.pop("end", None)
-                entities.append(entity)
-            results.append(entities)
-        return results
+        if not texts:
+            return []
+        extract_one = partial(
+            self._extract_one,
+            labels=labels,
+            threshold=threshold,
+            include_confidence=include_confidence,
+            include_spans=include_spans,
+        )
+        # fast_gliner==0.2.1 accepts one text per call; its Rust/PyO3 inference releases the
+        # GIL, so this is bounded concurrency rather than model-level batching.
+        with ThreadPoolExecutor(max_workers=batch_size) as executor:
+            return list(executor.map(extract_one, texts))
 
     def batch_extract_memory(
         self,
