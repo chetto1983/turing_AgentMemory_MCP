@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 07.1
 current_phase_name: document-graph-rag-and-gliner-gpu
 status: executing
-stopped_at: Completed 07.1-04-PLAN.md
-last_updated: "2026-07-29T09:24:50.568Z"
+stopped_at: Completed 07.1-05-PLAN.md
+last_updated: "2026-07-29T10:28:25.948Z"
 last_activity: 2026-07-29
 last_activity_desc: Phase 07.1 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 67
-  completed_plans: 54
+  completed_plans: 55
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 ## Current Position
 
 Phase: 07.1 (document-graph-rag-and-gliner-gpu) — EXECUTING
-Plan: 4 of 17
+Plan: 5 of 17
 Status: Ready to execute
 Last activity: 2026-07-29 — Phase 07.1 execution started
 
@@ -70,7 +70,7 @@ entire eval-first, build-gated strategy) and D-18 (the requirements creation) to
 gate. Consistent with the recorded project note that GSD's success booleans are unreliable on
 this repo.
 
-Progress: [████████░░] 81%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -154,6 +154,7 @@ Progress: [████████░░] 81%
 | Phase 07.1 P02 | 17min | 2 tasks | 3 files |
 | Phase 07.1 P03 | 15min | 2 tasks | 6 files |
 | Phase 07.1 P04 | 9min | 2 tasks | 2 files |
+| Phase 07.1 P05 | 45min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -274,6 +275,9 @@ Recent decisions affecting current work:
 - [Phase 07.1]: Keep internal-whitespace handling in canonicalize_entity_name unchanged — D-02 removes entity type from identity without introducing a second migration-sensitive canonicalization rule.
 - [Phase 07.1]: Persist type_observations as canonical JSON in an ArcadeDB STRING property — The existing bound-parameter JSON convention avoids an unproven embedded-map schema and preserves parseable empty values.
 - [Phase 07.1]: Define hub_damping_factor once as a pure reusable D-03 primitive; plans 13, 15, and 17 import it, while plan 12 owns max_per_source=3 document wiring. — Prevents formula drift and preserves diversify_fused as a generic caller-configured primitive.
+- [Phase 07.1]: Use the existing pinned CPU GLiNER sidecar as the next experimental baseline; this changes experiment order and does not decide CPU versus GPU.
+- [Phase 07.1]: Measure CPU only after plan 06 concurrency fan-out, then require an explicit decision before renewed CUDA work; PERF-04 remains pending.
+- [Phase 07.1]: Keep GLiREL out of runtime scope and evaluate GLiNER_ITA_BASE/gliner_multi-v2.1 ONNX conversions only in a separate matched-corpus CPU adapter/model benchmark.
 
 ### Pending Todos
 
@@ -288,6 +292,7 @@ None yet.
 - **Hard ordering (non-negotiable):** ARC-01 baseline (Phase 3) MUST be captured before any ArcadeDB code touches the stack; the ARC-09 migration-correctness gate (Phase 6) MUST pass before TuringDB is removed (Phase 7).
 - **Load-bearing MEDIUM-confidence assumption:** ArcadeDB adequacy as sole backend. Treat the filtered-ANN + Lucene-analyzer validation spike in Phase 4 as mandatory, not optional — there is no coexisting fallback backend.
 - Phases 8–11 parallelize off the port (each depends only on Phase 7); Phase 12 (Docker closing) needs the ArcadeDB, Garage, and Keycloak compose services all present.
+- Before executing 07.1-09, reconcile its GPU-specific PLAN with the 2026-07-29 CPU-first override: measure same-code CPU throughput after plan 06, then obtain an explicit device decision.
 
 ### Quick Tasks Completed
 
@@ -315,6 +320,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-29T09:24:41.458Z
-Stopped at: Completed 07.1-04-PLAN.md
+Last session: 2026-07-29T10:28:25.913Z
+Stopped at: Completed 07.1-05-PLAN.md
 Resume file: None

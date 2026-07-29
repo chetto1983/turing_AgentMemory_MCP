@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 3
+open_count: 4
 waived_count: 0
 fixed_count: 0
-total_count: 3
-last_updated: 2026-07-29T09:09:08.284Z
+total_count: 4
+last_updated: 2026-07-29T10:29:00.174Z
 ---
 
 # Broken Windows Ledger
@@ -18,6 +18,7 @@ last_updated: 2026-07-29T09:09:08.284Z
 | 1 | 07.1 | deviation | tests/test_vector_id_absent.py | 21 | Adding store_documents_ingest.py intentionally adds two parametrized store-module invariant cases, so the green suite count rises from 856 to 858 instead of remaining identical. | open |  | 2026-07-29T08:46:52.041Z |  |
 | 2 | 07.1 | deviation | tests/test_temporal_graph.py |  | Preserved established internal-space canonicalization while testing D-02 type drift on one canonical surface | open |  | 2026-07-29T09:09:07.748Z |  |
 | 3 | 07.1 | deviation | tests/test_store_arcadedb_retrieval.py |  | Aligned direct entity-expansion fixture with the new name-only stored stable ID | open |  | 2026-07-29T09:09:08.284Z |  |
+| 4 | 07.1 | deviation | .planning/phases/07.1-document-graph-rag-and-gliner-gpu/07.1-05-PLAN.md |  | Plan 05 changed from CUDA delivery to validated CPU baseline after explicit user override; PERF-04 remains pending. | open |  | 2026-07-29T10:29:00.174Z |  |
 
 ````json
 [
@@ -55,6 +56,18 @@ last_updated: 2026-07-29T09:09:08.284Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-07-29T09:09:08.284Z",
+    "resolved_at": null
+  },
+  {
+    "id": 4,
+    "kind": "deviation",
+    "phase": "07.1",
+    "file": ".planning/phases/07.1-document-graph-rag-and-gliner-gpu/07.1-05-PLAN.md",
+    "line": null,
+    "description": "Plan 05 changed from CUDA delivery to validated CPU baseline after explicit user override; PERF-04 remains pending.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-07-29T10:29:00.174Z",
     "resolved_at": null
   }
 ]
