@@ -8,6 +8,8 @@ from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from turing_agentmemory_mcp.gliner_provider_extraction import MAX_TEXTS
+
 DEFAULT_METADATA_KEY = "entity_extraction"
 LEGACY_METADATA_KEYS = ("entity_detection",)
 DEFAULT_GLINER_MODEL = "gliner-community/gliner_small-v2.5"
@@ -176,52 +178,57 @@ class HTTPGLiNEREntityProcessor:
         processed = [ProcessedText(text=text, metadata={}) for text in texts]
         if not active_indices:
             return processed
-        active_texts = [texts[index] for index in active_indices]
-        payload = {
-            "texts": active_texts,
-            "labels": self.labels,
-            "threshold": self.threshold,
-            "include_confidence": True,
-            "include_spans": True,
-        }
-        request = Request(
-            self.base_url + "/extract",
-            data=json.dumps(payload).encode("utf-8"),
-            method="POST",
-            headers={"Content-Type": "application/json"},
-        )
-        try:
-            with urlopen(request, timeout=self.timeout_s) as response:
-                decoded = json.loads(response.read().decode("utf-8"))
-        except HTTPError as exc:
-            raise RuntimeError(f"GLiNER provider HTTP {exc.code} at {self.base_url}") from exc
-        except (URLError, OSError, TimeoutError) as exc:
-            raise RuntimeError(f"GLiNER provider unavailable at {self.base_url}") from exc
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"GLiNER provider returned invalid JSON at {self.base_url}") from exc
-        if not isinstance(decoded, dict):
-            raise RuntimeError(f"GLiNER provider returned invalid JSON at {self.base_url}")
-        results = decoded.get("results")
-        if not isinstance(results, list):
-            raise RuntimeError(f"GLiNER provider returned invalid results at {self.base_url}")
-        if len(results) != len(active_texts):
-            raise RuntimeError(
-                f"GLiNER provider returned {len(results)} results for {len(active_texts)} texts at {self.base_url}"
+        for batch_start in range(0, len(active_indices), MAX_TEXTS):
+            batch_indices = active_indices[batch_start : batch_start + MAX_TEXTS]
+            batch_texts = [texts[index] for index in batch_indices]
+            payload = {
+                "texts": batch_texts,
+                "labels": self.labels,
+                "threshold": self.threshold,
+                "include_confidence": True,
+                "include_spans": True,
+            }
+            request = Request(
+                self.base_url + "/extract",
+                data=json.dumps(payload).encode("utf-8"),
+                method="POST",
+                headers={"Content-Type": "application/json"},
             )
-        provider_model = decoded.get("model")
-        if provider_model != self.model_name:
-            raise RuntimeError(f"GLiNER provider model mismatch at {self.base_url}")
-        for index, raw_entities in zip(active_indices, results, strict=True):
-            processed[index] = _processed_text_from_entities(
-                raw_entities,
-                source_text=texts[index],
-                backend=self.backend,
-                model_name=self.model_name,
-                labels=self.labels,
-                threshold=self.threshold,
-                redact=self.redact,
-                metadata_key=self.metadata_key,
-            )
+            try:
+                with urlopen(request, timeout=self.timeout_s) as response:
+                    decoded = json.loads(response.read().decode("utf-8"))
+            except HTTPError as exc:
+                raise RuntimeError(f"GLiNER provider HTTP {exc.code} at {self.base_url}") from exc
+            except (URLError, OSError, TimeoutError) as exc:
+                raise RuntimeError(f"GLiNER provider unavailable at {self.base_url}") from exc
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise RuntimeError(
+                    f"GLiNER provider returned invalid JSON at {self.base_url}"
+                ) from exc
+            if not isinstance(decoded, dict):
+                raise RuntimeError(f"GLiNER provider returned invalid JSON at {self.base_url}")
+            results = decoded.get("results")
+            if not isinstance(results, list):
+                raise RuntimeError(f"GLiNER provider returned invalid results at {self.base_url}")
+            if len(results) != len(batch_texts):
+                raise RuntimeError(
+                    f"GLiNER provider returned {len(results)} results for "
+                    f"{len(batch_texts)} texts at {self.base_url}"
+                )
+            provider_model = decoded.get("model")
+            if provider_model != self.model_name:
+                raise RuntimeError(f"GLiNER provider model mismatch at {self.base_url}")
+            for index, raw_entities in zip(batch_indices, results, strict=True):
+                processed[index] = _processed_text_from_entities(
+                    raw_entities,
+                    source_text=texts[index],
+                    backend=self.backend,
+                    model_name=self.model_name,
+                    labels=self.labels,
+                    threshold=self.threshold,
+                    redact=self.redact,
+                    metadata_key=self.metadata_key,
+                )
         return processed
 
 
