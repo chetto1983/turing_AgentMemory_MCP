@@ -10,6 +10,7 @@ from __future__ import annotations
 from turing_agentmemory_mcp.store_chunking import _ChunkingMixin
 from turing_agentmemory_mcp.store_core import _StoreCore
 from turing_agentmemory_mcp.store_documents import _DocumentMixin
+from turing_agentmemory_mcp.store_documents_ingest import _DocumentsIngestMixin
 from turing_agentmemory_mcp.store_evidence import _EvidenceMixin
 from turing_agentmemory_mcp.store_memory_read import _MemoryReadMixin
 from turing_agentmemory_mcp.store_memory_write import _MemoryWriteMixin
@@ -26,6 +27,7 @@ class TuringAgentMemory(
     _SearchMixin,
     _EvidenceMixin,
     _DocumentMixin,
+    _DocumentsIngestMixin,
     _ChunkingMixin,
     _RebuildMixin,
     _UtilsMixin,
