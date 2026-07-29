@@ -5,7 +5,11 @@ import math
 import pytest
 
 from turing_agentmemory_mcp.models import RetrievalCandidate
-from turing_agentmemory_mcp.retrieval_fusion import diversify_fused, fuse_rankings
+from turing_agentmemory_mcp.retrieval_fusion import (
+    diversify_fused,
+    fuse_rankings,
+    hub_damping_factor,
+)
 
 
 def candidate(
@@ -23,6 +27,24 @@ def candidate(
         evidence_source_ids=evidence_source_ids,
         raw_score=raw_score,
     )
+
+
+def test_hub_damping_matches_mem0_worked_values() -> None:
+    assert hub_damping_factor(1) == 1.0
+    assert round(hub_damping_factor(5), 2) == 0.98
+    assert round(hub_damping_factor(100), 2) == 0.09
+
+
+@pytest.mark.parametrize("linked_count", [0, -1, -3])
+def test_hub_damping_does_not_penalize_defensive_inputs(linked_count: int) -> None:
+    assert hub_damping_factor(linked_count) == 1.0
+
+
+def test_hub_damping_is_monotonic_and_strictly_positive() -> None:
+    values = [hub_damping_factor(linked_count) for linked_count in range(1, 201)]
+
+    assert all(left >= right for left, right in zip(values, values[1:], strict=False))
+    assert all(0.0 < value <= 1.0 for value in values)
 
 
 def test_rrf_uses_rank_not_incomparable_raw_score_magnitude() -> None:
