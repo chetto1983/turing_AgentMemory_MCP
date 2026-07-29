@@ -9,7 +9,9 @@ ArcadeDB container is required.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from urllib.error import HTTPError
 
 from _batch_memory_shared import CountingBatchEmbedder
 from _documents_arcadedb_shared import (
@@ -19,6 +21,10 @@ from _documents_arcadedb_shared import (
     make_document_store,
 )
 
+import turing_agentmemory_mcp.entity_extraction as entity_extraction
+from turing_agentmemory_mcp.entity_extraction import entity_processor_from_env
+from turing_agentmemory_mcp.gliner_provider_extraction import MAX_TEXT_CHARS, MAX_TEXTS
+from turing_agentmemory_mcp.governance import PatternRedactor
 from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.store_documents_queries import escape_lucene_query
 
@@ -34,6 +40,146 @@ _STORE_DOCUMENTS_QUERIES_PATH = (
     / "turing_agentmemory_mcp"
     / "store_documents_queries.py"
 )
+
+
+def _make_http_entity_store(monkeypatch, tmp_path: Path):
+    requests: list[dict[str, object]] = []
+
+    class FakeResponse:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self.payload = payload
+
+        def __enter__(self) -> FakeResponse:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            texts = self.payload["texts"]
+            assert isinstance(texts, list)
+            results: list[dict[str, object]] = []
+            for text in texts:
+                assert isinstance(text, str)
+                people = []
+                for name in ("Alice", "Bob"):
+                    start = text.find(name)
+                    if start >= 0:
+                        people.append(
+                            {
+                                "text": name,
+                                "start": start,
+                                "end": start + len(name),
+                                "confidence": 0.9,
+                            }
+                        )
+                results.append({"entities": {"person": people} if people else {}})
+            return json.dumps(
+                {
+                    "model": "fastino/gliner2-base-v1",
+                    "results": results,
+                }
+            ).encode("utf-8")
+
+    def fake_urlopen(request, *, timeout: float):
+        payload = json.loads(request.data.decode("utf-8"))
+        requests.append(payload)
+        texts = payload["texts"]
+        assert isinstance(texts, list)
+        if len(texts) > MAX_TEXTS or any(
+            isinstance(text, str) and len(text) > MAX_TEXT_CHARS for text in texts
+        ):
+            raise HTTPError(request.full_url, 400, "Bad Request", None, None)
+        return FakeResponse(payload)
+
+    monkeypatch.setattr(entity_extraction, "urlopen", fake_urlopen, raising=False)
+    monkeypatch.setenv("GLINER_ENABLED", "1")
+    monkeypatch.setenv("GLINER_BACKEND", "gliner2_http")
+    monkeypatch.setenv("GLINER_BASE_URL", "http://agentmemory-gliner:8080")
+    monkeypatch.setenv("GLINER_MODEL", "fastino/gliner2-base-v1")
+    monkeypatch.setenv("GLINER_LABELS", "person")
+
+    client = _FakeArcadeDBClient()
+    embedder = CountingBatchEmbedder()
+    store = make_document_store(client, tmp_path, embedder)
+    store.entity_processor = entity_processor_from_env()
+    store.redactor = PatternRedactor()
+    return store, client, embedder, requests
+
+
+def test_document_ingest_avoids_whole_document_http_400_and_redacts_before_chunking(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    store, client, embedder, requests = _make_http_entity_store(monkeypatch, tmp_path)
+    secret = "token=abcdefghijklm"
+    prefix = "x" * 354
+    text = f"{prefix} {secret} " + ("y" * (60_000 - len(prefix) - len(secret) - 2))
+
+    document = store.ingest_document_text(
+        user_identifier="alice",
+        document_id="doc-large",
+        title="Large runbook",
+        text=text,
+        chunk_chars=360,
+    )
+
+    chunks = committed_by_type(client, "Chunk")
+    stored_texts = [str(chunk["text"]) for chunk in chunks]
+    assert document.chunk_count == len(chunks) > 1
+    assert all(len(text) <= MAX_TEXT_CHARS for request in requests for text in request["texts"])
+    assert secret not in "".join(stored_texts)
+    assert "[API_KEY]" in "".join(stored_texts)
+    assert all(secret not in text for request in requests for text in request["texts"])
+    assert embedder.embed_many_calls[-1] == stored_texts
+    assert "entity_extraction" not in document.metadata
+    assert document.metadata["redaction"]["redacted"] is True
+
+
+def test_document_ingest_sub_batches_more_than_max_texts_chunks(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    store, client, _, requests = _make_http_entity_store(monkeypatch, tmp_path)
+    paragraphs = [f"{index:03d}-" + ("z" * 346) for index in range(MAX_TEXTS + 1)]
+
+    store.ingest_document_text(
+        user_identifier="alice",
+        document_id="doc-many-chunks",
+        title="Many chunks",
+        text="\n".join(paragraphs),
+        chunk_chars=360,
+    )
+
+    assert len(committed_by_type(client, "Chunk")) == MAX_TEXTS + 1
+    assert [len(request["texts"]) for request in requests] == [MAX_TEXTS, 1]
+
+
+def test_document_ingest_persists_per_chunk_metadata(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    store, client, _, _ = _make_http_entity_store(monkeypatch, tmp_path)
+
+    document = store.ingest_document_text(
+        user_identifier="alice",
+        document_id="doc-entities",
+        title="Entity chunks",
+        text="Alice plans work\nBob reviews code",
+        chunk_chars=20,
+    )
+
+    chunk_metadata = [
+        json.loads(str(chunk["metadata_json"])) for chunk in committed_by_type(client, "Chunk")
+    ]
+    entity_lists = [metadata["entity_extraction"]["entities"] for metadata in chunk_metadata]
+    assert [[entity["text"] for entity in entities] for entities in entity_lists] == [
+        ["Alice"],
+        ["Bob"],
+    ]
+    assert entity_lists[0] != entity_lists[1]
+    assert "entity_extraction" not in document.metadata
+
 
 # -- Task 1, Test 1: ingest CREATEs one Document + N Chunk vertices + N
 # HAS_CHUNK + (N-1) NEXT_CHUNK edges in ONE managed transaction --
