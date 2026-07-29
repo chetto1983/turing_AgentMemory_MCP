@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from turing_agentmemory_mcp.models import RetrievalCandidate
+from turing_agentmemory_mcp.models import FusedRetrievalCandidate, RetrievalCandidate
 from turing_agentmemory_mcp.retrieval_fusion import (
     diversify_fused,
     fuse_rankings,
@@ -26,6 +26,28 @@ def candidate(
         source_memory_id=source_memory_id or candidate_id,
         evidence_source_ids=evidence_source_ids,
         raw_score=raw_score,
+    )
+
+
+def document_fused_candidates(source_memory_id: str) -> list[FusedRetrievalCandidate]:
+    return fuse_rankings(
+        {
+            "dense": [
+                RetrievalCandidate(
+                    candidate_id=chunk_id,
+                    kind="chunk",
+                    content=f"content {chunk_id}",
+                    source_memory_id=source_memory_id,
+                    raw_score=raw_score,
+                )
+                for chunk_id, raw_score in (
+                    ("chunk-a", 0.9),
+                    ("chunk-b", 0.8),
+                    ("chunk-c", 0.7),
+                )
+            ]
+        },
+        weights={"dense": 1.0},
     )
 
 
@@ -180,6 +202,37 @@ def test_diversity_caps_repeated_source_but_preserves_multihop_evidence() -> Non
 
     assert [item.candidate.candidate_id for item in diversified] == ["fact-1", "episode-2"]
     assert fused[1].candidate.evidence_source_ids == ("episode-1", "episode-3")
+
+
+class TestDocumentDiversifyContract:
+    """Keep plan 12 from copying memory search's one-result-per-source cap."""
+
+    def test_document_diversify_caps_shared_document_at_one_chunk(self) -> None:
+        diversified = diversify_fused(
+            document_fused_candidates("doc-1"),
+            limit=10,
+            max_per_source=1,
+        )
+
+        assert len(diversified) == 1
+
+    def test_document_diversify_allows_three_chunks_from_shared_document(self) -> None:
+        diversified = diversify_fused(
+            document_fused_candidates("doc-1"),
+            limit=10,
+            max_per_source=3,
+        )
+
+        assert len(diversified) == 3
+
+    def test_document_diversify_falls_back_to_distinct_chunk_ids(self) -> None:
+        diversified = diversify_fused(
+            document_fused_candidates(""),
+            limit=10,
+            max_per_source=1,
+        )
+
+        assert len(diversified) == 3
 
 
 @pytest.mark.parametrize(
