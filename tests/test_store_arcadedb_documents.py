@@ -129,7 +129,7 @@ def test_document_ingest_avoids_whole_document_http_400_and_redacts_before_chunk
     assert document.chunk_count == len(chunks) > 1
     assert all(len(text) <= MAX_TEXT_CHARS for request in requests for text in request["texts"])
     assert secret not in "".join(stored_texts)
-    assert "[API_KEY]" in "".join(stored_texts)
+    assert "[API-KEY]" in "".join(stored_texts)
     assert all(secret not in text for request in requests for text in request["texts"])
     assert embedder.embed_many_calls[-1] == stored_texts
     assert "entity_extraction" not in document.metadata

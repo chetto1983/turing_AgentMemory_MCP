@@ -52,7 +52,9 @@ class _DocumentsIngestMixin:
                 raise ValueError("title is required")
             if not text.strip():
                 raise ValueError("text is required")
-            text, metadata = self._process_text_for_storage(text, metadata)
+            text, metadata = self._redact_for_storage(text, dict(metadata or {}))
+            for key in getattr(self.entity_processor, "metadata_keys", ()):
+                metadata.pop(str(key), None)
             document_id = document_id or stable_id("doc", user_identifier, title, text[:128])
             text_hash = self._document_text_hash(text)
             chunks = self._chunk_document_text(text, chunk_chars=chunk_chars)
@@ -120,7 +122,9 @@ class _DocumentsIngestMixin:
                 raise ValueError("title is required")
             if not text.strip():
                 raise ValueError("text is required")
-            text, metadata = self._process_text_for_storage(text, metadata)
+            text, metadata = self._redact_for_storage(text, dict(metadata or {}))
+            for key in getattr(self.entity_processor, "metadata_keys", ()):
+                metadata.pop(str(key), None)
             existing = self.get_document(user_identifier=user_identifier, document_id=document_id)
             # HI-03: hard-delete (not the soft `delete_document()` a
             # user-facing delete uses -- a soft-deleted row still occupies
@@ -195,8 +199,11 @@ class _DocumentsIngestMixin:
         updated_at = self._now_iso()
         clean_tags = self._clean_tags(tags)
         clean_metadata = dict(metadata or {})
+        processed_chunks = self._process_texts_for_storage(
+            [(chunk_text, dict(clean_metadata)) for chunk_text in chunks]
+        )
         # PERF-01: one batched embedding round-trip for every chunk.
-        vectors = self._embed_many(chunks)
+        vectors = self._embed_many([chunk_text for chunk_text, _ in processed_chunks])
 
         # HI-03: `extra_statements` (reindex_document_text's hard-delete of
         # the old Document/Chunk rows) runs FIRST in the SAME transaction as
@@ -207,7 +214,7 @@ class _DocumentsIngestMixin:
                 document_id=document_id,
                 user_identifier=user_identifier,
                 title=title,
-                chunk_count=len(chunks),
+                chunk_count=len(processed_chunks),
                 chunk_chars=chunk_chars,
                 text_hash=text_hash,
                 source=source,
@@ -220,7 +227,10 @@ class _DocumentsIngestMixin:
             document_edge_statement(user_identifier=user_identifier, document_id=document_id),
         ]
         previous_chunk_id = ""
-        for idx, (chunk_text, vector) in enumerate(zip(chunks, vectors, strict=True), start=1):
+        for idx, ((chunk_text, chunk_metadata), vector) in enumerate(
+            zip(processed_chunks, vectors, strict=True),
+            start=1,
+        ):
             # ARC-08: stable_id() is the sole chunk identifier -- no legacy
             # synthetic-integer join property.
             chunk_id = stable_id("chunk", user_identifier, document_id, str(idx))
@@ -236,7 +246,7 @@ class _DocumentsIngestMixin:
                     locator=locator,
                     source=source,
                     tags_json=self._json_dumps(clean_tags),
-                    metadata_json=self._json_dumps(clean_metadata),
+                    metadata_json=self._json_dumps(chunk_metadata),
                     created_at=created_at,
                     updated_at=updated_at,
                     expires_at=expires_at,
@@ -271,7 +281,7 @@ class _DocumentsIngestMixin:
         return IngestedDocument(
             document_id=document_id,
             title=title,
-            chunk_count=len(chunks),
+            chunk_count=len(processed_chunks),
             user_identifier=user_identifier,
             created_at=created_at,
             updated_at=updated_at,

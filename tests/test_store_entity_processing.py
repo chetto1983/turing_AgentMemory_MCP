@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -279,31 +280,36 @@ def test_store_messages_malformed_batch_entity_result_prevents_all_writes(tmp_pa
 # probe this store now calls.
 
 
-def test_document_ingest_extracts_entities_before_chunking_hashing_and_persistence(
+def test_document_ingest_extracts_entities_per_chunk_before_embedding_and_persistence(
     tmp_path: Path,
 ) -> None:
     embedder = CountingEmbedder()
     store = RecordingStore(tmp_path, embedder)
+    text = "TuringDB stores entities\nPlain second chunk"
 
     item = store.ingest_document_text(
         user_identifier="alice",
         title="Contact",
-        text="TuringDB can store entity-rich documents",
+        text=text,
+        chunk_chars=24,
         metadata={"classification": "internal"},
     )
 
     assert item.metadata["classification"] == "internal"
-    assert item.metadata["entity_extraction"]["redacted"] is False
-    assert item.text_hash == store._document_text_hash("TuringDB can store entity-rich documents")
-    assert embedder.embed_many_calls == [["TuringDB can store entity-rich documents"]]
+    assert "entity_extraction" not in item.metadata
+    assert item.text_hash == store._document_text_hash(text)
+    assert embedder.embed_many_calls == [["TuringDB stores entities", "Plain second chunk"]]
     assert embedder.embed_calls == []
-    # Chunk text is a bound param now, not string-interpolated (Pitfall 2) --
-    # the unmutated (entity-processed) text still round-trips into the
-    # CREATE VERTEX Chunk write.
     chunk_creates = [
         params
         for query, params in zip(store.write_queries, store.write_params, strict=True)
         if query.startswith("CREATE VERTEX Chunk") and params is not None
     ]
-    assert chunk_creates
-    assert chunk_creates[0]["text"] == "TuringDB can store entity-rich documents"
+    assert [chunk["text"] for chunk in chunk_creates] == [
+        "TuringDB stores entities",
+        "Plain second chunk",
+    ]
+    first_metadata = json.loads(str(chunk_creates[0]["metadata_json"]))
+    second_metadata = json.loads(str(chunk_creates[1]["metadata_json"]))
+    assert first_metadata["entity_extraction"]["entities"][0]["text"] == "TuringDB"
+    assert "entity_extraction" not in second_metadata
