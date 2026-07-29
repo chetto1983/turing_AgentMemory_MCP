@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from turing_agentmemory_mcp.ids import stable_id
 from turing_agentmemory_mcp.memory_extraction import (
     Classification,
     EntityMention,
@@ -10,6 +11,7 @@ from turing_agentmemory_mcp.memory_extraction import (
 )
 from turing_agentmemory_mcp.temporal_graph import (
     EpisodeContext,
+    canonicalize_entity_name,
     normalize_date_expression,
     plan_temporal_projection,
 )
@@ -47,6 +49,10 @@ def episode(**overrides: object) -> EpisodeContext:
     }
     values.update(overrides)
     return EpisodeContext(**values)  # type: ignore[arg-type]
+
+
+def extraction_with_entities(*entities: EntityMention) -> MemoryExtraction:
+    return replace(extraction_with_relations(), entities=entities, relations=())
 
 
 def test_projection_is_deterministic_and_preserves_fact_provenance() -> None:
@@ -119,6 +125,85 @@ def test_entity_canonicalization_keeps_highest_confidence_display_evidence() -> 
     assert projection.entities[0].display_name == "Caroline"
     assert projection.entities[0].content == "Caroline (person)"
     assert projection.entities[0].confidence == 0.94
+
+
+def test_entity_key_uses_canonical_name_without_type_and_remains_tenant_scoped() -> None:
+    content = "ArcadeDB and arcadedb and ARCADEDB."
+    extraction = extraction_with_entities(
+        EntityMention("ArcadeDB", "product", 0.71, 0, 8),
+        EntityMention("arcadedb", "library", 0.83, 13, 21),
+        EntityMention("ARCADEDB", "framework", 0.94, 26, 34),
+    )
+
+    alice = plan_temporal_projection(episode(content=content), extraction)
+    bob = plan_temporal_projection(
+        episode(user_identifier="bob", content=content),
+        extraction,
+    )
+
+    expected_id = stable_id(
+        "ent",
+        "alice",
+        canonicalize_entity_name("ArcadeDB"),
+    )
+    assert len(alice.entities) == 1
+    assert alice.entities[0].id == expected_id
+    assert {mention.entity_id for mention in alice.mentions} == {expected_id}
+    assert bob.entities[0].id != expected_id
+    assert alice.entities[0].entity_type == "product"
+    assert alice.entities[0].display_name == "ARCADEDB"
+    assert alice.entities[0].content == "ARCADEDB (framework)"
+
+
+def test_type_observations_accumulate_drifting_entity_labels() -> None:
+    extraction = extraction_with_entities(
+        EntityMention("ArcadeDB", "product", 0.91, 0, 8),
+        EntityMention("arcadedb", "library", 0.82, 13, 21),
+        EntityMention("ARCADEDB", "framework", 0.73, 26, 34),
+    )
+
+    projection = plan_temporal_projection(
+        episode(content="ArcadeDB and arcadedb and ARCADEDB."),
+        extraction,
+    )
+
+    assert projection.entities[0].type_observations == {
+        "product": 1,
+        "library": 1,
+        "framework": 1,
+    }
+
+
+def test_type_observations_increment_repeated_labels() -> None:
+    extraction = extraction_with_entities(
+        EntityMention("ArcadeDB", "product", 0.91, 0, 8),
+        EntityMention("arcadedb", "product", 0.82, 14, 22),
+    )
+
+    projection = plan_temporal_projection(
+        episode(content="ArcadeDB plus arcadedb."),
+        extraction,
+    )
+
+    assert projection.entities[0].type_observations == {"product": 2}
+
+
+def test_type_observations_merge_later_mentions_without_overwrite() -> None:
+    extraction = extraction_with_entities(
+        EntityMention("ArcadeDB", "product", 0.91, 0, 8),
+        EntityMention("arcadedb", "library", 0.82, 14, 22),
+        EntityMention("ARCADEDB", "product", 0.73, 27, 35),
+    )
+
+    projection = plan_temporal_projection(
+        episode(content="ArcadeDB then arcadedb and ARCADEDB."),
+        extraction,
+    )
+
+    assert projection.entities[0].type_observations == {
+        "product": 2,
+        "library": 1,
+    }
 
 
 def test_entity_and_fact_ids_are_tenant_and_source_scoped() -> None:
