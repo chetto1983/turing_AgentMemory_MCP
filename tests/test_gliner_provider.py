@@ -3,13 +3,15 @@ from __future__ import annotations
 import signal
 import sys
 import threading
+import time
 from types import SimpleNamespace
 
 import pytest
 from _gliner_provider_shared import extract_payload, memory_payload, memory_result
 
 import turing_agentmemory_mcp.gliner_provider as gliner_provider
-from turing_agentmemory_mcp.gliner_provider import GLiNERProvider
+import turing_agentmemory_mcp.gliner_provider_extraction as gliner_provider_extraction
+from turing_agentmemory_mcp.gliner_provider import FastGLiNER2Adapter, GLiNERProvider
 from turing_agentmemory_mcp.memory_extraction import MEMORY_EXTRACTION_SCHEMA_VERSION
 
 
@@ -53,6 +55,166 @@ class FakeModel:
             }
             for text in texts
         ]
+
+
+class ConcurrentEntityModel:
+    def __init__(
+        self,
+        *,
+        delays: dict[str, float] | None = None,
+        responses: dict[str, object] | None = None,
+        failure_text: str | None = None,
+    ) -> None:
+        self.delays = delays or {}
+        self.responses = responses or {}
+        self.failure_text = failure_text
+        self.calls: list[str] = []
+        self.completions: list[str] = []
+        self.active = 0
+        self.max_active = 0
+        self.lock = threading.Lock()
+
+    def predict_entities(self, text: str, labels: list[str]) -> object:
+        if isinstance(text, list):
+            raise AssertionError("FastGLiNER2 accepts one string per inference")
+        with self.lock:
+            self.calls.append(text)
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+        try:
+            time.sleep(self.delays.get(text, 0.01))
+            if text == self.failure_text:
+                raise RuntimeError("single-text inference failed")
+            return self.responses.get(
+                text,
+                [{"text": text, "label": labels[0], "score": 0.9, "start": 0, "end": len(text)}],
+            )
+        finally:
+            with self.lock:
+                self.active -= 1
+                self.completions.append(text)
+
+
+def run_concurrent_batch(
+    model: ConcurrentEntityModel,
+    texts: list[str],
+    *,
+    batch_size: int,
+    include_confidence: bool = True,
+    include_spans: bool = True,
+) -> list[list[dict[str, object]]]:
+    return FastGLiNER2Adapter(model).batch_extract_entities(
+        texts,
+        ["project"],
+        batch_size=batch_size,
+        threshold=0.5,
+        include_confidence=include_confidence,
+        include_spans=include_spans,
+    )
+
+
+def test_concurrent_batch_preserves_input_order_count_and_single_string_calls() -> None:
+    texts = ["slowest", "slower", "faster", "fastest"]
+    model = ConcurrentEntityModel(delays=dict(zip(texts, [0.16, 0.12, 0.08, 0.04], strict=True)))
+
+    results = run_concurrent_batch(model, texts, batch_size=4)
+
+    assert [entities[0]["text"] for entities in results] == texts
+    assert len(results) == len(texts)
+    assert sorted(model.calls) == sorted(texts)
+    assert model.max_active == 4
+    assert model.completions == list(reversed(texts))
+
+
+def test_concurrent_batch_bounds_calls_in_flight() -> None:
+    texts = [f"text-{index}" for index in range(8)]
+    model = ConcurrentEntityModel(delays=dict.fromkeys(texts, 0.04))
+
+    results = run_concurrent_batch(model, texts, batch_size=2)
+
+    assert len(results) == len(texts)
+    assert len(model.calls) == len(texts)
+    assert model.max_active == 2
+
+
+def test_concurrent_batch_size_one_stays_sequential_and_ordered() -> None:
+    texts = ["first", "second", "third"]
+    model = ConcurrentEntityModel(delays=dict.fromkeys(texts, 0.01))
+
+    results = run_concurrent_batch(model, texts, batch_size=1)
+
+    assert [entities[0]["text"] for entities in results] == texts
+    assert model.calls == texts
+    assert model.max_active == 1
+
+
+def test_concurrent_batch_empty_input_does_not_construct_pool(monkeypatch) -> None:
+    def fail_pool_construction(*args: object, **kwargs: object) -> None:
+        pytest.fail("empty input must not construct a thread pool")
+
+    monkeypatch.setattr(
+        gliner_provider_extraction,
+        "ThreadPoolExecutor",
+        fail_pool_construction,
+        raising=False,
+    )
+    model = ConcurrentEntityModel()
+
+    assert run_concurrent_batch(model, [], batch_size=4) == []
+    assert model.calls == []
+
+
+@pytest.mark.parametrize(
+    ("include_confidence", "include_spans", "expected"),
+    [
+        (False, False, {"text": "Alice", "label": "person"}),
+        (
+            True,
+            True,
+            {"text": "Alice", "label": "person", "score": 0.9, "start": 0, "end": 5},
+        ),
+    ],
+)
+def test_concurrent_batch_preserves_entity_filters(
+    include_confidence: bool,
+    include_spans: bool,
+    expected: dict[str, object],
+) -> None:
+    text = "Alice works here"
+    model = ConcurrentEntityModel(
+        responses={
+            text: [
+                "not-a-dict",
+                {"text": "Alice", "label": "person", "score": True, "start": 0, "end": 5},
+                {"text": "Alice", "label": "person", "score": "0.9", "start": 0, "end": 5},
+                {"text": "Alice", "label": "person", "score": float("nan"), "start": 0, "end": 5},
+                {"text": "Alice", "label": "person", "score": 0.49, "start": 0, "end": 5},
+                {"text": "Alice", "label": "person", "score": 0.9, "start": 0, "end": 5},
+            ]
+        }
+    )
+
+    assert run_concurrent_batch(
+        model,
+        [text],
+        batch_size=2,
+        include_confidence=include_confidence,
+        include_spans=include_spans,
+    ) == [[expected]]
+
+
+def test_concurrent_batch_propagates_single_text_error() -> None:
+    model = ConcurrentEntityModel(failure_text="broken")
+
+    with pytest.raises(RuntimeError, match="single-text inference failed"):
+        run_concurrent_batch(model, ["first", "broken", "third"], batch_size=2)
+
+
+def test_concurrent_batch_rejects_non_list_model_result() -> None:
+    model = ConcurrentEntityModel(responses={"broken": {"not": "a list"}})
+
+    with pytest.raises(ValueError, match="FastGLiNER2 returned a non-list result"):
+        run_concurrent_batch(model, ["broken"], batch_size=2)
 
 
 def test_extract_memory_requires_schema_version_and_preserves_order() -> None:
